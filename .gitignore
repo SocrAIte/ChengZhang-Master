@@ -5,6 +5,7 @@ __pycache__/
 .ruff_cache/
 .venv/
 outputs/
+reports/
 data/generated/
 data/mappings.enriched.json
 data/external_snapshot.live.json

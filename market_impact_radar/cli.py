@@ -13,6 +13,7 @@ from .backtest import (
 )
 from .a_share_sources import fetch_a_share_snapshot
 from .dashboard import render_dashboard_html
+from .daily_runner import DailyRunOptions, run_daily
 from .intraday import evaluate_intraday, render_intraday_report
 from .io import load_json, load_mappings, write_text
 from .knowledge_crawler import crawl_and_enrich
@@ -83,6 +84,27 @@ def main() -> int:
     dashboard_parser.add_argument("--no-validate", action="store_true", help="跳过输入 JSON schema 校验")
     dashboard_parser.add_argument("--output", required=True, help="输出 HTML 文件")
     dashboard_parser.add_argument("--date", help="看板日期，默认使用本机日期")
+
+    run_daily_parser = subparsers.add_parser("run-daily", help="Run the daily radar workflow")
+    run_daily_parser.add_argument("--date", help="Run date, default is local today")
+    run_daily_parser.add_argument("--output-root", default="reports/daily", help="Daily output root")
+    run_daily_parser.add_argument("--mapping", default=DEFAULT_MAPPING, help="Mapping JSON")
+    run_daily_parser.add_argument("--external", help="Existing external snapshot JSON; if omitted, fetch live data")
+    run_daily_parser.add_argument("--context", help="A-share context JSON")
+    run_daily_parser.add_argument("--historical-edges", help="Historical edges JSON")
+    run_daily_parser.add_argument("--scoring-rules", default=DEFAULT_SCORING_RULES, help="Scoring rules JSON")
+    run_daily_parser.add_argument("--a-share-watchlist", default="data/a_share_watchlist.sample.json", help="A-share watchlist JSON")
+    run_daily_parser.add_argument("--a-share-snapshot", help="Existing A-share snapshot JSON; if omitted, fetch live data")
+    run_daily_parser.add_argument("--generated-dir", default="data/generated", help="Knowledge crawler generated cache dir")
+    run_daily_parser.add_argument("--sources", default="yahoo", help="Comma-separated external quote sources")
+    run_daily_parser.add_argument("--symbols", help="Comma-separated external symbols; default uses mappings")
+    run_daily_parser.add_argument("--max-source-diff-pct", type=float, default=0.5, help="Allowed source divergence")
+    run_daily_parser.add_argument("--max-age-minutes", type=int, default=180, help="Allowed quote age in minutes")
+    run_daily_parser.add_argument("--alpha-vantage-key", help="Alpha Vantage API key")
+    run_daily_parser.add_argument("--polygon-key", help="Polygon API key")
+    run_daily_parser.add_argument("--proxy", help="HTTP/HTTPS proxy")
+    run_daily_parser.add_argument("--skip-a-share", action="store_true", help="Skip A-share snapshot and intraday validation")
+    run_daily_parser.add_argument("--skip-knowledge", action="store_true", help="Skip knowledge graph verification")
 
     backtest_parser = subparsers.add_parser("backtest", help="计算单个隔夜传导统计")
     backtest_parser.add_argument("--history", required=True, help="历史 CSV")
@@ -205,6 +227,32 @@ def main() -> int:
         write_text(args.output, json.dumps(snapshot, ensure_ascii=False, indent=2))
         print(f"A-share snapshot written to {Path(args.output)}")
         return 0
+
+    if args.command == "run-daily":
+        options = DailyRunOptions(
+            run_date=args.date,
+            output_root=args.output_root,
+            mapping_path=args.mapping,
+            external_path=args.external,
+            context_path=args.context,
+            historical_edges_path=args.historical_edges,
+            scoring_rules_path=args.scoring_rules,
+            a_share_watchlist_path=args.a_share_watchlist,
+            a_share_snapshot_path=args.a_share_snapshot,
+            generated_dir=args.generated_dir,
+            sources=tuple(item.strip() for item in args.sources.split(",") if item.strip()),
+            symbols=tuple(item.strip().upper() for item in args.symbols.split(",") if item.strip()) if args.symbols else (),
+            max_source_diff_pct=args.max_source_diff_pct,
+            max_age_minutes=args.max_age_minutes,
+            alpha_vantage_key=args.alpha_vantage_key,
+            polygon_key=args.polygon_key,
+            proxy=args.proxy,
+            skip_a_share=args.skip_a_share,
+            skip_knowledge=args.skip_knowledge,
+        )
+        summary = run_daily(options)
+        print(f"Daily run {summary['status']}: {Path(summary['output_dir'])}")
+        return 0 if summary["status"] in {"ok", "partial"} else 1
 
     if args.command == "report":
         _validate_report_inputs(args)
