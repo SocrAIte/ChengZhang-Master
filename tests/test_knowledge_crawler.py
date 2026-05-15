@@ -8,7 +8,7 @@ from market_impact_radar.knowledge_crawler import (
     parse_nasdaq_listed,
     parse_nasdaq_other,
 )
-from market_impact_radar.knowledge_verifier import verify_mapping
+from market_impact_radar.knowledge_verifier import build_daily_check_result, suggest_mapping_fixes, verify_mapping
 
 
 class KnowledgeCrawlerTest(unittest.TestCase):
@@ -109,6 +109,81 @@ class KnowledgeCrawlerTest(unittest.TestCase):
 
         self.assertEqual(report["theme_mappings"][0]["stocks_missing"], 0)
         self.assertEqual(report["theme_mappings"][0]["stocks_coded_unverified"], 1)
+
+    def test_verify_mapping_honors_external_asset_overrides(self) -> None:
+        mapping = {
+            "verification_overrides": {
+                "external_assets": {
+                    "SSNLF": {
+                        "status": "ok",
+                        "verified_by": "manual_exception/otc",
+                        "alias": "005930.KS",
+                    }
+                }
+            },
+            "external_assets": [
+                {"symbol": "SSNLF", "market": "US", "asset_type": "equity", "themes": ["存储芯片"]},
+            ],
+            "market_groups": {},
+            "theme_mappings": {"存储芯片": {"stocks": [], "etfs": ["芯片ETF"]}},
+        }
+        universes = {
+            "us_symbols": [],
+            "taiwan_symbols": [],
+            "a_share_stocks": [],
+            "official_a_share_stocks": [],
+            "eastmoney_board_members": [],
+            "china_etfs": [{"name": "芯片ETF"}],
+        }
+
+        report = verify_mapping(mapping, universes)
+
+        self.assertFalse(any(issue["kind"] == "external_asset_missing" for issue in report["issues"]))
+        self.assertEqual(report["external_assets"][0]["status"], "ok")
+        self.assertEqual(report["external_assets"][0]["alias"], "005930.KS")
+
+    def test_daily_check_result_fails_when_thresholds_exceeded(self) -> None:
+        report = {
+            "quality_counts": {"high": 1, "medium": 0, "low": 0, "total": 1},
+            "source_summary": {"mode": "cache"},
+            "issues": [{"severity": "high", "kind": "missing", "target": "X", "message": "bad"}],
+        }
+
+        result = build_daily_check_result(report, max_high=0, max_medium=0)
+
+        self.assertEqual(result["status"], "fail")
+        self.assertEqual(result["quality_counts"]["high"], 1)
+
+    def test_suggest_mapping_fixes_builds_theme_stub_once(self) -> None:
+        report = {
+            "verified_at": "2026-05-15T00:00:00+00:00",
+            "issues": [
+                {
+                    "severity": "high",
+                    "kind": "external_theme_missing",
+                    "target": "AVGO",
+                    "message": "theme 交换机 is not in theme_mappings",
+                },
+                {
+                    "severity": "high",
+                    "kind": "market_group_theme_missing",
+                    "target": "AI网络链",
+                    "message": "theme 交换机 is not in theme_mappings",
+                },
+                {
+                    "severity": "medium",
+                    "kind": "external_asset_missing",
+                    "target": "SSNLF",
+                    "message": "SSNLF not found in nasdaq universe",
+                },
+            ],
+        }
+
+        suggestions = suggest_mapping_fixes(report)
+
+        self.assertEqual(suggestions["summary"]["suggestions"], 2)
+        self.assertEqual(suggestions["suggestions"][0]["target"], "交换机")
+        self.assertEqual(suggestions["suggestions"][1]["kind"], "add_external_asset_override_or_alias")
 
 
 if __name__ == "__main__":

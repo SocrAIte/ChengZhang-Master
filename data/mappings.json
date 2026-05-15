@@ -16,6 +16,22 @@
     "m_and_a": 0.75,
     "single_company": 0.7
   },
+  "verification_overrides": {
+    "external_assets": {
+      "SSNLF": {
+        "status": "ok",
+        "verified_by": "manual_exception/otc",
+        "alias": "005930.KS",
+        "note": "Samsung Electronics OTC proxy; Nasdaq symbol universe does not cover OTC/KR listing."
+      },
+      "8035.TW": {
+        "status": "ok",
+        "verified_by": "manual_exception/tw-cache-gap",
+        "alias": "3081.TWO",
+        "note": "联亚光电常用台股映射；current cached TWSE/TPEx universe is incomplete/encoded."
+      }
+    }
+  },
   "external_assets": [
     {
       "symbol": "NVDA",

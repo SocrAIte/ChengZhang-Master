@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -38,6 +39,112 @@ def verify_knowledge_graph(
     report["verified_at"] = _now_iso()
     report["source_summary"] = source_summary
     return report
+
+
+def build_daily_check_result(
+    report: dict[str, Any],
+    max_high: int = 0,
+    max_medium: int = 0,
+    max_total: int | None = None,
+) -> dict[str, Any]:
+    counts = report.get("quality_counts", {})
+    high = int(counts.get("high", 0) or 0)
+    medium = int(counts.get("medium", 0) or 0)
+    total = int(counts.get("total", 0) or 0)
+    total_ok = True if max_total is None else total <= max_total
+    passed = high <= max_high and medium <= max_medium and total_ok
+    return {
+        "status": "pass" if passed else "fail",
+        "checked_at": _now_iso(),
+        "thresholds": {
+            "max_high": max_high,
+            "max_medium": max_medium,
+            "max_total": max_total,
+        },
+        "summary": f"high={high}, medium={medium}, total={total}",
+        "quality_counts": counts,
+        "source_summary": report.get("source_summary", {}),
+        "issues": report.get("issues", []),
+    }
+
+
+def suggest_mapping_fixes(verification_report: dict[str, Any]) -> dict[str, Any]:
+    suggestions: list[dict[str, Any]] = []
+    seen_theme_stubs: set[str] = set()
+    for issue in verification_report.get("issues", []):
+        kind = str(issue.get("kind", ""))
+        target = str(issue.get("target", ""))
+        message = str(issue.get("message", ""))
+        if kind in {"external_theme_missing", "market_group_theme_missing"}:
+            theme = _theme_from_issue_message(message)
+            if theme and theme not in seen_theme_stubs:
+                suggestions.append(
+                    {
+                        "kind": "add_theme_mapping_stub",
+                        "target": theme,
+                        "confidence": "medium",
+                        "reason": message,
+                        "suggested_mapping": {
+                            "industries": [theme],
+                            "etfs": [],
+                            "clarity": 0.5,
+                            "stocks": [],
+                        },
+                    }
+                )
+                seen_theme_stubs.add(theme)
+        elif kind == "external_asset_missing":
+            suggestions.append(
+                {
+                    "kind": "add_external_asset_override_or_alias",
+                    "target": target,
+                    "confidence": "low",
+                    "reason": message,
+                    "suggested_mapping": {
+                        "verification_overrides.external_assets": {
+                            target: {
+                                "status": "ok",
+                                "verified_by": "manual_exception",
+                                "alias": "",
+                                "note": "Fill alias/note after manual source verification.",
+                            }
+                        }
+                    },
+                }
+            )
+        elif kind == "theme_stock_unverified":
+            suggestions.append(
+                {
+                    "kind": "add_stock_code_or_fix_name",
+                    "target": target,
+                    "confidence": "medium",
+                    "reason": message,
+                }
+            )
+        elif kind == "theme_etf_unverified":
+            suggestions.append(
+                {
+                    "kind": "add_etf_code_or_fix_name",
+                    "target": target,
+                    "confidence": "medium",
+                    "reason": message,
+                }
+            )
+        elif kind == "empty_theme_mapping":
+            suggestions.append(
+                {
+                    "kind": "fill_empty_theme_mapping",
+                    "target": target,
+                    "confidence": "medium",
+                    "reason": message,
+                }
+            )
+    return {
+        "suggested_at": _now_iso(),
+        "source_verified_at": verification_report.get("verified_at", ""),
+        "summary": {"suggestions": len(suggestions)},
+        "suggestions": suggestions,
+    }
 
 
 def load_verification_universes(
@@ -94,13 +201,18 @@ def _verify_external_assets(
     issues: list[dict[str, Any]],
 ) -> list[dict[str, Any]]:
     results = []
+    overrides = mapping.get("verification_overrides", {}).get("external_assets", {})
     for asset in mapping.get("external_assets", []):
         symbol = str(asset.get("symbol", "")).upper()
         market = str(asset.get("market", "")).upper()
         asset_type = str(asset.get("asset_type", "equity"))
+        override = overrides.get(symbol, {})
         status = "unchecked"
         verified_by = ""
-        if market == "US" and asset_type in {"equity", "etf"}:
+        if override.get("status"):
+            status = str(override.get("status"))
+            verified_by = str(override.get("verified_by") or "manual_override")
+        elif market == "US" and asset_type in {"equity", "etf"}:
             status = "ok" if symbol in indexes["us_symbols"] else "missing"
             verified_by = "nasdaq"
         elif market == "TW" and asset_type in {"equity", "etf"}:
@@ -114,7 +226,16 @@ def _verify_external_assets(
 
         if status == "missing":
             issues.append(_issue("medium", "external_asset_missing", symbol, f"{symbol} not found in {verified_by} universe"))
-        results.append({"symbol": symbol, "market": market, "status": status, "verified_by": verified_by})
+        results.append(
+            {
+                "symbol": symbol,
+                "market": market,
+                "status": status,
+                "verified_by": verified_by,
+                "alias": override.get("alias", ""),
+                "note": override.get("note", ""),
+            }
+        )
     return results
 
 
@@ -273,6 +394,11 @@ def _norm(value: Any) -> str:
 
 def _looks_like_a_share_code(value: str) -> bool:
     return len(value) == 6 and value.isdigit()
+
+
+def _theme_from_issue_message(message: str) -> str:
+    match = re.search(r"theme\s+(.+?)\s+is not in theme_mappings", message)
+    return match.group(1).strip() if match else ""
 
 
 def _now_iso() -> str:

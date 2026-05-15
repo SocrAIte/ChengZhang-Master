@@ -16,7 +16,7 @@ from .dashboard import render_dashboard_html
 from .intraday import evaluate_intraday, render_intraday_report
 from .io import load_json, load_mappings, write_text
 from .knowledge_crawler import crawl_and_enrich
-from .knowledge_verifier import verify_knowledge_graph
+from .knowledge_verifier import build_daily_check_result, suggest_mapping_fixes, verify_knowledge_graph
 from .pipeline import run_report_pipeline
 from .quote_sources import fetch_external_snapshot
 from .report import render_markdown_report
@@ -163,6 +163,23 @@ def main() -> int:
         default="foreign",
         help="代理模式：foreign=国内源直连、海外源走代理；all=全部走代理",
     )
+
+    daily_check_parser = subparsers.add_parser("knowledge-daily-check", help="每日知识图谱复核检查，适合计划任务调用")
+    daily_check_parser.add_argument("--mapping", default=DEFAULT_MAPPING, help="待复核的映射配置 JSON")
+    daily_check_parser.add_argument("--generated-dir", default="data/generated", help="crawl-knowledge 生成的缓存目录")
+    daily_check_parser.add_argument("--output", required=True, help="输出日检结果 JSON")
+    daily_check_parser.add_argument("--refresh-apis", action="store_true", help="重新调用公开 API；失败时回退 generated-dir 缓存")
+    daily_check_parser.add_argument("--timeout", type=int, default=20, help="单个 API 请求超时秒数")
+    daily_check_parser.add_argument("--proxy", help="HTTP/HTTPS 代理，例如 http://127.0.0.1:10793")
+    daily_check_parser.add_argument("--proxy-mode", choices=["foreign", "all"], default="foreign", help="代理模式")
+    daily_check_parser.add_argument("--max-high", type=int, default=0, help="允许的 high 问题数量")
+    daily_check_parser.add_argument("--max-medium", type=int, default=0, help="允许的 medium 问题数量")
+    daily_check_parser.add_argument("--max-total", type=int, help="允许的问题总数；不填则只按 high/medium")
+    daily_check_parser.add_argument("--no-fail", action="store_true", help="即使检查不通过也返回 0")
+
+    suggest_fixes_parser = subparsers.add_parser("suggest-knowledge-fixes", help="根据 verify-knowledge 报告生成 mappings 修补建议")
+    suggest_fixes_parser.add_argument("--verification", required=True, help="verify-knowledge 或 knowledge-daily-check 输出 JSON")
+    suggest_fixes_parser.add_argument("--output", required=True, help="输出修补建议 JSON")
 
     args = parser.parse_args()
     if args.command == "fetch-external":
@@ -326,6 +343,32 @@ def main() -> int:
             print(f"Knowledge verification written to {Path(args.output)}")
         else:
             print(text)
+        return 0
+
+    if args.command == "knowledge-daily-check":
+        report = verify_knowledge_graph(
+            mapping_path=args.mapping,
+            generated_dir=args.generated_dir,
+            refresh_apis=args.refresh_apis,
+            timeout=args.timeout,
+            proxy=args.proxy,
+            proxy_mode=args.proxy_mode,
+        )
+        result = build_daily_check_result(
+            report,
+            max_high=args.max_high,
+            max_medium=args.max_medium,
+            max_total=args.max_total,
+        )
+        write_text(args.output, json.dumps(result, ensure_ascii=False, indent=2))
+        print(f"Knowledge daily check {result['status']}: {result['summary']}")
+        return 0 if args.no_fail or result["status"] == "pass" else 1
+
+    if args.command == "suggest-knowledge-fixes":
+        verification = load_json(args.verification)
+        suggestions = suggest_mapping_fixes(verification)
+        write_text(args.output, json.dumps(suggestions, ensure_ascii=False, indent=2))
+        print(f"Knowledge fix suggestions written to {Path(args.output)}")
         return 0
 
     parser.error(f"Unknown command: {args.command}")
