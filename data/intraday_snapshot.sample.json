@@ -1,5 +1,15 @@
 {
   "as_of": "2026-05-14T09:45:00+08:00",
+  "market_breadth": {
+    "source": "sample",
+    "data_status": "ok",
+    "turnover_billion": 8600,
+    "up_count": 3120,
+    "down_count": 1870,
+    "unchanged_count": 120,
+    "stocks_over_5pct_count": 214,
+    "sample_size": 5110
+  },
   "themes": {
     "HBM": {
       "etf_open_gap_pct": 1.1,

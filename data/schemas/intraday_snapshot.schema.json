@@ -3,6 +3,7 @@
   "required": ["themes"],
   "properties": {
     "as_of": {"type": "string"},
+    "market_breadth": {"type": "object"},
     "themes": {"type": "object"}
   }
 }

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -146,6 +148,60 @@ class PipelineTest(unittest.TestCase):
         self.assertIn("confirmed", statuses)
         self.assertIn("failed", statuses)
         self.assertIn("盘中验证报告", report)
+        self.assertIn("市场宽度", report)
+
+    def test_intraday_validation_accepts_a_share_snapshot_shape(self) -> None:
+        result = run_report_pipeline(
+            str(ROOT / "data" / "sample_external_snapshot.json"),
+            str(ROOT / "data" / "mappings.json"),
+            str(ROOT / "data" / "sample_a_share_context.json"),
+            scoring_rules_path=str(ROOT / "data" / "scoring_rules.json"),
+        )
+
+        evaluation = evaluate_intraday(result, ROOT / "data" / "a_share_snapshot.sample.json")
+
+        self.assertEqual(evaluation["market_breadth"]["pressure"], "supportive")
+        self.assertIn("AI算力", {row["theme"] for row in evaluation["evaluations"]})
+
+    def test_intraday_validation_does_not_confirm_partial_theme_data(self) -> None:
+        result = run_report_pipeline(
+            str(ROOT / "data" / "sample_external_snapshot.json"),
+            str(ROOT / "data" / "mappings.json"),
+            str(ROOT / "data" / "sample_a_share_context.json"),
+            scoring_rules_path=str(ROOT / "data" / "scoring_rules.json"),
+        )
+        snapshot = {
+            "as_of": "2026-05-15T09:45:00+08:00",
+            "market_breadth": {
+                "source": "sina",
+                "data_status": "ok",
+                "turnover_billion": 8000,
+                "up_count": 3500,
+                "down_count": 1200,
+                "unchanged_count": 100,
+                "stocks_over_5pct_count": 250,
+                "sample_size": 4800,
+            },
+            "themes": {
+                "AI算力": {
+                    "data_status": "partial",
+                    "etf_current_pct": 2.0,
+                    "etf_above_vwap": True,
+                    "leader_current_pct": 5.0,
+                    "leader_fade": False,
+                    "stocks_over_5pct_count": 8,
+                    "volume_ratio": 2.0,
+                }
+            },
+        }
+        with tempfile.TemporaryDirectory() as tmpdir:
+            snapshot_path = Path(tmpdir) / "intraday.json"
+            snapshot_path.write_text(json.dumps(snapshot, ensure_ascii=False), encoding="utf-8")
+            evaluation = evaluate_intraday(result, snapshot_path)
+        by_theme = {row["theme"]: row for row in evaluation["evaluations"]}
+
+        self.assertEqual(by_theme["AI算力"]["status"], "missing")
+        self.assertIn("数据不完整", by_theme["AI算力"]["action"])
 
     def test_dashboard_html_contains_core_sections(self) -> None:
         result = run_report_pipeline(
