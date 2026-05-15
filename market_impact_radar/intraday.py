@@ -25,8 +25,11 @@ def evaluate_intraday(result: RadarResult, snapshot_path: str | Path) -> dict[st
 
 def render_intraday_report(evaluation: dict[str, Any]) -> str:
     breadth = evaluation.get("market_breadth", {})
+    summary = summarize_intraday_evaluation(evaluation)
     lines = [
         f"# 盘中验证报告 {evaluation.get('as_of', '')}",
+        "",
+        f"**盘中状态：{summary['headline']}**",
         "",
         _render_market_breadth_line(breadth),
         "",
@@ -53,6 +56,48 @@ def render_intraday_report(evaluation: dict[str, Any]) -> str:
             f"{row['action']} | {'；'.join(row['reasons'])} |"
         )
     return "\n".join(lines).rstrip() + "\n"
+
+
+def summarize_intraday_evaluation(evaluation: dict[str, Any]) -> dict[str, Any]:
+    rows = list(evaluation.get("evaluations", []))
+    counts: dict[str, int] = {}
+    for row in rows:
+        status = str(row.get("status", ""))
+        counts[status] = counts.get(status, 0) + 1
+
+    risk_rows = [
+        row
+        for row in rows
+        if row.get("status") in {"failed", "downgraded", "missing"} and row.get("pre_tier") in {"strong", "watch"}
+    ]
+    failed_rows = [row for row in rows if row.get("status") == "failed"]
+    downgraded_rows = [row for row in rows if row.get("status") == "downgraded"]
+    confirmed_rows = [row for row in rows if row.get("status") == "confirmed"]
+    missing_rows = [row for row in rows if row.get("status") == "missing"]
+    breadth = evaluation.get("market_breadth", {})
+    pressure = breadth.get("pressure", "missing")
+
+    if failed_rows or any(row.get("pre_tier") in {"strong", "watch"} for row in risk_rows):
+        severity = "high"
+    elif downgraded_rows or pressure in {"weak", "missing"}:
+        severity = "medium"
+    else:
+        severity = "low"
+
+    headline = (
+        f"确认 {len(confirmed_rows)} / 降级 {len(downgraded_rows)} / "
+        f"失败 {len(failed_rows)} / 缺数据 {len(missing_rows)}"
+    )
+    return {
+        "severity": severity,
+        "headline": headline,
+        "counts": counts,
+        "market_pressure": pressure,
+        "risk_themes": [str(row.get("theme", "")) for row in risk_rows[:6]],
+        "confirmed_themes": [str(row.get("theme", "")) for row in confirmed_rows[:6]],
+        "failed_themes": [str(row.get("theme", "")) for row in failed_rows[:6]],
+        "downgraded_themes": [str(row.get("theme", "")) for row in downgraded_rows[:6]],
+    }
 
 
 def _evaluate_theme(theme: ScoredTheme, payload: dict[str, Any], market_breadth: dict[str, Any]) -> dict[str, Any]:

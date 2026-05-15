@@ -56,6 +56,7 @@ def main() -> int:
     report_parser.add_argument("--context", help="A股环境与风险上下文 JSON")
     report_parser.add_argument("--historical-edges", help="批量回测生成的 historical_edges JSON")
     report_parser.add_argument("--scoring-rules", default=DEFAULT_SCORING_RULES, help="评分规则 JSON")
+    report_parser.add_argument("--intraday", help="可选：盘中验证快照 JSON，支持 fetch-a-share 生成的 A股快照")
     report_parser.add_argument("--no-validate", action="store_true", help="跳过输入 JSON schema 校验")
     report_parser.add_argument("--output", help="输出 Markdown 文件")
     report_parser.add_argument("--date", help="报告日期，默认使用本机日期")
@@ -181,7 +182,8 @@ def main() -> int:
             args.historical_edges,
             args.scoring_rules,
         )
-        report = render_markdown_report(result, args.date)
+        intraday_evaluation = evaluate_intraday(result, args.intraday) if args.intraday else None
+        report = render_markdown_report(result, args.date, intraday_evaluation)
         if args.output:
             write_text(args.output, report)
             print(f"Report written to {Path(args.output)}")

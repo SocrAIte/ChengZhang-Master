@@ -3,6 +3,7 @@ from __future__ import annotations
 import html
 from datetime import date
 
+from .intraday import summarize_intraday_evaluation
 from .models import RadarResult, ScoredTheme
 from .scoring import signal_tier
 
@@ -51,6 +52,13 @@ def render_dashboard_html(
     .weak {{ color: var(--weak); background: #fff4d6; }}
     .risk {{ color: var(--risk); background: #fee4e2; }}
     .bad {{ color: var(--risk); font-weight: 700; }}
+    .alert {{ border-left: 5px solid var(--line); }}
+    .alert-high {{ border-left-color: var(--risk); background: #fff7f6; }}
+    .alert-medium {{ border-left-color: var(--weak); background: #fffbeb; }}
+    .alert-low {{ border-left-color: var(--strong); background: #f0fdf4; }}
+    .status-failed, .status-missing {{ color: var(--risk); font-weight: 700; }}
+    .status-downgraded {{ color: var(--weak); font-weight: 700; }}
+    .status-confirmed {{ color: var(--strong); font-weight: 700; }}
     table {{ width: 100%; border-collapse: collapse; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }}
     th, td {{ padding: 9px 10px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }}
     th {{ background: #eef2f6; font-size: 12px; color: #344054; }}
@@ -65,6 +73,7 @@ def render_dashboard_html(
     <p>{html.escape(report_date)} · 数据时间 {html.escape(result.as_of or "未提供")}</p>
   </header>
   <main>
+    {_intraday_alert_section(intraday_evaluation)}
     {_source_quality_section(result)}
     {_events_section(result)}
     {_tiers_section(result.scored_themes)}
@@ -176,12 +185,30 @@ def _intraday_section(evaluation: dict | None) -> str:
     if not evaluation:
         return ""
     rows = "".join(
-        f"<tr><td>{html.escape(row['theme'])}</td><td>{html.escape(row['status'])}</td><td>{html.escape(row['action'])}</td><td>{html.escape('；'.join(row['reasons']))}</td></tr>"
+        f"<tr><td>{html.escape(row['theme'])}</td><td class='status-{html.escape(row['status'])}'>{html.escape(row['status'])}</td><td>{html.escape(row['action'])}</td><td>{html.escape('；'.join(row['reasons']))}</td></tr>"
         for row in evaluation.get("evaluations", [])
     )
     return f"""<section>
   <h2>盘中验证</h2>
   <table><thead><tr><th>主题</th><th>状态</th><th>操作</th><th>理由</th></tr></thead><tbody>{rows}</tbody></table>
+</section>"""
+
+
+def _intraday_alert_section(evaluation: dict | None) -> str:
+    if not evaluation:
+        return ""
+    summary = summarize_intraday_evaluation(evaluation)
+    severity = html.escape(summary["severity"])
+    risk_themes = "、".join(html.escape(item) for item in summary["risk_themes"]) or "暂无"
+    confirmed = "、".join(html.escape(item) for item in summary["confirmed_themes"]) or "暂无"
+    return f"""<section>
+  <h2>盘中风险总览</h2>
+  <div class="card alert alert-{severity}">
+    <h3>{html.escape(summary['headline'])}</h3>
+    <p>市场宽度：{html.escape(str(summary['market_pressure']))}</p>
+    <p><strong>重点风险：</strong>{risk_themes}</p>
+    <p><strong>已确认：</strong>{confirmed}</p>
+  </div>
 </section>"""
 
 

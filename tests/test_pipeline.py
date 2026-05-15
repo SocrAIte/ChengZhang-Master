@@ -59,6 +59,20 @@ class PipelineTest(unittest.TestCase):
         self.assertIn("规则命中明细", report)
         self.assertIn("风险提示", report)
 
+    def test_markdown_report_can_include_intraday_alert(self) -> None:
+        result = run_report_pipeline(
+            str(ROOT / "data" / "sample_external_snapshot.json"),
+            str(ROOT / "data" / "mappings.json"),
+            str(ROOT / "data" / "sample_a_share_context.json"),
+        )
+        evaluation = evaluate_intraday(result, ROOT / "data" / "a_share_snapshot.sample.json")
+
+        report = render_markdown_report(result, "2026-05-15", evaluation)
+
+        self.assertIn("盘中验证风险总览", report)
+        self.assertIn("市场宽度", report)
+        self.assertIn("重点风险方向", report)
+
     def test_backtest_transmission_stats(self) -> None:
         stats = compute_transmission_stats(
             ROOT / "data" / "sample_transmission_history.csv",
@@ -215,6 +229,7 @@ class PipelineTest(unittest.TestCase):
 
         self.assertIn("跨市场传导雷达", html)
         self.assertIn("规则命中明细", html)
+        self.assertIn("盘中风险总览", html)
         self.assertIn("盘中验证", html)
 
     def test_quote_consolidation_marks_divergent_sources(self) -> None:

@@ -1,12 +1,18 @@
 from __future__ import annotations
 
 from datetime import date
+from typing import Any
 
+from .intraday import summarize_intraday_evaluation
 from .models import Candidate, RadarResult, ScoredTheme
 from .scoring import signal_tier
 
 
-def render_markdown_report(result: RadarResult, report_date: str | None = None) -> str:
+def render_markdown_report(
+    result: RadarResult,
+    report_date: str | None = None,
+    intraday_evaluation: dict[str, Any] | None = None,
+) -> str:
     report_date = report_date or date.today().isoformat()
     lines: list[str] = [
         f"# 跨市场传导日报 {report_date}",
@@ -15,6 +21,7 @@ def render_markdown_report(result: RadarResult, report_date: str | None = None) 
         "",
     ]
 
+    lines.extend(_render_intraday_alert(intraday_evaluation))
     lines.extend(_render_source_quality(result))
     lines.extend(_render_external_moves(result))
     lines.extend(_render_events(result))
@@ -64,6 +71,29 @@ def _render_source_quality(result: RadarResult) -> list[str]:
             f"| {asset.symbol} | {asset.name} | {asset.source or '-'} | {asset.fetched_at or '-'} | "
             f"{_fmt_optional(asset.price)} | {_fmt_optional(asset.prev_close)} | {asset.change_pct:+.2f}% | {status} |"
         )
+    lines.append("")
+    return lines
+
+
+def _render_intraday_alert(evaluation: dict[str, Any] | None) -> list[str]:
+    if not evaluation:
+        return []
+    summary = summarize_intraday_evaluation(evaluation)
+    severity_names = {"high": "高风险", "medium": "谨慎", "low": "正常"}
+    color = {"high": "#b42318", "medium": "#b54708", "low": "#0f7b5f"}.get(summary["severity"], "#344054")
+    lines = [
+        "## 盘中验证风险总览",
+        "",
+        f'<span style="color:{color}"><strong>{severity_names.get(summary["severity"], summary["severity"])}：{summary["headline"]}</strong></span>',
+        "",
+        f"- 市场宽度：{summary['market_pressure']}",
+    ]
+    if summary["confirmed_themes"]:
+        lines.append(f"- 已确认方向：{'、'.join(summary['confirmed_themes'])}")
+    if summary["risk_themes"]:
+        lines.append(f"- 重点风险方向：{'、'.join(summary['risk_themes'])}")
+    if not summary["risk_themes"] and not summary["confirmed_themes"]:
+        lines.append("- 暂无可确认方向，维持观察。")
     lines.append("")
     return lines
 

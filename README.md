@@ -43,6 +43,17 @@ python -m market_impact_radar report `
   --output outputs\daily_report.md
 ```
 
+如果已经生成 A股盘中快照，也可以直接把盘中验证风险总览合入日报：
+```powershell
+python -m market_impact_radar report `
+  --external data\sample_external_snapshot.json `
+  --context data\sample_a_share_context.json `
+  --mapping data\mappings.json `
+  --scoring-rules data\scoring_rules.json `
+  --intraday data\a_share_snapshot.live.json `
+  --output outputs\daily_report.md
+```
+
 生成的报告会写入：
 
 ```text
@@ -120,7 +131,7 @@ python -m market_impact_radar fetch-a-share `
 - 全市场成交额、涨跌家数、涨超 5% 家数
 - A股交易日上下文
 
-这一步只生成标准化快照，后续 Patch 再把它接入盘中验证和评分链路。
+这个快照可以直接作为 `intraday-validate --intraday`、`dashboard --intraday` 和 `report --intraday` 的输入。
 
 ## 扩容知识图谱
 
