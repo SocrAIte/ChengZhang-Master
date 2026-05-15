@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import html
 from datetime import date
+from typing import Any
 
+from .dashboard_contract import normalize_dashboard_data
 from .intraday import summarize_intraday_evaluation
 from .models import RadarResult, ScoredTheme
 from .scoring import signal_tier
@@ -246,3 +248,247 @@ def _fmt(value: float | None) -> str:
     if value is None:
         return "-"
     return html.escape(f"{value:.2f}")
+
+
+def render_dashboard_from_data(dashboard_data: dict[str, Any] | None) -> str:
+    data = normalize_dashboard_data(dashboard_data)
+    run = _safe_dict(data.get("run"))
+    schema_version = _text(data.get("schema_version") or "unknown")
+    run_date = _text(run.get("date") or "unknown")
+    generated_at = _text(run.get("generated_at") or "unknown")
+    status = _text(run.get("status") or "unknown")
+    warnings = _as_list(run.get("warnings"))
+    return f"""<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Daily Market Radar {html.escape(run_date)}</title>
+  <style>
+    :root {{
+      color-scheme: light;
+      --bg: #f6f7f9;
+      --panel: #ffffff;
+      --text: #17202a;
+      --muted: #667085;
+      --line: #d8dde6;
+      --strong: #0f7b5f;
+      --watch: #1d5fd1;
+      --weak: #8a5a00;
+      --risk: #b42318;
+    }}
+    body {{ margin: 0; background: var(--bg); color: var(--text); font: 14px/1.55 "Segoe UI", Arial, sans-serif; }}
+    header {{ padding: 22px 28px; background: #101828; color: white; }}
+    header h1 {{ margin: 0; font-size: 22px; letter-spacing: 0; }}
+    header p {{ margin: 6px 0 0; color: #cbd5e1; }}
+    main {{ padding: 22px 28px 36px; max-width: 1440px; margin: 0 auto; }}
+    section {{ margin-bottom: 22px; }}
+    h2 {{ font-size: 17px; margin: 0 0 12px; }}
+    .grid {{ display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }}
+    .card {{ background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 14px; box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04); }}
+    .card h3 {{ margin: 0 0 8px; font-size: 15px; }}
+    .meta {{ color: var(--muted); font-size: 12px; }}
+    .pill {{ display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 12px; font-weight: 600; }}
+    .strong, .confirmed, .ok {{ color: var(--strong); background: #e8f6f0; }}
+    .watch, .not_checked, .unknown {{ color: var(--watch); background: #eaf1ff; }}
+    .weak, .downgraded, .partial {{ color: var(--weak); background: #fff4d6; }}
+    .risk, .failed, .missing, .error {{ color: var(--risk); background: #fee4e2; }}
+    table {{ width: 100%; border-collapse: collapse; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }}
+    th, td {{ padding: 9px 10px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }}
+    th {{ background: #eef2f6; font-size: 12px; color: #344054; }}
+    tr:last-child td {{ border-bottom: 0; }}
+    .num {{ text-align: right; white-space: nowrap; }}
+    .note-list {{ margin: 8px 0 0 18px; padding: 0; }}
+    .muted {{ color: var(--muted); }}
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Daily Market Radar</h1>
+    <p>{html.escape(run_date)} · generated_at {html.escape(generated_at)} · Schema: {html.escape(schema_version)}</p>
+  </header>
+  <main>
+    {_run_summary_from_data(run_date, generated_at, status, warnings, schema_version)}
+    {_market_context_from_data(data)}
+    {_signal_overview_from_data(data)}
+    {_signal_list_from_data(data)}
+    {_knowledge_from_data(data)}
+  </main>
+</body>
+</html>
+"""
+
+
+def _run_summary_from_data(
+    run_date: str,
+    generated_at: str,
+    status: str,
+    warnings: list[Any],
+    schema_version: str,
+) -> str:
+    warning_items = "".join(f"<li>{html.escape(_text(item))}</li>" for item in warnings)
+    warnings_html = f"<ul class='note-list'>{warning_items}</ul>" if warning_items else "<p class='muted'>No warnings.</p>"
+    return f"""<section>
+  <h2>Run Summary</h2>
+  <div class="grid">
+    <div class="card"><h3>Date</h3><p>{html.escape(run_date)}</p></div>
+    <div class="card"><h3>Generated At</h3><p>{html.escape(generated_at)}</p></div>
+    <div class="card"><h3>Status</h3><p><span class="pill {html.escape(status)}">{html.escape(status)}</span></p></div>
+    <div class="card"><h3>Schema</h3><p>{html.escape(schema_version)}</p></div>
+    <div class="card"><h3>Warnings</h3>{warnings_html}</div>
+  </div>
+</section>"""
+
+
+def _market_context_from_data(data: dict[str, Any]) -> str:
+    context = _safe_dict(data.get("market_context"))
+    a_trade_day = _text(context.get("a_share_trading_day") or "unknown")
+    is_trading = _text(context.get("is_a_share_trading_day") if "is_a_share_trading_day" in context else "unknown")
+    sessions = _as_list(context.get("foreign_market_context"))
+    session_rows = "".join(
+        f"<tr><td>{html.escape(_text(_safe_dict(payload).get('market') or 'unknown'))}</td>"
+        f"<td>{html.escape(_text(_safe_dict(payload).get('session_date') or 'unknown'))}</td>"
+        f"<td>{html.escape(_text(_safe_dict(payload).get('is_market_trading_day') if 'is_market_trading_day' in _safe_dict(payload) else 'unknown'))}</td>"
+        f"<td>{html.escape(_text(_safe_dict(payload).get('mapped_a_share_trade_day') or 'unknown'))}</td></tr>"
+        for payload in sessions
+    )
+    if not session_rows:
+        session_rows = "<tr><td colspan='4'>External context not provided.</td></tr>"
+    return f"""<section>
+  <h2>Market Context</h2>
+  <div class="grid">
+    <div class="card"><h3>A-share Trade Day</h3><p>{html.escape(a_trade_day)}</p></div>
+    <div class="card"><h3>A-share Trading Status</h3><p>{html.escape(is_trading)}</p></div>
+  </div>
+  <table><thead><tr><th>Market</th><th>Session Date</th><th>Trading Day</th><th>Mapped A-share Day</th></tr></thead><tbody>{session_rows}</tbody></table>
+</section>"""
+
+
+def _signal_overview_from_data(data: dict[str, Any]) -> str:
+    summary = _safe_dict(data.get("summary"))
+    cards = (
+        ("strong_signals", _as_int(summary.get("strong_signals")), "strong"),
+        ("confirmed", _as_int(summary.get("confirmed")), "confirmed"),
+        ("downgraded", _as_int(summary.get("downgraded")), "downgraded"),
+        ("failed", _as_int(summary.get("failed")), "failed"),
+        ("missing_data", _as_int(summary.get("missing_data")), "missing"),
+        ("knowledge_issues", _as_int(summary.get("knowledge_issues")), "partial" if _as_int(summary.get("knowledge_issues")) else "ok"),
+    )
+    cards_html = "".join(
+        f"<div class='card'><h3>{html.escape(label)}</h3><p><span class='pill {html.escape(style)}'>{value}</span></p></div>"
+        for label, value, style in cards
+    )
+    return f"""<section>
+  <h2>Signal Overview</h2>
+  <div class="grid">{cards_html}</div>
+</section>"""
+
+
+def _signal_list_from_data(data: dict[str, Any]) -> str:
+    signals = [_safe_dict(item) for item in _as_list(data.get("signals"))]
+    rows = []
+    for signal in signals:
+        theme_name = _text(signal.get("theme") or "unknown")
+        intraday_status = _text(signal.get("intraday_status") or "not_checked")
+        rows.append(
+            "<tr>"
+            f"<td>{html.escape(theme_name)}</td>"
+            f"<td>{html.escape(_text(signal.get('strength') or 'unknown'))}</td>"
+            f"<td class='num'>{_number(signal.get('score'))}</td>"
+            f"<td>{_join_html(_as_list(signal.get('external_triggers'))) or 'unknown'}</td>"
+            f"<td>{_join_html(_as_list(signal.get('a_share_mapping_reason'))) or 'unknown'}</td>"
+            f"<td>{_join_html(_as_list(signal.get('etf_candidates'))) or 'none'}</td>"
+            f"<td>{_join_html(_as_list(signal.get('stock_candidates'))) or 'none'}</td>"
+            f"<td><span class='pill {html.escape(intraday_status)}'>{html.escape(intraday_status)}</span></td>"
+            f"<td>{html.escape(_text(signal.get('risk_level') or 'unknown'))}</td>"
+            f"<td>{_join_html(_as_list(signal.get('risks'))) or 'none'}</td>"
+            f"<td>{html.escape(_text(signal.get('data_status') or 'unknown'))}</td>"
+            f"<td>{_join_html(_as_list(signal.get('sources'))) or 'unknown'}</td>"
+            f"<td>{_join_html(_as_list(signal.get('fetched_at'))) or 'unknown'}</td>"
+            "</tr>"
+        )
+    body = "".join(rows) or "<tr><td colspan='13'>No signals available.</td></tr>"
+    return f"""<section>
+  <h2>Signal List</h2>
+  <table><thead><tr>
+    <th>Theme</th><th>Strength</th><th class="num">Score</th><th>External Triggers</th>
+    <th>A-share Mapping Reason</th><th>ETF Candidates</th><th>Stock Candidates</th>
+    <th>Intraday Status</th><th>Risk Level</th><th>Risks</th><th>Data Status</th><th>Sources</th><th>Fetched At</th>
+  </tr></thead><tbody>{body}</tbody></table>
+</section>"""
+
+
+def _knowledge_from_data(data: dict[str, Any]) -> str:
+    knowledge = _safe_dict(data.get("knowledge"))
+    if knowledge.get("status") == "unknown" and not _as_list(knowledge.get("issues")):
+        return """<section>
+  <h2>Knowledge Graph</h2>
+  <div class="card"><h3>Status <span class="pill not_checked">not_checked</span></h3><p class="muted">Knowledge verification was not provided.</p></div>
+</section>"""
+    issues = _as_list(knowledge.get("issues"))
+    suggestions = _as_list(knowledge.get("suggestions"))
+    total = len(issues)
+    status = _text(knowledge.get("status") or ("issues" if total else "ok"))
+    issue_rows = "".join(
+        f"<tr><td>{html.escape(_text(_safe_dict(item).get('severity') or 'unknown'))}</td>"
+        f"<td>{html.escape(_text(_safe_dict(item).get('kind') or 'unknown'))}</td>"
+        f"<td>{html.escape(_text(_safe_dict(item).get('target') or 'unknown'))}</td>"
+        f"<td>{html.escape(_text(_safe_dict(item).get('message') or ''))}</td></tr>"
+        for item in issues[:12]
+    ) or "<tr><td colspan='4'>No knowledge issues.</td></tr>"
+    suggestion_rows = "".join(
+        f"<tr><td>{html.escape(_text(_safe_dict(item).get('kind') or 'unknown'))}</td>"
+        f"<td>{html.escape(_text(_safe_dict(item).get('target') or 'unknown'))}</td>"
+        f"<td>{html.escape(_text(_safe_dict(item).get('confidence') or 'unknown'))}</td>"
+        f"<td>{html.escape(_text(_safe_dict(item).get('reason') or ''))}</td></tr>"
+        for item in suggestions[:12]
+    ) or "<tr><td colspan='4'>No suggestions available.</td></tr>"
+    return f"""<section>
+  <h2>Knowledge Graph</h2>
+  <div class="card"><h3>Status <span class="pill {'partial' if total else 'ok'}">{html.escape(status)}</span></h3>
+    <p>issues={total}; suggestions={len(suggestions)}</p>
+  </div>
+  <h2>Knowledge Issues</h2>
+  <table><thead><tr><th>Severity</th><th>Kind</th><th>Target</th><th>Message</th></tr></thead><tbody>{issue_rows}</tbody></table>
+  <h2>Mapping Suggestions</h2>
+  <table><thead><tr><th>Kind</th><th>Target</th><th>Confidence</th><th>Reason</th></tr></thead><tbody>{suggestion_rows}</tbody></table>
+</section>"""
+
+
+def _safe_dict(value: Any) -> dict[str, Any]:
+    return value if isinstance(value, dict) else {}
+
+
+def _as_list(value: Any) -> list[Any]:
+    if isinstance(value, list):
+        return value
+    if isinstance(value, tuple):
+        return list(value)
+    return []
+
+
+def _text(value: Any) -> str:
+    if value is None:
+        return "unknown"
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    return str(value)
+
+
+def _number(value: Any) -> str:
+    try:
+        return f"{float(value):.0f}"
+    except (TypeError, ValueError):
+        return "unknown"
+
+
+def _as_int(value: Any) -> int:
+    try:
+        return int(value or 0)
+    except (TypeError, ValueError):
+        return 0
+
+
+def _join_html(values: list[Any]) -> str:
+    clean = [_text(value) for value in values if _text(value) not in {"", "unknown"}]
+    return "<br>".join(html.escape(item) for item in clean[:8])

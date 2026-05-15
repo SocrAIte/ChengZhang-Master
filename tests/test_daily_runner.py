@@ -8,6 +8,7 @@ import unittest
 from pathlib import Path
 
 from market_impact_radar.daily_runner import DailyRunOptions, run_daily
+from market_impact_radar.dashboard_contract import DASHBOARD_SCHEMA_VERSION
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -40,16 +41,26 @@ class DailyRunnerTest(unittest.TestCase):
             output_dir = Path(tmpdir) / "2026-05-15"
             run_summary_path = output_dir / "run_summary.json"
             dashboard_data_path = output_dir / "dashboard_data.json"
+            dashboard_html_path = output_dir / "dashboard.html"
             persisted_summary = json.loads(run_summary_path.read_text(encoding="utf-8"))
             dashboard_data = json.loads(dashboard_data_path.read_text(encoding="utf-8"))
+            dashboard_html = dashboard_html_path.read_text(encoding="utf-8")
 
             self.assertEqual(summary["status"], "ok")
             self.assertTrue(run_summary_path.exists())
             self.assertTrue(dashboard_data_path.exists())
+            self.assertTrue(dashboard_html_path.exists())
+            self.assertEqual(dashboard_data["schema_version"], DASHBOARD_SCHEMA_VERSION)
             self.assertEqual(persisted_summary["steps"]["pipeline"]["status"], "ok")
             self.assertEqual(persisted_summary["steps"]["knowledge"]["status"], "skipped")
-            self.assertIsNotNone(dashboard_data["intraday_evaluation"])
-            self.assertTrue(dashboard_data["events"])
+            self.assertEqual(dashboard_data["run"]["status"], "ok")
+            self.assertTrue(dashboard_data["signals"])
+            self.assertIn("2026-05-15", dashboard_html)
+            self.assertIn("Schema: 1.0", dashboard_html)
+            self.assertIn("Signal List", dashboard_html)
+            self.assertIn(dashboard_data["signals"][0]["theme"], dashboard_html)
+            self.assertIn(dashboard_data["signals"][0]["etf_candidates"][0], dashboard_html)
+            self.assertIn("Risks", dashboard_html)
 
     def test_cli_entry_can_skip_a_share_and_knowledge(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -77,12 +88,15 @@ class DailyRunnerTest(unittest.TestCase):
             output_dir = Path(tmpdir) / "2026-05-15"
             summary = json.loads((output_dir / "run_summary.json").read_text(encoding="utf-8"))
             dashboard_data = json.loads((output_dir / "dashboard_data.json").read_text(encoding="utf-8"))
+            dashboard_html = (output_dir / "dashboard.html").read_text(encoding="utf-8")
 
         self.assertEqual(completed.returncode, 0, completed.stderr)
         self.assertEqual(summary["steps"]["a_share"]["status"], "skipped")
         self.assertEqual(summary["steps"]["intraday"]["status"], "skipped")
         self.assertEqual(summary["steps"]["knowledge"]["status"], "skipped")
-        self.assertIsNone(dashboard_data["intraday_evaluation"])
+        self.assertEqual(dashboard_data["schema_version"], DASHBOARD_SCHEMA_VERSION)
+        self.assertTrue(all(signal["intraday_status"] == "not_checked" for signal in dashboard_data["signals"]))
+        self.assertIn("not_checked", dashboard_html)
 
     def test_run_daily_runs_knowledge_check_by_default(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -100,8 +114,8 @@ class DailyRunnerTest(unittest.TestCase):
             )
 
         self.assertIn(summary["steps"]["knowledge"]["status"], {"ok", "partial"})
-        self.assertIsNotNone(dashboard_data["knowledge_verification"])
-        self.assertIn("quality_counts", dashboard_data["knowledge_verification"])
+        self.assertIn(dashboard_data["knowledge"]["status"], {"ok", "issues"})
+        self.assertIn("issues", dashboard_data["knowledge"])
 
     def test_partial_a_share_data_marks_run_partial(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -127,7 +141,8 @@ class DailyRunnerTest(unittest.TestCase):
 
         self.assertEqual(summary["status"], "partial")
         self.assertEqual(summary["steps"]["a_share"]["status"], "partial")
-        self.assertIsNotNone(dashboard_data["intraday_evaluation"])
+        self.assertEqual(dashboard_data["run"]["status"], "partial")
+        self.assertTrue(dashboard_data["signals"])
 
 
 if __name__ == "__main__":

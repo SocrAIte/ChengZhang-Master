@@ -2,14 +2,17 @@ from __future__ import annotations
 
 import json
 from dataclasses import asdict, dataclass
-from datetime import date
+from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Any
 
 from .a_share_sources import fetch_a_share_snapshot
+from .dashboard import render_dashboard_from_data
+from .dashboard_contract import build_dashboard_data as build_dashboard_contract_data
+from .dashboard_contract import validate_dashboard_data
 from .intraday import evaluate_intraday, summarize_intraday_evaluation
 from .io import load_json, load_mappings, write_text
-from .knowledge_verifier import verify_knowledge_graph
+from .knowledge_verifier import suggest_mapping_fixes, verify_knowledge_graph
 from .models import Candidate, ScoredTheme, TransmissionEvent
 from .pipeline import run_report_pipeline
 from .quote_sources import fetch_external_snapshot
@@ -40,22 +43,29 @@ class DailyRunOptions:
 
 def run_daily(options: DailyRunOptions) -> dict[str, Any]:
     run_date = options.run_date or date.today().isoformat()
+    generated_at = _now_iso()
     output_dir = Path(options.output_root) / run_date
     output_dir.mkdir(parents=True, exist_ok=True)
 
     summary: dict[str, Any] = {
         "run_date": run_date,
+        "generated_at": generated_at,
         "output_dir": str(output_dir),
         "status": "ok",
+        "warnings": [],
         "steps": {},
         "outputs": {
             "run_summary": str(output_dir / "run_summary.json"),
             "dashboard_data": str(output_dir / "dashboard_data.json"),
+            "dashboard_html": str(output_dir / "dashboard.html"),
         },
     }
     dashboard_data: dict[str, Any] = {
         "run_date": run_date,
+        "generated_at": generated_at,
         "status": "ok",
+        "warnings": [],
+        "market_context": {},
         "events": [],
         "scored_themes": [],
         "etf_candidates": [],
@@ -96,6 +106,7 @@ def run_daily(options: DailyRunOptions) -> dict[str, Any]:
             _apply_step_status(summary, a_share_step)
             if a_share_path:
                 intraday_evaluation = evaluate_intraday(result, a_share_path)
+                dashboard_data["market_context"] = load_json(a_share_path).get("trading_day_context", {})
                 summary["steps"]["intraday"] = {
                     "status": "ok",
                     "as_of": intraday_evaluation.get("as_of", ""),
@@ -123,10 +134,27 @@ def run_daily(options: DailyRunOptions) -> dict[str, Any]:
         dashboard_data["status"] = "error"
         dashboard_data["errors"] = list(summary.get("errors", []))
 
+    summary["warnings"] = _collect_warnings(summary)
     dashboard_data["status"] = summary["status"]
+    dashboard_data["warnings"] = list(summary["warnings"])
+    dashboard_data["outputs"] = dict(summary["outputs"])
     dashboard_data["run_summary"] = _summary_for_dashboard(summary)
+    dashboard_data = build_dashboard_contract_data(dashboard_data)
+    contract_issues = validate_dashboard_data(dashboard_data)
+    if contract_issues:
+        has_errors = any(issue.get("level") == "error" for issue in contract_issues)
+        summary["steps"]["dashboard_contract"] = {
+            "status": "partial" if has_errors else "ok",
+            "issues": contract_issues,
+        }
+        summary["warnings"].extend(_contract_issue_messages(contract_issues))
+        if has_errors and summary["status"] != "error":
+            summary["status"] = "partial"
+        dashboard_data["run"]["status"] = summary["status"]
+        dashboard_data["run"]["warnings"] = list(summary["warnings"])
     _write_json(summary["outputs"]["run_summary"], summary)
     _write_json(summary["outputs"]["dashboard_data"], dashboard_data)
+    write_text(summary["outputs"]["dashboard_html"], render_dashboard_from_data(dashboard_data))
     return summary
 
 
@@ -200,6 +228,7 @@ def _build_dashboard_data(result: Any) -> dict[str, Any]:
     return {
         "as_of": result.as_of,
         "external_data_quality": result.context.get("external_data_quality", {}),
+        "external_assets": [asdict(asset) for asset in result.external_assets],
         "events": [_event_to_dict(event) for event in result.events],
         "scored_themes": [_theme_to_dict(theme) for theme in result.scored_themes],
         "etf_candidates": [_candidate_to_dict(candidate) for candidate in result.etf_candidates],
@@ -236,10 +265,12 @@ def _candidate_to_dict(candidate: Candidate) -> dict[str, Any]:
 
 
 def _knowledge_dashboard_subset(knowledge: dict[str, Any]) -> dict[str, Any]:
+    suggestions = suggest_mapping_fixes(knowledge)
     return {
         "quality_counts": knowledge.get("quality_counts", {}),
         "source_summary": knowledge.get("source_summary", {}),
         "issues": knowledge.get("issues", [])[:50],
+        "suggestions": suggestions.get("suggestions", [])[:50],
         "mapping": knowledge.get("mapping", ""),
         "verified_at": knowledge.get("verified_at", ""),
     }
@@ -296,7 +327,9 @@ def _apply_step_status(summary: dict[str, Any], step: dict[str, Any]) -> None:
 def _summary_for_dashboard(summary: dict[str, Any]) -> dict[str, Any]:
     return {
         "run_date": summary.get("run_date", ""),
+        "generated_at": summary.get("generated_at", ""),
         "status": summary.get("status", ""),
+        "warnings": summary.get("warnings", []),
         "steps": summary.get("steps", {}),
         "outputs": summary.get("outputs", {}),
         "errors": summary.get("errors", []),
@@ -305,3 +338,28 @@ def _summary_for_dashboard(summary: dict[str, Any]) -> dict[str, Any]:
 
 def _write_json(path: str | Path, payload: dict[str, Any]) -> None:
     write_text(path, json.dumps(payload, ensure_ascii=False, indent=2))
+
+
+def _collect_warnings(summary: dict[str, Any]) -> list[str]:
+    warnings = list(summary.get("warnings", []))
+    for name, step in summary.get("steps", {}).items():
+        if not isinstance(step, dict):
+            continue
+        status = str(step.get("status", ""))
+        if status == "partial":
+            warnings.append(f"{name} completed with partial data")
+        elif status == "skipped":
+            warnings.append(f"{name} was skipped")
+    warnings.extend(str(item) for item in summary.get("errors", []))
+    return warnings
+
+
+def _contract_issue_messages(issues: list[dict[str, str]]) -> list[str]:
+    return [
+        f"dashboard_data {issue.get('level', 'warning')}: {issue.get('field', '')} {issue.get('message', '')}".strip()
+        for issue in issues
+    ]
+
+
+def _now_iso() -> str:
+    return datetime.now(timezone.utc).replace(microsecond=0).isoformat()
