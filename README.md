@@ -26,6 +26,9 @@ Global Signal -> China A-share Playbook.
 - 风险规则命中明细：展示是哪条规则扣了多少分
 - 盘中验证快照：确认、降级、失败、观察
 - 静态 HTML 看板生成
+- 真实外盘行情源快照生成：Yahoo Chart、Alpha Vantage、Polygon
+- 每条外盘行情记录保存 `source`、`fetched_at`、`price`、`prev_close`、`change_pct`
+- 多源交叉校验：过期、缺失或分歧数据不会参与强信号生成
 - 公开市场列表爬取与知识图谱扩容
 
 ## 快速开始
@@ -51,6 +54,73 @@ outputs/daily_report.md
 ```powershell
 python -m market_impact_radar report --external data\sample_external_snapshot.json
 ```
+
+## 真实外盘行情快照
+
+用真实行情源生成日报输入：
+
+```powershell
+python -m market_impact_radar fetch-external `
+  --mapping data\mappings.json `
+  --symbols MU,STX,WDC,NVDA,AVGO,TSM,SOX,GC=F `
+  --sources yahoo `
+  --output data\external_snapshot.live.json
+```
+
+多源交叉校验示例：
+
+```powershell
+python -m market_impact_radar fetch-external `
+  --mapping data\mappings.json `
+  --symbols MU,NVDA,AVGO `
+  --sources yahoo,alphavantage `
+  --alpha-vantage-key $env:ALPHAVANTAGE_API_KEY `
+  --max-source-diff-pct 0.5 `
+  --output data\external_snapshot.live.json
+```
+
+`Polygon` 也已预留：
+
+```powershell
+python -m market_impact_radar fetch-external `
+  --mapping data\mappings.json `
+  --symbols MU,NVDA `
+  --sources yahoo,polygon `
+  --polygon-key $env:POLYGON_API_KEY `
+  --output data\external_snapshot.live.json
+```
+
+每条行情会保存：
+
+- `source`：行情源
+- `fetched_at`：拉取时间
+- `price`：当前价或最近价
+- `prev_close`：前收
+- `change_pct`：涨跌幅
+- `data_status`：`ok`、`missing`、`stale`、`divergent`
+- `source_details`：各来源明细
+
+如果某条记录过期、缺失或多源分歧过大，报告会红色提示，并且该资产不会进入异动扫描，也就不会生成强信号。
+
+## A股盘中快照
+
+用东方财富生成 A股竞价/盘中验证快照：
+
+```powershell
+python -m market_impact_radar fetch-a-share `
+  --watchlist data\a_share_watchlist.sample.json `
+  --output data\a_share_snapshot.live.json
+```
+
+输出包含：
+
+- 主题 ETF 高开和当前涨幅
+- 龙头当前涨幅、高开回落判断
+- 主题成分内涨超 5% 家数
+- 全市场成交额、涨跌家数、涨超 5% 家数
+- A股交易日上下文
+
+这一步只生成标准化快照，后续 Patch 再把它接入盘中验证和评分链路。
 
 ## 扩容知识图谱
 
@@ -265,6 +335,10 @@ python -m unittest discover -s tests
 - `data/mappings.json`：人工精选知识图谱
 - `data/theme_rules.json`：爬虫扩容用主题关键词、外盘代码提示、风险规则
 - `data/sample_external_snapshot.json`：隔夜外盘快照示例
+- `data/external_snapshot.live.json`：`fetch-external` 生成的真实外盘快照，默认不纳入仓库
+- `data/a_share_watchlist.sample.json`：A股 ETF/龙头/成分股观察池示例
+- `data/a_share_snapshot.sample.json`：A股竞价/盘中验证快照示例
+- `data/a_share_snapshot.live.json`：`fetch-a-share` 生成的真实 A股快照，默认不纳入仓库
 - `data/sample_a_share_context.json`：A股昨日表现、竞价、大盘环境、历史边际示例
 - `data/intraday_snapshot.sample.json`：盘中验证快照示例
 - `data/sample_transmission_history.csv`：回测样例

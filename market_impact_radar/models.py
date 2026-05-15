@@ -14,6 +14,13 @@ class ExternalAsset:
     market: str
     change_pct: float
     volume_ratio: float = 1.0
+    price: float | None = None
+    prev_close: float | None = None
+    source: str = ""
+    fetched_at: str = ""
+    data_status: str = "ok"
+    quality_warnings: tuple[str, ...] = ()
+    source_details: tuple[dict[str, Any], ...] = ()
     asset_type: str = "equity"
     group: str | None = None
     themes: tuple[str, ...] = ()
@@ -102,6 +109,7 @@ class TransmissionEvent:
 @dataclass(frozen=True)
 class RadarResult:
     as_of: str
+    external_assets: tuple[ExternalAsset, ...]
     abnormal_moves: tuple[AbnormalMove, ...]
     group_signals: tuple[GroupSignal, ...]
     scored_themes: tuple[ScoredTheme, ...]

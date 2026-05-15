@@ -7,3 +7,5 @@ __pycache__/
 outputs/
 data/generated/
 data/mappings.enriched.json
+data/external_snapshot.live.json
+data/a_share_snapshot.live.json

@@ -1,0 +1,12 @@
+{
+  "type": "object",
+  "required": ["as_of", "source_summary", "trading_day_context", "market_breadth", "themes"],
+  "properties": {
+    "as_of": {"type": "string"},
+    "source_summary": {"type": "object"},
+    "trading_day_context": {"type": "object"},
+    "market_breadth": {"type": "object"},
+    "themes": {"type": "object"},
+    "quotes": {"type": "array"}
+  }
+}

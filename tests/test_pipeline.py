@@ -10,10 +10,14 @@ from market_impact_radar.backtest import (
 )
 from market_impact_radar.dashboard import render_dashboard_html
 from market_impact_radar.intraday import evaluate_intraday, render_intraday_report
+from market_impact_radar.io import load_mappings
+from market_impact_radar.models import ExternalAsset
 from market_impact_radar.pipeline import run_report_pipeline
+from market_impact_radar.quote_sources import QuoteRecord, consolidate_quote_records
 from market_impact_radar.report import render_markdown_report
 from market_impact_radar.review_feedback import summarize_review_result
 from market_impact_radar.review import render_review_template
+from market_impact_radar.scanner import identify_abnormal_moves
 from market_impact_radar.validation import validate_file
 
 
@@ -45,6 +49,7 @@ class PipelineTest(unittest.TestCase):
         report = render_markdown_report(result, "2026-05-14")
 
         self.assertIn("跨市场传导日报", report)
+        self.assertIn("数据来源与拉取时间", report)
         self.assertIn("昨夜外盘核心异动", report)
         self.assertIn("跨市场冲击事件", report)
         self.assertIn("今日信号分层", report)
@@ -155,6 +160,38 @@ class PipelineTest(unittest.TestCase):
         self.assertIn("跨市场传导雷达", html)
         self.assertIn("规则命中明细", html)
         self.assertIn("盘中验证", html)
+
+    def test_quote_consolidation_marks_divergent_sources(self) -> None:
+        config = load_mappings(ROOT / "data" / "mappings.json")
+        snapshot = consolidate_quote_records(
+            records=[
+                QuoteRecord("MU", "yahoo", "2026-05-14T07:30:00+00:00", price=105, prev_close=100, change_pct=5),
+                QuoteRecord("MU", "alphavantage", "2026-05-14T07:30:00+00:00", price=108, prev_close=100, change_pct=8),
+            ],
+            config=config,
+            requested_sources=("yahoo", "alphavantage"),
+            fetched_at="2026-05-14T07:30:00+00:00",
+            max_source_diff_pct=0.5,
+            max_age_minutes=0,
+        )
+
+        self.assertEqual(snapshot["assets"][0]["data_status"], "divergent")
+
+    def test_scanner_skips_bad_quote_quality(self) -> None:
+        asset = ExternalAsset(
+            symbol="MU",
+            name="美光",
+            market="US",
+            change_pct=8.2,
+            volume_ratio=2.0,
+            asset_type="equity",
+            group="存储链",
+            themes=("存储芯片",),
+            data_status="stale",
+            quality_warnings=("fetched_at older than max age",),
+        )
+
+        self.assertEqual(identify_abnormal_moves((asset,), {}), ())
 
 
 if __name__ == "__main__":

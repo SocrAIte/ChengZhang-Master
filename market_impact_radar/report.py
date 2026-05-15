@@ -15,6 +15,7 @@ def render_markdown_report(result: RadarResult, report_date: str | None = None) 
         "",
     ]
 
+    lines.extend(_render_source_quality(result))
     lines.extend(_render_external_moves(result))
     lines.extend(_render_events(result))
     lines.extend(_render_signal_tiers(result.scored_themes))
@@ -25,6 +26,46 @@ def render_markdown_report(result: RadarResult, report_date: str | None = None) 
     lines.extend(_render_intraday_playbook(result.scored_themes))
     lines.extend(_render_context(result))
     return "\n".join(lines).rstrip() + "\n"
+
+
+def _render_source_quality(result: RadarResult) -> list[str]:
+    quality = result.context.get("external_data_quality", {})
+    if not quality:
+        return []
+
+    lines = ["## 数据来源与拉取时间", ""]
+    sources = "、".join(quality.get("sources", [])) or "未提供"
+    fetched_min = quality.get("fetched_at_min") or "未提供"
+    fetched_max = quality.get("fetched_at_max") or "未提供"
+    lines.append(f"- 数据源：{sources}")
+    lines.append(f"- 拉取时间范围：{fetched_min} ~ {fetched_max}")
+
+    issues = quality.get("issues", [])
+    if issues:
+        lines.append(
+            '<span style="color:#b42318">数据异常：存在过期、缺失或多源分歧记录；'
+            "这些资产不会参与强信号生成。</span>"
+        )
+    else:
+        lines.append("数据质量：全部可用。")
+    lines.append("")
+
+    lines.extend(
+        [
+            "| 代码 | 名称 | 来源 | 拉取时间 | 价格 | 前收 | 涨跌幅 | 状态 |",
+            "| --- | --- | --- | --- | ---: | ---: | ---: | --- |",
+        ]
+    )
+    for asset in result.external_assets[:20]:
+        status = asset.data_status
+        if status != "ok":
+            status = f'<span style="color:#b42318">{status}</span>'
+        lines.append(
+            f"| {asset.symbol} | {asset.name} | {asset.source or '-'} | {asset.fetched_at or '-'} | "
+            f"{_fmt_optional(asset.price)} | {_fmt_optional(asset.prev_close)} | {asset.change_pct:+.2f}% | {status} |"
+        )
+    lines.append("")
+    return lines
 
 
 def _render_external_moves(result: RadarResult) -> list[str]:
@@ -211,3 +252,9 @@ def _render_context(result: RadarResult) -> list[str]:
         lines.append(f"指数趋势：{trend}")
     lines.append("")
     return lines
+
+
+def _fmt_optional(value: float | None) -> str:
+    if value is None:
+        return "-"
+    return f"{value:.2f}"

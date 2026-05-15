@@ -25,6 +25,8 @@ def identify_abnormal_moves(
     moves: list[AbnormalMove] = []
 
     for asset in assets:
+        if asset.data_status.lower() != "ok":
+            continue
         threshold = _threshold_for_asset(asset, settings)
         abs_change = abs(asset.change_pct)
         has_move = abs_change >= threshold

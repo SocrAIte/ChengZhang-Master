@@ -3,6 +3,7 @@
   "required": ["assets"],
   "properties": {
     "as_of": {"type": "string"},
+    "source_summary": {"type": "object"},
     "assets": {
       "type": "array",
       "items": {
@@ -10,8 +11,15 @@
         "required": ["symbol", "change_pct"],
         "properties": {
           "symbol": {"type": "string"},
+          "source": {"type": "string"},
+          "fetched_at": {"type": "string"},
+          "price": {"type": "number"},
+          "prev_close": {"type": "number"},
           "change_pct": {"type": "number"},
           "volume_ratio": {"type": "number"},
+          "data_status": {"type": "string"},
+          "quality_warnings": {"type": "array"},
+          "source_details": {"type": "array"},
           "reason_tags": {"type": "array"},
           "reason_summary": {"type": "string"}
         }

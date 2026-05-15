@@ -50,6 +50,7 @@ def render_dashboard_html(
     .watch {{ color: var(--watch); background: #eaf1ff; }}
     .weak {{ color: var(--weak); background: #fff4d6; }}
     .risk {{ color: var(--risk); background: #fee4e2; }}
+    .bad {{ color: var(--risk); font-weight: 700; }}
     table {{ width: 100%; border-collapse: collapse; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }}
     th, td {{ padding: 9px 10px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }}
     th {{ background: #eef2f6; font-size: 12px; color: #344054; }}
@@ -64,6 +65,7 @@ def render_dashboard_html(
     <p>{html.escape(report_date)} · 数据时间 {html.escape(result.as_of or "未提供")}</p>
   </header>
   <main>
+    {_source_quality_section(result)}
     {_events_section(result)}
     {_tiers_section(result.scored_themes)}
     {_risk_section(result.scored_themes)}
@@ -74,6 +76,34 @@ def render_dashboard_html(
 </body>
 </html>
 """
+
+
+def _source_quality_section(result: RadarResult) -> str:
+    quality = result.context.get("external_data_quality", {})
+    if not quality:
+        return ""
+    rows = []
+    for asset in result.external_assets[:24]:
+        status = html.escape(asset.data_status)
+        if asset.data_status != "ok":
+            status = f"<span class='bad'>{status}</span>"
+        rows.append(
+            f"<tr><td>{html.escape(asset.symbol)}</td><td>{html.escape(asset.name)}</td>"
+            f"<td>{html.escape(asset.source or '-')}</td><td>{html.escape(asset.fetched_at or '-')}</td>"
+            f"<td class='num'>{_fmt(asset.price)}</td><td class='num'>{_fmt(asset.prev_close)}</td>"
+            f"<td class='num'>{asset.change_pct:+.2f}%</td><td>{status}</td></tr>"
+        )
+    warning = ""
+    if quality.get("issues"):
+        warning = "<p class='bad'>存在过期、缺失或多源分歧记录；异常资产不会参与强信号生成。</p>"
+    return f"""<section>
+  <h2>数据来源与拉取时间</h2>
+  <div class="card">
+    <div class="meta">来源：{html.escape('、'.join(quality.get('sources', [])) or '未提供')} · 拉取时间：{html.escape(quality.get('fetched_at_min') or '未提供')} ~ {html.escape(quality.get('fetched_at_max') or '未提供')}</div>
+    {warning}
+  </div>
+  <table><thead><tr><th>代码</th><th>名称</th><th>来源</th><th>拉取时间</th><th class="num">价格</th><th class="num">前收</th><th class="num">涨跌幅</th><th>状态</th></tr></thead><tbody>{''.join(rows)}</tbody></table>
+</section>"""
 
 
 def _events_section(result: RadarResult) -> str:
@@ -157,3 +187,9 @@ def _intraday_section(evaluation: dict | None) -> str:
 
 def _tier_name(tier: str) -> str:
     return {"strong": "强", "watch": "观察", "weak": "弱", "risk": "风险"}.get(tier, tier)
+
+
+def _fmt(value: float | None) -> str:
+    if value is None:
+        return "-"
+    return html.escape(f"{value:.2f}")

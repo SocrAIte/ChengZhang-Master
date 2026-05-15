@@ -1,0 +1,60 @@
+{
+  "as_of": "2026-05-15T09:45:00+08:00",
+  "source_summary": {
+    "source": "sample/eastmoney",
+    "fetched_at": "2026-05-15T09:45:00+08:00",
+    "quality_counts": {"ok": 8}
+  },
+  "trading_day_context": {
+    "as_of": "2026-05-15T09:45:00+08:00",
+    "a_share_trade_day": "2026-05-15",
+    "is_a_share_trading_day": true,
+    "external_sessions": {
+      "US": {
+        "session_date": "2026-05-14",
+        "is_market_trading_day": true,
+        "market_close_utc": "2026-05-14T20:00:00+00:00",
+        "mapped_a_share_trade_day": "2026-05-15"
+      }
+    }
+  },
+  "market_breadth": {
+    "source": "eastmoney",
+    "data_status": "ok",
+    "turnover_billion": 8600,
+    "up_count": 3120,
+    "down_count": 1870,
+    "unchanged_count": 120,
+    "stocks_over_5pct_count": 214,
+    "sample_size": 5110
+  },
+  "themes": {
+    "AI算力": {
+      "etf_symbol": "515070",
+      "leader_symbol": "601138",
+      "etf_open_gap_pct": 0.8,
+      "etf_current_pct": 1.4,
+      "etf_above_vwap": true,
+      "leader_current_pct": 4.5,
+      "leader_open_gap_pct": 1.2,
+      "leader_fade": false,
+      "stocks_over_5pct_count": 5,
+      "volume_ratio": 1.6,
+      "data_status": "ok"
+    },
+    "存储芯片": {
+      "etf_symbol": "512760",
+      "leader_symbol": "688525",
+      "etf_open_gap_pct": 2.8,
+      "etf_current_pct": -0.4,
+      "etf_above_vwap": false,
+      "leader_current_pct": -1.2,
+      "leader_open_gap_pct": 3.0,
+      "leader_fade": true,
+      "stocks_over_5pct_count": 1,
+      "volume_ratio": 1.1,
+      "data_status": "ok"
+    }
+  },
+  "quotes": []
+}

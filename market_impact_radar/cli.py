@@ -11,11 +11,13 @@ from .backtest import (
     write_batch_stats_csv,
     write_historical_edges_json,
 )
+from .a_share_sources import fetch_a_share_snapshot
 from .dashboard import render_dashboard_html
 from .intraday import evaluate_intraday, render_intraday_report
-from .io import write_text
+from .io import load_json, load_mappings, write_text
 from .knowledge_crawler import crawl_and_enrich
 from .pipeline import run_report_pipeline
+from .quote_sources import fetch_external_snapshot
 from .report import render_markdown_report
 from .review import render_review_template
 from .review_feedback import summarize_review_result, write_review_edges, write_review_summary
@@ -30,6 +32,23 @@ DEFAULT_SCORING_RULES = "data/scoring_rules.json"
 def main() -> int:
     parser = argparse.ArgumentParser(description="跨市场传导雷达")
     subparsers = parser.add_subparsers(dest="command", required=True)
+
+    fetch_parser = subparsers.add_parser("fetch-external", help="从真实外盘行情源生成外盘快照")
+    fetch_parser.add_argument("--mapping", default=DEFAULT_MAPPING, help="映射配置 JSON，用来补全名称、市场、主题和分组")
+    fetch_parser.add_argument("--symbols", help="逗号分隔代码；不填则抓取 mappings 里的全部外盘资产")
+    fetch_parser.add_argument("--sources", default="yahoo", help="逗号分隔行情源：yahoo,alphavantage,polygon")
+    fetch_parser.add_argument("--output", required=True, help="输出 external snapshot JSON")
+    fetch_parser.add_argument("--max-source-diff-pct", type=float, default=0.5, help="多源涨跌幅最大允许差异，单位百分点")
+    fetch_parser.add_argument("--max-age-minutes", type=int, default=180, help="行情快照最大可接受年龄；超过后报告降级")
+    fetch_parser.add_argument("--alpha-vantage-key", help="Alpha Vantage API key；也可用 ALPHAVANTAGE_API_KEY")
+    fetch_parser.add_argument("--polygon-key", help="Polygon API key；也可用 POLYGON_API_KEY")
+    fetch_parser.add_argument("--proxy", help="HTTP/HTTPS 代理，例如 http://127.0.0.1:10793")
+
+    a_share_parser = subparsers.add_parser("fetch-a-share", help="从A股行情源生成竞价/盘中验证快照")
+    a_share_parser.add_argument("--watchlist", required=True, help="A股主题 ETF/龙头/成分股观察池 JSON")
+    a_share_parser.add_argument("--source", default="eastmoney", choices=["eastmoney"], help="A股行情源")
+    a_share_parser.add_argument("--output", required=True, help="输出 A股盘中快照 JSON")
+    a_share_parser.add_argument("--proxy", help="HTTP/HTTPS 代理，例如 http://127.0.0.1:10793")
 
     report_parser = subparsers.add_parser("report", help="生成开盘前传导日报")
     report_parser.add_argument("--external", required=True, help="外盘快照 JSON")
@@ -105,6 +124,7 @@ def main() -> int:
             "review_result.schema.json",
             "scoring_rules.schema.json",
             "intraday_snapshot.schema.json",
+            "a_share_snapshot.schema.json",
         ],
         help="schema 文件名",
     )
@@ -128,6 +148,30 @@ def main() -> int:
     )
 
     args = parser.parse_args()
+    if args.command == "fetch-external":
+        config = load_mappings(args.mapping)
+        symbols = _symbols_from_fetch_args(args, config)
+        snapshot = fetch_external_snapshot(
+            symbols=symbols,
+            config=config,
+            sources=tuple(item.strip() for item in args.sources.split(",") if item.strip()),
+            max_source_diff_pct=args.max_source_diff_pct,
+            max_age_minutes=args.max_age_minutes,
+            alpha_vantage_key=args.alpha_vantage_key,
+            polygon_key=args.polygon_key,
+            proxy=args.proxy,
+        )
+        write_text(args.output, json.dumps(snapshot, ensure_ascii=False, indent=2))
+        print(f"External snapshot written to {Path(args.output)}")
+        return 0
+
+    if args.command == "fetch-a-share":
+        watchlist = load_json(args.watchlist)
+        snapshot = fetch_a_share_snapshot(watchlist=watchlist, source=args.source, proxy=args.proxy)
+        write_text(args.output, json.dumps(snapshot, ensure_ascii=False, indent=2))
+        print(f"A-share snapshot written to {Path(args.output)}")
+        return 0
+
     if args.command == "report":
         _validate_report_inputs(args)
         result = run_report_pipeline(
@@ -274,6 +318,12 @@ def _run_pipeline_from_args(args: argparse.Namespace):
         args.historical_edges,
         args.scoring_rules,
     )
+
+
+def _symbols_from_fetch_args(args: argparse.Namespace, config: dict) -> tuple[str, ...]:
+    if args.symbols:
+        return tuple(item.strip().upper() for item in args.symbols.split(",") if item.strip())
+    return tuple(str(item["symbol"]).upper() for item in config.get("external_assets", []))
 
 
 if __name__ == "__main__":
