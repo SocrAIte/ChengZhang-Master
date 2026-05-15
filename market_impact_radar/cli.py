@@ -79,6 +79,7 @@ def main() -> int:
     dashboard_parser.add_argument("--historical-edges", help="批量回测生成的 historical_edges JSON")
     dashboard_parser.add_argument("--scoring-rules", default=DEFAULT_SCORING_RULES, help="评分规则 JSON")
     dashboard_parser.add_argument("--intraday", help="可选：盘中验证快照 JSON")
+    dashboard_parser.add_argument("--knowledge-verification", help="可选：verify-knowledge 生成的知识图谱复核 JSON")
     dashboard_parser.add_argument("--no-validate", action="store_true", help="跳过输入 JSON schema 校验")
     dashboard_parser.add_argument("--output", required=True, help="输出 HTML 文件")
     dashboard_parser.add_argument("--date", help="看板日期，默认使用本机日期")
@@ -222,7 +223,8 @@ def main() -> int:
         _validate_report_inputs(args)
         result = _run_pipeline_from_args(args)
         intraday_evaluation = evaluate_intraday(result, args.intraday) if args.intraday else None
-        html = render_dashboard_html(result, args.date, intraday_evaluation)
+        knowledge_verification = load_json(args.knowledge_verification) if args.knowledge_verification else None
+        html = render_dashboard_html(result, args.date, intraday_evaluation, knowledge_verification)
         write_text(args.output, html)
         print(f"Dashboard written to {Path(args.output)}")
         return 0

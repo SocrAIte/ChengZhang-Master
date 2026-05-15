@@ -12,6 +12,7 @@ def render_dashboard_html(
     result: RadarResult,
     report_date: str | None = None,
     intraday_evaluation: dict | None = None,
+    knowledge_verification: dict | None = None,
 ) -> str:
     report_date = report_date or date.today().isoformat()
     return f"""<!doctype html>
@@ -78,6 +79,7 @@ def render_dashboard_html(
     {_events_section(result)}
     {_tiers_section(result.scored_themes)}
     {_risk_section(result.scored_themes)}
+    {_knowledge_verification_section(knowledge_verification)}
     {_candidates_section("候选 ETF", result.etf_candidates)}
     {_candidates_section("候选个股", result.stock_candidates)}
     {_intraday_section(intraday_evaluation)}
@@ -209,6 +211,30 @@ def _intraday_alert_section(evaluation: dict | None) -> str:
     <p><strong>重点风险：</strong>{risk_themes}</p>
     <p><strong>已确认：</strong>{confirmed}</p>
   </div>
+</section>"""
+
+
+def _knowledge_verification_section(report: dict | None) -> str:
+    if not report:
+        return ""
+    counts = report.get("quality_counts", {})
+    source = report.get("source_summary", {})
+    issues = report.get("issues", [])
+    rows = "".join(
+        f"<tr><td>{html.escape(str(item.get('severity', '')))}</td>"
+        f"<td>{html.escape(str(item.get('kind', '')))}</td>"
+        f"<td>{html.escape(str(item.get('target', '')))}</td>"
+        f"<td>{html.escape(str(item.get('message', '')))}</td></tr>"
+        for item in issues[:12]
+    )
+    severity = "high" if int(counts.get("high", 0) or 0) else "medium" if int(counts.get("medium", 0) or 0) else "low"
+    return f"""<section>
+  <h2>知识图谱复核</h2>
+  <div class="card alert alert-{severity}">
+    <h3>问题 {int(counts.get('total', 0) or 0)} 个：高 {int(counts.get('high', 0) or 0)} / 中 {int(counts.get('medium', 0) or 0)} / 低 {int(counts.get('low', 0) or 0)}</h3>
+    <p>模式：{html.escape(str(source.get('mode', '')))}；缓存：{html.escape(str(source.get('generated_dir', '')))}</p>
+  </div>
+  <table><thead><tr><th>级别</th><th>类型</th><th>对象</th><th>说明</th></tr></thead><tbody>{rows or '<tr><td colspan="4">暂无复核问题</td></tr>'}</tbody></table>
 </section>"""
 
 

@@ -85,6 +85,31 @@ class KnowledgeCrawlerTest(unittest.TestCase):
         self.assertIn("market_group_theme_missing", kinds)
         self.assertEqual(report["theme_mappings"][0]["stocks_missing"], 0)
 
+    def test_verify_mapping_treats_manual_a_share_code_as_coded(self) -> None:
+        mapping = {
+            "external_assets": [],
+            "market_groups": {},
+            "theme_mappings": {
+                "储能": {
+                    "stocks": [{"name": "阳光电源", "code": "300274"}],
+                    "etfs": [],
+                }
+            },
+        }
+        universes = {
+            "us_symbols": [],
+            "taiwan_symbols": [],
+            "a_share_stocks": [],
+            "official_a_share_stocks": [],
+            "eastmoney_board_members": [],
+            "china_etfs": [],
+        }
+
+        report = verify_mapping(mapping, universes)
+
+        self.assertEqual(report["theme_mappings"][0]["stocks_missing"], 0)
+        self.assertEqual(report["theme_mappings"][0]["stocks_coded_unverified"], 1)
+
 
 if __name__ == "__main__":
     unittest.main()

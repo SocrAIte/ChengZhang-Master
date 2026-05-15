@@ -55,6 +55,7 @@ def load_verification_universes(
         "taiwan_symbols": _cached_rows(generated / "taiwan_symbols.json"),
         "a_share_stocks": _cached_rows(generated / "a_share_stocks.json"),
         "official_a_share_stocks": _cached_rows(generated / "official_a_share_stocks.json"),
+        "eastmoney_board_members": _cached_rows(generated / "eastmoney_board_members.json"),
         "china_etfs": _cached_rows(generated / "china_etfs.json"),
     }
     if refresh_apis:
@@ -129,6 +130,7 @@ def _verify_theme_mappings(
         stock_checks = [_verify_a_share_stock(item, indexes) for item in stocks]
         etf_checks = [_verify_china_etf(item, indexes) for item in etfs]
         missing_stocks = [item for item in stock_checks if item["status"] == "missing"]
+        coded_stocks = [item for item in stock_checks if item["status"] == "coded"]
         missing_etfs = [item for item in etf_checks if item["status"] == "missing"]
         if not stocks and not etfs:
             issues.append(_issue("high", "empty_theme_mapping", theme, "theme has no ETF or stock mappings"))
@@ -143,6 +145,7 @@ def _verify_theme_mappings(
                 "status": status,
                 "stocks_checked": len(stock_checks),
                 "stocks_missing": len(missing_stocks),
+                "stocks_coded_unverified": len(coded_stocks),
                 "etfs_checked": len(etf_checks),
                 "etfs_missing": len(missing_etfs),
             }
@@ -165,7 +168,12 @@ def _verify_theme_references(mapping: dict[str, Any], issues: list[dict[str, Any
 def _verify_a_share_stock(item: Any, indexes: dict[str, set[str]]) -> dict[str, str]:
     name, code = _mapping_name_code(item)
     keys = {code, _norm(name)}
-    status = "ok" if any(key and key in indexes["a_share_stocks"] for key in keys) else "missing"
+    if any(key and key in indexes["a_share_stocks"] for key in keys):
+        status = "ok"
+    elif _looks_like_a_share_code(code):
+        status = "coded"
+    else:
+        status = "missing"
     return {"name": name, "code": code, "status": status}
 
 
@@ -181,7 +189,11 @@ def _verify_china_etf(item: Any, indexes: dict[str, set[str]]) -> dict[str, str]
 
 
 def _build_indexes(universes: dict[str, list[dict[str, Any]]]) -> dict[str, set[str]]:
-    a_share_rows = universes.get("a_share_stocks", []) + universes.get("official_a_share_stocks", [])
+    a_share_rows = (
+        universes.get("a_share_stocks", [])
+        + universes.get("official_a_share_stocks", [])
+        + universes.get("eastmoney_board_members", [])
+    )
     return {
         "us_symbols": {_norm_symbol(row.get("symbol")) for row in universes.get("us_symbols", [])},
         "taiwan_symbols": {_norm_symbol(row.get("symbol")) for row in universes.get("taiwan_symbols", [])},
@@ -257,6 +269,10 @@ def _norm_symbol(value: Any) -> str:
 
 def _norm(value: Any) -> str:
     return "".join(ch for ch in str(value or "").upper() if ch.isalnum())
+
+
+def _looks_like_a_share_code(value: str) -> bool:
+    return len(value) == 6 and value.isdigit()
 
 
 def _now_iso() -> str:

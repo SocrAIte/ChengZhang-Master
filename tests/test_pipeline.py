@@ -225,11 +225,24 @@ class PipelineTest(unittest.TestCase):
             scoring_rules_path=str(ROOT / "data" / "scoring_rules.json"),
         )
         evaluation = evaluate_intraday(result, ROOT / "data" / "intraday_snapshot.sample.json")
-        html = render_dashboard_html(result, "2026-05-14", evaluation)
+        knowledge = {
+            "quality_counts": {"high": 1, "medium": 2, "low": 0, "total": 3},
+            "source_summary": {"mode": "cache", "generated_dir": "data/generated"},
+            "issues": [
+                {
+                    "severity": "high",
+                    "kind": "external_theme_missing",
+                    "target": "AVGO",
+                    "message": "theme missing",
+                }
+            ],
+        }
+        html = render_dashboard_html(result, "2026-05-14", evaluation, knowledge)
 
         self.assertIn("跨市场传导雷达", html)
         self.assertIn("规则命中明细", html)
         self.assertIn("盘中风险总览", html)
+        self.assertIn("知识图谱复核", html)
         self.assertIn("盘中验证", html)
 
     def test_quote_consolidation_marks_divergent_sources(self) -> None:

@@ -288,10 +288,11 @@ python -m market_impact_radar dashboard `
   --mapping data\mappings.json `
   --scoring-rules data\scoring_rules.json `
   --intraday data\intraday_snapshot.sample.json `
+  --knowledge-verification outputs\knowledge_verification.json `
   --output outputs\dashboard.html
 ```
 
-看板包含冲击事件、信号分层、规则命中明细、ETF/个股候选，以及可选的盘中验证结果。
+看板包含冲击事件、信号分层、规则命中明细、ETF/个股候选，以及可选的盘中验证和知识图谱复核结果。
 
 ## 收盘复盘模板
 
