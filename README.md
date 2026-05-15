@@ -2,6 +2,22 @@
 
 Global Signal -> China A-share Playbook.
 
+## Daily pipeline
+
+Use `run-daily` to generate the daily checkpoint outputs:
+
+```powershell
+python -m market_impact_radar run-daily --date 2026-05-15 --external data\sample_external_snapshot.json --context data\sample_a_share_context.json --scoring-rules data\scoring_rules.json --a-share-snapshot data\a_share_snapshot.sample.json --skip-knowledge
+```
+
+Outputs are written to `reports/daily/YYYY-MM-DD/`:
+
+- `run_summary.json`
+- `dashboard_data.json`
+- `dashboard.html`
+
+See [docs/RUN_DAILY.md](docs/RUN_DAILY.md) for the full runbook.
+
 这个项目用于在 A 股开盘前，把美股、日股、台股、商品期货等隔夜异动，映射成 A 股 ETF/个股候选，并给出风险过滤与盘中验证条件。
 
 当前版本是 MVP：不依赖外部服务，先用 JSON/CSV 输入跑通核心链路。
