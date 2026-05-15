@@ -16,6 +16,7 @@ from .dashboard import render_dashboard_html
 from .intraday import evaluate_intraday, render_intraday_report
 from .io import load_json, load_mappings, write_text
 from .knowledge_crawler import crawl_and_enrich
+from .knowledge_verifier import verify_knowledge_graph
 from .pipeline import run_report_pipeline
 from .quote_sources import fetch_external_snapshot
 from .report import render_markdown_report
@@ -142,6 +143,20 @@ def main() -> int:
     crawl_parser.add_argument("--skip-eastmoney", action="store_true", help="跳过东方财富源，只抓交易所/美股/台股基础列表")
     crawl_parser.add_argument("--proxy", help="HTTP/HTTPS 代理，例如 http://127.0.0.1:10793")
     crawl_parser.add_argument(
+        "--proxy-mode",
+        choices=["foreign", "all"],
+        default="foreign",
+        help="代理模式：foreign=国内源直连、海外源走代理；all=全部走代理",
+    )
+
+    verify_knowledge_parser = subparsers.add_parser("verify-knowledge", help="调用公开数据源/缓存复核知识图谱映射质量")
+    verify_knowledge_parser.add_argument("--mapping", default=DEFAULT_MAPPING, help="待复核的映射配置 JSON")
+    verify_knowledge_parser.add_argument("--generated-dir", default="data/generated", help="crawl-knowledge 生成的缓存目录")
+    verify_knowledge_parser.add_argument("--output", help="输出复核报告 JSON；不填则打印")
+    verify_knowledge_parser.add_argument("--refresh-apis", action="store_true", help="重新调用公开 API；失败时回退 generated-dir 缓存")
+    verify_knowledge_parser.add_argument("--timeout", type=int, default=20, help="单个 API 请求超时秒数")
+    verify_knowledge_parser.add_argument("--proxy", help="HTTP/HTTPS 代理，例如 http://127.0.0.1:10793")
+    verify_knowledge_parser.add_argument(
         "--proxy-mode",
         choices=["foreign", "all"],
         default="foreign",
@@ -292,6 +307,23 @@ def main() -> int:
         print(f"Generated data: {result.generated_dir}")
         if result.enriched_mapping_path:
             print(f"Enriched mapping: {result.enriched_mapping_path}")
+        return 0
+
+    if args.command == "verify-knowledge":
+        report = verify_knowledge_graph(
+            mapping_path=args.mapping,
+            generated_dir=args.generated_dir,
+            refresh_apis=args.refresh_apis,
+            timeout=args.timeout,
+            proxy=args.proxy,
+            proxy_mode=args.proxy_mode,
+        )
+        text = json.dumps(report, ensure_ascii=False, indent=2)
+        if args.output:
+            write_text(args.output, text)
+            print(f"Knowledge verification written to {Path(args.output)}")
+        else:
+            print(text)
         return 0
 
     parser.error(f"Unknown command: {args.command}")

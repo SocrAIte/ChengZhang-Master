@@ -8,6 +8,7 @@ from market_impact_radar.knowledge_crawler import (
     parse_nasdaq_listed,
     parse_nasdaq_other,
 )
+from market_impact_radar.knowledge_verifier import verify_mapping
 
 
 class KnowledgeCrawlerTest(unittest.TestCase):
@@ -53,6 +54,36 @@ class KnowledgeCrawlerTest(unittest.TestCase):
         self.assertEqual(external_candidates[0]["symbol"], "NVDA")
         self.assertIn("AI算力", theme_candidates)
         self.assertEqual(theme_candidates["AI算力"]["stocks"][0]["name"], "算力科技")
+
+    def test_verify_mapping_reports_missing_references(self) -> None:
+        mapping = {
+            "external_assets": [
+                {"symbol": "NVDA", "market": "US", "asset_type": "equity", "themes": ["AI算力"]},
+                {"symbol": "FAKE", "market": "US", "asset_type": "equity", "themes": ["不存在主题"]},
+            ],
+            "market_groups": {"AI链": {"themes": ["AI算力", "不存在主题"]}},
+            "theme_mappings": {
+                "AI算力": {
+                    "etfs": ["人工智能ETF"],
+                    "stocks": [{"name": "工业富联", "code": "601138"}],
+                }
+            },
+        }
+        universes = {
+            "us_symbols": [{"symbol": "NVDA"}],
+            "taiwan_symbols": [],
+            "a_share_stocks": [{"code": "601138", "name": "工业富联"}],
+            "official_a_share_stocks": [],
+            "china_etfs": [{"code": "515070", "name": "人工智能ETF"}],
+        }
+
+        report = verify_mapping(mapping, universes)
+
+        kinds = {issue["kind"] for issue in report["issues"]}
+        self.assertIn("external_asset_missing", kinds)
+        self.assertIn("external_theme_missing", kinds)
+        self.assertIn("market_group_theme_missing", kinds)
+        self.assertEqual(report["theme_mappings"][0]["stocks_missing"], 0)
 
 
 if __name__ == "__main__":

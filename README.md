@@ -176,6 +176,25 @@ python -m market_impact_radar crawl-knowledge `
 
 注意：爬虫生成的候选是关键词/板块匹配结果，适合扩容和人工复核，不应直接等同于强交易映射。
 
+可以用公开 API 或 `data/generated` 缓存对知识图谱做只读复核：
+```powershell
+python -m market_impact_radar verify-knowledge `
+  --mapping data\mappings.json `
+  --generated-dir data\generated `
+  --output outputs\knowledge_verification.json
+```
+
+如果要重新调用公开 API 并在失败时回退缓存：
+```powershell
+python -m market_impact_radar verify-knowledge `
+  --mapping data\mappings.json `
+  --generated-dir data\generated `
+  --refresh-apis `
+  --output outputs\knowledge_verification.json
+```
+
+复核报告会标出：外盘代码是否存在于对应市场列表、外盘主题是否能在 `theme_mappings` 中找到、A股股票/ETF 是否能被 A股公开列表或 ETF 列表匹配。报告只提示问题，不会自动修改 `mappings.json`。
+
 ## 简易回测
 
 ```powershell
