@@ -1,0 +1,18 @@
+{
+  "type": "object",
+  "properties": {
+    "market_environment": {
+      "type": "object",
+      "properties": {
+        "score": {"type": "number"},
+        "summary": {"type": "string"},
+        "turnover_billion": {"type": "number"},
+        "up_down_ratio": {"type": "number"},
+        "index_trend": {"type": "string"}
+      }
+    },
+    "historical_edges": {"type": "object"},
+    "a_share_previous_moves": {"type": "object"},
+    "auction": {"type": "object"}
+  }
+}

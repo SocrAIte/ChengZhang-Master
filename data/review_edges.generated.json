@@ -1,0 +1,54 @@
+{
+  "generated_at": "2026-05-14",
+  "source": "review_result",
+  "historical_edges": {
+    "HBM": {
+      "events": 1,
+      "win_rate": 1.0,
+      "avg_open_pct": 1.0,
+      "avg_high_pct": 3.4,
+      "avg_low_pct": -0.4,
+      "avg_close_pct": 2.2,
+      "max_drawdown_pct": -0.4,
+      "gap_fade_rate": 0.0,
+      "confirm_rate": 1.0,
+      "early_buy_suitable_rate": 1.0
+    },
+    "AI算力": {
+      "events": 1,
+      "win_rate": 1.0,
+      "avg_open_pct": 0.8,
+      "avg_high_pct": 2.6,
+      "avg_low_pct": -0.6,
+      "avg_close_pct": 1.5,
+      "max_drawdown_pct": -0.6,
+      "gap_fade_rate": 0.0,
+      "confirm_rate": 1.0,
+      "early_buy_suitable_rate": 1.0
+    },
+    "存储芯片": {
+      "events": 1,
+      "win_rate": 0.0,
+      "avg_open_pct": 2.4,
+      "avg_high_pct": 3.0,
+      "avg_low_pct": -1.8,
+      "avg_close_pct": -0.5,
+      "max_drawdown_pct": -1.8,
+      "gap_fade_rate": 1.0,
+      "confirm_rate": 0.0,
+      "early_buy_suitable_rate": 0.0
+    },
+    "CPO": {
+      "events": 1,
+      "win_rate": 0.0,
+      "avg_open_pct": 1.8,
+      "avg_high_pct": 2.1,
+      "avg_low_pct": -2.4,
+      "avg_close_pct": -1.2,
+      "max_drawdown_pct": -2.4,
+      "gap_fade_rate": 1.0,
+      "confirm_rate": 0.0,
+      "early_buy_suitable_rate": 0.0
+    }
+  }
+}

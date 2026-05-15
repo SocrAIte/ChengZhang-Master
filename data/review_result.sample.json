@@ -1,0 +1,87 @@
+{
+  "date": "2026-05-14",
+  "events": [
+    {
+      "title": "存储链上涨冲击",
+      "confirmed": true,
+      "conclusion": "HBM确认，存储芯片因提前反应出现兑现"
+    },
+    {
+      "title": "AI硬件链上涨冲击",
+      "confirmed": true,
+      "conclusion": "AI算力确认，CPO高开回落"
+    }
+  ],
+  "themes": [
+    {
+      "theme": "HBM",
+      "tier": "strong",
+      "open_pct": 1.0,
+      "high_pct": 3.4,
+      "low_pct": -0.4,
+      "close_pct": 2.2,
+      "confirmed": true,
+      "gap_fade": false,
+      "early_buy_suitable": true
+    },
+    {
+      "theme": "存储芯片",
+      "tier": "risk",
+      "open_pct": 2.4,
+      "high_pct": 3.0,
+      "low_pct": -1.8,
+      "close_pct": -0.5,
+      "confirmed": false,
+      "gap_fade": true,
+      "early_buy_suitable": false
+    },
+    {
+      "theme": "AI算力",
+      "tier": "watch",
+      "open_pct": 0.8,
+      "high_pct": 2.6,
+      "low_pct": -0.6,
+      "close_pct": 1.5,
+      "confirmed": true,
+      "gap_fade": false,
+      "early_buy_suitable": true
+    },
+    {
+      "theme": "CPO",
+      "tier": "risk",
+      "open_pct": 1.8,
+      "high_pct": 2.1,
+      "low_pct": -2.4,
+      "close_pct": -1.2,
+      "confirmed": false,
+      "gap_fade": true,
+      "early_buy_suitable": false
+    }
+  ],
+  "candidates": [
+    {
+      "name": "芯片ETF",
+      "kind": "ETF",
+      "theme": "HBM",
+      "open_pct": 0.7,
+      "high_pct": 2.1,
+      "low_pct": -0.2,
+      "close_pct": 1.3,
+      "early_buy_suitable": true
+    },
+    {
+      "name": "中际旭创",
+      "kind": "stock",
+      "theme": "AI算力",
+      "open_pct": 1.4,
+      "high_pct": 4.2,
+      "low_pct": -0.8,
+      "close_pct": 2.5,
+      "early_buy_suitable": true
+    }
+  ],
+  "lessons": [
+    "存储芯片提前反应后兑现，三日涨幅扣分有效。",
+    "CPO龙头冲高回落风险提示有效。"
+  ]
+}

@@ -1,0 +1,27 @@
+{
+  "type": "object",
+  "required": ["date", "themes"],
+  "properties": {
+    "date": {"type": "string"},
+    "events": {"type": "array"},
+    "themes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["theme", "open_pct", "high_pct", "low_pct", "close_pct"],
+        "properties": {
+          "theme": {"type": "string"},
+          "open_pct": {"type": "number"},
+          "high_pct": {"type": "number"},
+          "low_pct": {"type": "number"},
+          "close_pct": {"type": "number"},
+          "confirmed": {"type": "boolean"},
+          "gap_fade": {"type": "boolean"},
+          "early_buy_suitable": {"type": "boolean"}
+        }
+      }
+    },
+    "candidates": {"type": "array"},
+    "lessons": {"type": "array"}
+  }
+}

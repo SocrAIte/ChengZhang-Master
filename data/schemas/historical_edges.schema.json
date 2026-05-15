@@ -1,0 +1,8 @@
+{
+  "type": "object",
+  "properties": {
+    "generated_at": {"type": "string"},
+    "historical_edges": {"type": "object"},
+    "per_external_edges": {"type": "object"}
+  }
+}

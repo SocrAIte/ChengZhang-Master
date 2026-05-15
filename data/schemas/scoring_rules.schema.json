@@ -1,0 +1,15 @@
+{
+  "type": "object",
+  "required": ["score_weights", "tier_thresholds", "risk_rules"],
+  "properties": {
+    "score_weights": {"type": "object"},
+    "tier_thresholds": {"type": "object"},
+    "risk_cap": {"type": "number"},
+    "stock_risk_penalty": {"type": "object"},
+    "crowding_penalty": {"type": "object"},
+    "historical_edge_score": {"type": "object"},
+    "risk_rules": {"type": "object"},
+    "leader_status_penalty": {"type": "object"},
+    "index_trend_penalty": {"type": "object"}
+  }
+}

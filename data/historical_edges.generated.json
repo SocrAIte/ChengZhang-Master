@@ -1,0 +1,119 @@
+{
+  "generated_at": "2026-05-14T21:10:32",
+  "historical_edges": {
+    "存储芯片": {
+      "external_symbol": "MU",
+      "threshold": 3.0,
+      "direction": "up",
+      "events": 8,
+      "win_rate": 0.75,
+      "avg_open_pct": 1.125,
+      "avg_high_pct": 3.4875,
+      "avg_low_pct": -1.1125,
+      "avg_close_pct": 1.725,
+      "max_drawdown_pct": -2.2,
+      "gap_fade_rate": 0.375,
+      "edge_score": 72.61
+    },
+    "CPO": {
+      "external_symbol": "AVGO",
+      "threshold": 3.0,
+      "direction": "up",
+      "events": 5,
+      "win_rate": 0.8,
+      "avg_open_pct": 1.06,
+      "avg_high_pct": 3.76,
+      "avg_low_pct": -1.28,
+      "avg_close_pct": 1.6,
+      "max_drawdown_pct": -1.8,
+      "gap_fade_rate": 0.2,
+      "edge_score": 69.84
+    },
+    "AI算力": {
+      "external_symbol": "NVDA",
+      "threshold": 3.0,
+      "direction": "up",
+      "events": 5,
+      "win_rate": 0.8,
+      "avg_open_pct": 0.92,
+      "avg_high_pct": 2.7,
+      "avg_low_pct": -1.04,
+      "avg_close_pct": 1.36,
+      "max_drawdown_pct": -2.0,
+      "gap_fade_rate": 0.2,
+      "edge_score": 66.57
+    }
+  },
+  "per_external_edges": {
+    "MU|存储芯片|3.0": {
+      "external_symbol": "MU",
+      "threshold": 3.0,
+      "direction": "up",
+      "events": 8,
+      "win_rate": 0.75,
+      "avg_open_pct": 1.125,
+      "avg_high_pct": 3.4875,
+      "avg_low_pct": -1.1125,
+      "avg_close_pct": 1.725,
+      "max_drawdown_pct": -2.2,
+      "gap_fade_rate": 0.375,
+      "edge_score": 72.61
+    },
+    "MU|存储芯片|5.0": {
+      "external_symbol": "MU",
+      "threshold": 5.0,
+      "direction": "up",
+      "events": 8,
+      "win_rate": 0.75,
+      "avg_open_pct": 1.125,
+      "avg_high_pct": 3.4875,
+      "avg_low_pct": -1.1125,
+      "avg_close_pct": 1.725,
+      "max_drawdown_pct": -2.2,
+      "gap_fade_rate": 0.375,
+      "edge_score": 72.61
+    },
+    "AVGO|CPO|3.0": {
+      "external_symbol": "AVGO",
+      "threshold": 3.0,
+      "direction": "up",
+      "events": 5,
+      "win_rate": 0.8,
+      "avg_open_pct": 1.06,
+      "avg_high_pct": 3.76,
+      "avg_low_pct": -1.28,
+      "avg_close_pct": 1.6,
+      "max_drawdown_pct": -1.8,
+      "gap_fade_rate": 0.2,
+      "edge_score": 69.84
+    },
+    "NVDA|AI算力|3.0": {
+      "external_symbol": "NVDA",
+      "threshold": 3.0,
+      "direction": "up",
+      "events": 5,
+      "win_rate": 0.8,
+      "avg_open_pct": 0.92,
+      "avg_high_pct": 2.7,
+      "avg_low_pct": -1.04,
+      "avg_close_pct": 1.36,
+      "max_drawdown_pct": -2.0,
+      "gap_fade_rate": 0.2,
+      "edge_score": 66.57
+    },
+    "NVDA|AI算力|5.0": {
+      "external_symbol": "NVDA",
+      "threshold": 5.0,
+      "direction": "up",
+      "events": 3,
+      "win_rate": 0.6667,
+      "avg_open_pct": 1.1667,
+      "avg_high_pct": 3.1,
+      "avg_low_pct": -1.2333,
+      "avg_close_pct": 1.5333,
+      "max_drawdown_pct": -2.0,
+      "gap_fade_rate": 0.3333,
+      "edge_score": 58.38
+    }
+  }
+}

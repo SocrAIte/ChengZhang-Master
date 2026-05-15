@@ -1,0 +1,23 @@
+{
+  "type": "object",
+  "required": ["assets"],
+  "properties": {
+    "as_of": {"type": "string"},
+    "assets": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["symbol", "change_pct"],
+        "properties": {
+          "symbol": {"type": "string"},
+          "change_pct": {"type": "number"},
+          "volume_ratio": {"type": "number"},
+          "reason_tags": {"type": "array"},
+          "reason_summary": {"type": "string"}
+        }
+      }
+    },
+    "indices": {"type": "array"},
+    "commodities": {"type": "array"}
+  }
+}

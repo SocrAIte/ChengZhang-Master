@@ -1,0 +1,186 @@
+{
+  "market_environment": {
+    "score": 72,
+    "summary": "A股成交额维持在中等水平，题材轮动较快；强传导方向可以关注，但不宜追高。",
+    "turnover_billion": 8600,
+    "up_down_ratio": 1.08,
+    "index_trend": "震荡"
+  },
+  "historical_edges": {
+    "存储芯片": {
+      "win_rate": 0.667,
+      "avg_open_pct": 1.1,
+      "avg_high_pct": 3.1,
+      "avg_close_pct": 1.8,
+      "max_drawdown_pct": -2.3,
+      "gap_fade_rate": 0.33
+    },
+    "HBM": {
+      "win_rate": 0.62,
+      "avg_open_pct": 0.9,
+      "avg_high_pct": 2.6,
+      "avg_close_pct": 1.4,
+      "max_drawdown_pct": -2.7,
+      "gap_fade_rate": 0.38
+    },
+    "AI算力": {
+      "win_rate": 0.64,
+      "avg_open_pct": 0.8,
+      "avg_high_pct": 2.4,
+      "avg_close_pct": 1.2,
+      "max_drawdown_pct": -2.1,
+      "gap_fade_rate": 0.36
+    },
+    "CPO": {
+      "win_rate": 0.61,
+      "avg_open_pct": 1.0,
+      "avg_high_pct": 3.0,
+      "avg_close_pct": 1.5,
+      "max_drawdown_pct": -3.1,
+      "gap_fade_rate": 0.41
+    },
+    "PCB": {
+      "win_rate": 0.59,
+      "avg_open_pct": 0.7,
+      "avg_high_pct": 2.2,
+      "avg_close_pct": 1.0,
+      "max_drawdown_pct": -2.4,
+      "gap_fade_rate": 0.37
+    },
+    "液冷": {
+      "win_rate": 0.56,
+      "avg_open_pct": 0.5,
+      "avg_high_pct": 1.9,
+      "avg_close_pct": 0.8,
+      "max_drawdown_pct": -2.6,
+      "gap_fade_rate": 0.39
+    },
+    "半导体设备": {
+      "win_rate": 0.58,
+      "avg_open_pct": 0.6,
+      "avg_high_pct": 1.8,
+      "avg_close_pct": 0.9,
+      "max_drawdown_pct": -2.0,
+      "gap_fade_rate": 0.32
+    },
+    "半导体制造": {
+      "win_rate": 0.55,
+      "avg_open_pct": 0.4,
+      "avg_high_pct": 1.6,
+      "avg_close_pct": 0.6,
+      "max_drawdown_pct": -1.9,
+      "gap_fade_rate": 0.34
+    },
+    "先进封装": {
+      "win_rate": 0.57,
+      "avg_open_pct": 0.6,
+      "avg_high_pct": 1.9,
+      "avg_close_pct": 0.8,
+      "max_drawdown_pct": -2.2,
+      "gap_fade_rate": 0.36
+    },
+    "黄金": {
+      "win_rate": 0.57,
+      "avg_open_pct": 0.4,
+      "avg_high_pct": 1.4,
+      "avg_close_pct": 0.7,
+      "max_drawdown_pct": -1.2,
+      "gap_fade_rate": 0.28
+    }
+  },
+  "a_share_previous_moves": {
+    "存储芯片": {
+      "change_pct": 3.2,
+      "three_day_change_pct": 7.8,
+      "five_day_change_pct": 11.4,
+      "consecutive_up_days": 3,
+      "limit_up_count": 3,
+      "turnover_ratio": 1.9,
+      "volume_ratio": 1.7,
+      "etf_premium_pct": 0.8,
+      "main_fund_flow_pct": -0.6,
+      "crowding": "medium"
+    },
+    "HBM": {
+      "change_pct": 2.4,
+      "three_day_change_pct": 5.1,
+      "five_day_change_pct": 8.0,
+      "consecutive_up_days": 2,
+      "limit_up_count": 1,
+      "turnover_ratio": 1.6,
+      "volume_ratio": 1.5,
+      "etf_premium_pct": 0.5,
+      "crowding": "medium"
+    },
+    "AI算力": {
+      "change_pct": 1.2,
+      "three_day_change_pct": 3.5,
+      "five_day_change_pct": 5.2,
+      "consecutive_up_days": 1,
+      "limit_up_count": 1,
+      "turnover_ratio": 1.2,
+      "volume_ratio": 1.1,
+      "crowding": "low"
+    },
+    "CPO": {
+      "change_pct": 2.7,
+      "three_day_change_pct": 6.8,
+      "five_day_change_pct": 9.6,
+      "consecutive_up_days": 3,
+      "limit_up_count": 2,
+      "turnover_ratio": 2.0,
+      "volume_ratio": 1.8,
+      "etf_premium_pct": 1.2,
+      "leader_status": "fade",
+      "crowding": "medium"
+    },
+    "PCB": {
+      "change_pct": 1.8,
+      "three_day_change_pct": 4.2,
+      "five_day_change_pct": 7.1,
+      "limit_up_count": 1,
+      "turnover_ratio": 1.5,
+      "crowding": "low"
+    },
+    "液冷": {
+      "change_pct": 0.8,
+      "three_day_change_pct": 2.6,
+      "five_day_change_pct": 4.4,
+      "limit_up_count": 0,
+      "turnover_ratio": 1.1,
+      "crowding": "low"
+    },
+    "半导体设备": {
+      "change_pct": 0.9,
+      "three_day_change_pct": 2.8,
+      "five_day_change_pct": 4.5,
+      "limit_up_count": 0,
+      "turnover_ratio": 1.1,
+      "crowding": "low"
+    },
+    "黄金": {
+      "change_pct": -0.4,
+      "three_day_change_pct": 1.2,
+      "five_day_change_pct": 2.0,
+      "limit_up_count": 0,
+      "turnover_ratio": 0.9,
+      "crowding": "low"
+    }
+  },
+  "auction": {
+    "存储芯片": {
+      "open_gap_pct": 2.2,
+      "matched_amount_ratio": 1.1,
+      "leader_open_gap_pct": 4.6
+    },
+    "CPO": {
+      "open_gap_pct": 1.6,
+      "matched_amount_ratio": 1.0,
+      "leader_open_gap_pct": 3.2
+    },
+    "黄金": {
+      "open_gap_pct": 0.8,
+      "matched_amount_ratio": 0.9
+    }
+  }
+}

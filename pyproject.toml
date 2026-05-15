@@ -1,0 +1,9 @@
+[project]
+name = "market-impact-radar"
+version = "0.1.0"
+description = "Cross-market signal to China A-share candidate radar"
+requires-python = ">=3.10"
+dependencies = []
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

@@ -1,0 +1,325 @@
+{
+  "scanner_settings": {
+    "equity_move_pct": 3.0,
+    "index_move_pct": 1.2,
+    "commodity_move_pct": 1.5,
+    "crypto_move_pct": 3.0,
+    "volume_ratio": 1.4
+  },
+  "reason_weights": {
+    "industry_price": 1.15,
+    "ai_demand": 1.1,
+    "earnings": 1.05,
+    "analyst_upgrade": 0.9,
+    "macro_liquidity": 0.85,
+    "buyback": 0.65,
+    "m_and_a": 0.75,
+    "single_company": 0.7
+  },
+  "external_assets": [
+    {"symbol": "NVDA", "name": "英伟达", "market": "US", "asset_type": "equity", "group": "AI硬件链", "themes": ["AI算力", "CPO", "PCB", "液冷"]},
+    {"symbol": "AMD", "name": "AMD", "market": "US", "asset_type": "equity", "group": "AI硬件链", "themes": ["AI算力"]},
+    {"symbol": "AVGO", "name": "博通", "market": "US", "asset_type": "equity", "group": "AI硬件链", "themes": ["CPO", "PCB", "交换机"]},
+    {"symbol": "SMCI", "name": "超微电脑", "market": "US", "asset_type": "equity", "group": "AI服务器链", "themes": ["AI算力", "液冷", "服务器"]},
+    {"symbol": "DELL", "name": "戴尔", "market": "US", "asset_type": "equity", "group": "AI服务器链", "themes": ["服务器", "液冷"]},
+    {"symbol": "ANET", "name": "Arista", "market": "US", "asset_type": "equity", "group": "AI网络链", "themes": ["交换机", "CPO"]},
+    {"symbol": "MU", "name": "美光", "market": "US", "asset_type": "equity", "group": "存储链", "themes": ["存储芯片", "HBM"]},
+    {"symbol": "STX", "name": "希捷", "market": "US", "asset_type": "equity", "group": "存储链", "themes": ["存储芯片"]},
+    {"symbol": "WDC", "name": "西数", "market": "US", "asset_type": "equity", "group": "存储链", "themes": ["存储芯片"]},
+    {"symbol": "SSNLF", "name": "三星", "market": "US", "asset_type": "equity", "group": "存储链", "themes": ["存储芯片", "HBM"]},
+    {"symbol": "ASML", "name": "ASML", "market": "US", "asset_type": "equity", "group": "半导体设备链", "themes": ["半导体设备"]},
+    {"symbol": "AMAT", "name": "应用材料", "market": "US", "asset_type": "equity", "group": "半导体设备链", "themes": ["半导体设备", "半导体材料"]},
+    {"symbol": "LRCX", "name": "泛林", "market": "US", "asset_type": "equity", "group": "半导体设备链", "themes": ["半导体设备"]},
+    {"symbol": "KLAC", "name": "科磊", "market": "US", "asset_type": "equity", "group": "半导体设备链", "themes": ["半导体设备"]},
+    {"symbol": "TSM", "name": "台积电 ADR", "market": "US", "asset_type": "equity", "group": "晶圆制造链", "themes": ["半导体制造", "先进封装"]},
+    {"symbol": "2330.TW", "name": "台积电", "market": "TW", "asset_type": "equity", "group": "晶圆制造链", "themes": ["半导体制造", "先进封装"]},
+    {"symbol": "2303.TW", "name": "联电", "market": "TW", "asset_type": "equity", "group": "晶圆制造链", "themes": ["半导体制造"]},
+    {"symbol": "2382.TW", "name": "广达", "market": "TW", "asset_type": "equity", "group": "台股服务器链", "themes": ["服务器", "AI算力"]},
+    {"symbol": "3231.TW", "name": "纬创", "market": "TW", "asset_type": "equity", "group": "台股服务器链", "themes": ["服务器", "AI算力"]},
+    {"symbol": "2356.TW", "name": "英业达", "market": "TW", "asset_type": "equity", "group": "台股服务器链", "themes": ["服务器"]},
+    {"symbol": "3037.TW", "name": "欣兴", "market": "TW", "asset_type": "equity", "group": "PCB链", "themes": ["PCB"]},
+    {"symbol": "3189.TW", "name": "景硕", "market": "TW", "asset_type": "equity", "group": "PCB链", "themes": ["PCB"]},
+    {"symbol": "4958.TW", "name": "臻鼎", "market": "TW", "asset_type": "equity", "group": "PCB链", "themes": ["PCB"]},
+    {"symbol": "8033.TW", "name": "雷虎", "market": "TW", "asset_type": "equity", "group": "无人机链", "themes": ["低空经济"]},
+    {"symbol": "8035.TW", "name": "联亚", "market": "TW", "asset_type": "equity", "group": "光通信链", "themes": ["CPO", "光模块"]},
+    {"symbol": "4977.TW", "name": "眾达-KY", "market": "TW", "asset_type": "equity", "group": "光通信链", "themes": ["CPO", "光模块"]},
+    {"symbol": "8035.T", "name": "东京电子", "market": "JP", "asset_type": "equity", "group": "日股半导体设备链", "themes": ["半导体设备", "光刻胶"]},
+    {"symbol": "6857.T", "name": "Advantest", "market": "JP", "asset_type": "equity", "group": "日股半导体设备链", "themes": ["半导体设备"]},
+    {"symbol": "7735.T", "name": "SCREEN", "market": "JP", "asset_type": "equity", "group": "日股半导体设备链", "themes": ["半导体设备"]},
+    {"symbol": "6146.T", "name": "Disco", "market": "JP", "asset_type": "equity", "group": "日股半导体设备链", "themes": ["半导体设备"]},
+    {"symbol": "TSLA", "name": "特斯拉", "market": "US", "asset_type": "equity", "group": "电动车链", "themes": ["汽车零部件", "机器人", "储能"]},
+    {"symbol": "LLY", "name": "礼来", "market": "US", "asset_type": "equity", "group": "创新药链", "themes": ["减肥药", "创新药"]},
+    {"symbol": "NVO", "name": "诺和诺德", "market": "US", "asset_type": "equity", "group": "创新药链", "themes": ["减肥药", "创新药"]},
+    {"symbol": "GC=F", "name": "COMEX黄金", "market": "COMEX", "asset_type": "commodity", "group": "黄金链", "themes": ["黄金", "有色金属"]},
+    {"symbol": "SI=F", "name": "COMEX白银", "market": "COMEX", "asset_type": "commodity", "group": "白银链", "themes": ["白银", "有色金属"]},
+    {"symbol": "HG=F", "name": "COMEX铜", "market": "COMEX", "asset_type": "commodity", "group": "铜链", "themes": ["铜矿", "有色金属"]},
+    {"symbol": "CL=F", "name": "WTI原油", "market": "NYMEX", "asset_type": "commodity", "group": "能源链", "themes": ["石油", "油服"]},
+    {"symbol": "BTC", "name": "比特币", "market": "CRYPTO", "asset_type": "crypto", "group": "数字货币链", "themes": ["数字货币", "算力", "区块链"]},
+    {"symbol": "SOX", "name": "费城半导体指数", "market": "US", "asset_type": "index", "group": "半导体指数", "themes": ["半导体设备", "存储芯片", "半导体制造"]}
+  ],
+  "market_groups": {
+    "AI硬件链": {"themes": ["AI算力", "CPO", "PCB", "液冷"], "min_members": 2, "resonance_weight": 1.15},
+    "AI服务器链": {"themes": ["服务器", "液冷", "AI算力"], "min_members": 2, "resonance_weight": 1.05},
+    "AI网络链": {"themes": ["CPO", "交换机"], "min_members": 1, "resonance_weight": 1.0},
+    "存储链": {"themes": ["存储芯片", "HBM"], "min_members": 2, "resonance_weight": 1.2},
+    "半导体设备链": {"themes": ["半导体设备", "半导体材料"], "min_members": 2, "resonance_weight": 1.1},
+    "晶圆制造链": {"themes": ["半导体制造", "先进封装"], "min_members": 1, "resonance_weight": 0.95},
+    "台股服务器链": {"themes": ["服务器", "AI算力"], "min_members": 2, "resonance_weight": 1.1},
+    "PCB链": {"themes": ["PCB"], "min_members": 2, "resonance_weight": 1.05},
+    "光通信链": {"themes": ["CPO", "光模块"], "min_members": 2, "resonance_weight": 1.1},
+    "日股半导体设备链": {"themes": ["半导体设备", "光刻胶"], "min_members": 2, "resonance_weight": 1.1},
+    "电动车链": {"themes": ["汽车零部件", "机器人", "储能"], "min_members": 1, "resonance_weight": 0.9},
+    "创新药链": {"themes": ["减肥药", "创新药"], "min_members": 2, "resonance_weight": 1.0},
+    "黄金链": {"themes": ["黄金", "有色金属"], "min_members": 1, "resonance_weight": 1.0},
+    "白银链": {"themes": ["白银", "有色金属"], "min_members": 1, "resonance_weight": 0.95},
+    "铜链": {"themes": ["铜矿", "有色金属"], "min_members": 1, "resonance_weight": 1.0},
+    "能源链": {"themes": ["石油", "油服"], "min_members": 1, "resonance_weight": 0.9},
+    "数字货币链": {"themes": ["数字货币", "算力", "区块链"], "min_members": 1, "resonance_weight": 0.85},
+    "半导体指数": {"themes": ["半导体设备", "存储芯片", "半导体制造"], "min_members": 1, "resonance_weight": 0.85}
+  },
+  "theme_mappings": {
+    "存储芯片": {
+      "industries": ["存储", "半导体"],
+      "etfs": ["芯片ETF", "半导体ETF", "科创芯片ETF"],
+      "clarity": 0.95,
+      "stocks": [
+        {"name": "佰维存储", "role": "存储弹性标的", "elasticity": 0.95, "risk": "高"},
+        {"name": "江波龙", "role": "消费级存储相关", "elasticity": 0.92, "risk": "高"},
+        {"name": "兆易创新", "role": "存储龙头与MCU", "elasticity": 0.72, "risk": "中"},
+        {"name": "北京君正", "role": "存储与车规芯片", "elasticity": 0.70, "risk": "中"},
+        {"name": "澜起科技", "role": "内存接口/HBM相关", "elasticity": 0.68, "risk": "中"}
+      ]
+    },
+    "HBM": {
+      "industries": ["先进封装", "存储"],
+      "etfs": ["芯片ETF", "半导体ETF"],
+      "clarity": 0.88,
+      "stocks": [
+        {"name": "华海诚科", "role": "HBM封装材料", "elasticity": 0.86, "risk": "高"},
+        {"name": "雅克科技", "role": "半导体材料", "elasticity": 0.65, "risk": "中"},
+        {"name": "联瑞新材", "role": "封装填料", "elasticity": 0.72, "risk": "中高"}
+      ]
+    },
+    "AI算力": {
+      "industries": ["服务器", "光模块", "数据中心"],
+      "etfs": ["人工智能ETF", "云计算ETF", "通信ETF"],
+      "clarity": 0.9,
+      "stocks": [
+        {"name": "工业富联", "role": "AI服务器链", "elasticity": 0.70, "risk": "中"},
+        {"name": "中际旭创", "role": "高速光模块", "elasticity": 0.90, "risk": "高"},
+        {"name": "新易盛", "role": "高速光模块", "elasticity": 0.92, "risk": "高"},
+        {"name": "浪潮信息", "role": "服务器", "elasticity": 0.76, "risk": "中高"},
+        {"name": "沪电股份", "role": "AI服务器PCB", "elasticity": 0.82, "risk": "高"}
+      ]
+    },
+    "CPO": {
+      "industries": ["光通信", "通信设备"],
+      "etfs": ["通信ETF", "5GETF", "人工智能ETF"],
+      "clarity": 0.86,
+      "stocks": [
+        {"name": "中际旭创", "role": "光模块龙头", "elasticity": 0.90, "risk": "高"},
+        {"name": "新易盛", "role": "光模块弹性", "elasticity": 0.92, "risk": "高"},
+        {"name": "天孚通信", "role": "光器件", "elasticity": 0.88, "risk": "高"},
+        {"name": "光迅科技", "role": "光通信", "elasticity": 0.70, "risk": "中高"}
+      ]
+    },
+    "PCB": {
+      "industries": ["电子", "AI服务器"],
+      "etfs": ["电子ETF", "通信ETF", "5GETF"],
+      "clarity": 0.84,
+      "stocks": [
+        {"name": "沪电股份", "role": "AI服务器PCB", "elasticity": 0.88, "risk": "高"},
+        {"name": "深南电路", "role": "高端PCB", "elasticity": 0.72, "risk": "中"},
+        {"name": "胜宏科技", "role": "PCB弹性", "elasticity": 0.90, "risk": "高"},
+        {"name": "生益电子", "role": "服务器PCB", "elasticity": 0.80, "risk": "中高"}
+      ]
+    },
+    "液冷": {
+      "industries": ["数据中心", "散热"],
+      "etfs": ["人工智能ETF", "云计算ETF"],
+      "clarity": 0.78,
+      "stocks": [
+        {"name": "英维克", "role": "数据中心温控", "elasticity": 0.78, "risk": "中高"},
+        {"name": "高澜股份", "role": "液冷弹性", "elasticity": 0.90, "risk": "高"},
+        {"name": "申菱环境", "role": "温控设备", "elasticity": 0.70, "risk": "中"}
+      ]
+    },
+    "服务器": {
+      "industries": ["计算机设备", "数据中心"],
+      "etfs": ["云计算ETF", "人工智能ETF"],
+      "clarity": 0.82,
+      "stocks": [
+        {"name": "工业富联", "role": "AI服务器", "elasticity": 0.70, "risk": "中"},
+        {"name": "浪潮信息", "role": "服务器龙头", "elasticity": 0.76, "risk": "中高"},
+        {"name": "紫光股份", "role": "服务器与网络设备", "elasticity": 0.64, "risk": "中"}
+      ]
+    },
+    "半导体设备": {
+      "industries": ["设备", "材料"],
+      "etfs": ["芯片ETF", "半导体ETF", "科创芯片ETF"],
+      "clarity": 0.9,
+      "stocks": [
+        {"name": "北方华创", "role": "半导体设备龙头", "elasticity": 0.72, "risk": "中"},
+        {"name": "中微公司", "role": "刻蚀设备", "elasticity": 0.72, "risk": "中"},
+        {"name": "拓荆科技", "role": "薄膜沉积设备", "elasticity": 0.82, "risk": "中高"},
+        {"name": "芯源微", "role": "涂胶显影", "elasticity": 0.78, "risk": "中高"}
+      ]
+    },
+    "半导体材料": {
+      "industries": ["半导体材料"],
+      "etfs": ["芯片ETF", "半导体ETF"],
+      "clarity": 0.78,
+      "stocks": [
+        {"name": "沪硅产业", "role": "硅片", "elasticity": 0.68, "risk": "中"},
+        {"name": "安集科技", "role": "CMP材料", "elasticity": 0.70, "risk": "中"},
+        {"name": "鼎龙股份", "role": "半导体材料", "elasticity": 0.76, "risk": "中高"}
+      ]
+    },
+    "光刻胶": {
+      "industries": ["半导体材料"],
+      "etfs": ["芯片ETF", "半导体ETF"],
+      "clarity": 0.72,
+      "stocks": [
+        {"name": "彤程新材", "role": "光刻胶材料", "elasticity": 0.76, "risk": "中高"},
+        {"name": "晶瑞电材", "role": "光刻胶弹性", "elasticity": 0.85, "risk": "高"},
+        {"name": "南大光电", "role": "材料", "elasticity": 0.80, "risk": "中高"}
+      ]
+    },
+    "半导体制造": {
+      "industries": ["晶圆制造"],
+      "etfs": ["芯片ETF", "半导体ETF", "科创芯片ETF"],
+      "clarity": 0.86,
+      "stocks": [
+        {"name": "中芯国际", "role": "晶圆代工", "elasticity": 0.60, "risk": "中"},
+        {"name": "华虹公司", "role": "特色工艺代工", "elasticity": 0.62, "risk": "中"},
+        {"name": "北方华创", "role": "设备链受益", "elasticity": 0.70, "risk": "中"}
+      ]
+    },
+    "先进封装": {
+      "industries": ["封测", "材料"],
+      "etfs": ["芯片ETF", "半导体ETF"],
+      "clarity": 0.8,
+      "stocks": [
+        {"name": "长电科技", "role": "封测龙头", "elasticity": 0.70, "risk": "中"},
+        {"name": "通富微电", "role": "先进封装", "elasticity": 0.82, "risk": "中高"},
+        {"name": "华天科技", "role": "封测", "elasticity": 0.66, "risk": "中"}
+      ]
+    },
+    "黄金": {
+      "industries": ["贵金属"],
+      "etfs": ["黄金ETF"],
+      "clarity": 0.92,
+      "stocks": [
+        {"name": "山东黄金", "role": "金矿龙头", "elasticity": 0.62, "risk": "中"},
+        {"name": "中金黄金", "role": "黄金央企", "elasticity": 0.62, "risk": "中"},
+        {"name": "赤峰黄金", "role": "黄金弹性", "elasticity": 0.82, "risk": "中高"}
+      ]
+    },
+    "有色金属": {
+      "industries": ["有色", "贵金属"],
+      "etfs": ["有色金属ETF", "资源ETF"],
+      "clarity": 0.75,
+      "stocks": [
+        {"name": "紫金矿业", "role": "铜金矿综合龙头", "elasticity": 0.62, "risk": "中"},
+        {"name": "洛阳钼业", "role": "铜钴资源", "elasticity": 0.70, "risk": "中"},
+        {"name": "江西铜业", "role": "铜冶炼", "elasticity": 0.64, "risk": "中"}
+      ]
+    },
+    "铜矿": {
+      "industries": ["工业金属"],
+      "etfs": ["有色金属ETF", "资源ETF"],
+      "clarity": 0.82,
+      "stocks": [
+        {"name": "紫金矿业", "role": "铜金矿", "elasticity": 0.68, "risk": "中"},
+        {"name": "洛阳钼业", "role": "铜钴", "elasticity": 0.70, "risk": "中"},
+        {"name": "江西铜业", "role": "铜", "elasticity": 0.66, "risk": "中"}
+      ]
+    },
+    "石油": {
+      "industries": ["能源"],
+      "etfs": ["能源ETF"],
+      "clarity": 0.74,
+      "stocks": [
+        {"name": "中国石油", "role": "油气龙头", "elasticity": 0.45, "risk": "低"},
+        {"name": "中国海油", "role": "油气上游", "elasticity": 0.55, "risk": "中"},
+        {"name": "中国石化", "role": "炼化", "elasticity": 0.40, "risk": "低"}
+      ]
+    },
+    "油服": {
+      "industries": ["油气服务"],
+      "etfs": ["能源ETF"],
+      "clarity": 0.66,
+      "stocks": [
+        {"name": "中海油服", "role": "油服", "elasticity": 0.62, "risk": "中"},
+        {"name": "海油工程", "role": "海工", "elasticity": 0.60, "risk": "中"}
+      ]
+    },
+    "数字货币": {
+      "industries": ["金融科技", "区块链"],
+      "etfs": ["金融科技ETF"],
+      "clarity": 0.55,
+      "stocks": [
+        {"name": "新国都", "role": "金融科技", "elasticity": 0.72, "risk": "高"},
+        {"name": "恒宝股份", "role": "数字货币概念", "elasticity": 0.78, "risk": "高"}
+      ]
+    },
+    "区块链": {
+      "industries": ["计算机"],
+      "etfs": ["计算机ETF", "金融科技ETF"],
+      "clarity": 0.5,
+      "stocks": [
+        {"name": "宇信科技", "role": "金融IT", "elasticity": 0.62, "risk": "中高"},
+        {"name": "四方精创", "role": "金融科技", "elasticity": 0.75, "risk": "高"}
+      ]
+    },
+    "汽车零部件": {
+      "industries": ["汽车"],
+      "etfs": ["汽车ETF", "智能汽车ETF"],
+      "clarity": 0.72,
+      "stocks": [
+        {"name": "拓普集团", "role": "特斯拉链", "elasticity": 0.72, "risk": "中"},
+        {"name": "旭升集团", "role": "特斯拉链弹性", "elasticity": 0.80, "risk": "中高"},
+        {"name": "三花智控", "role": "热管理", "elasticity": 0.64, "risk": "中"}
+      ]
+    },
+    "机器人": {
+      "industries": ["机器人", "自动化"],
+      "etfs": ["机器人ETF", "智能制造ETF"],
+      "clarity": 0.7,
+      "stocks": [
+        {"name": "绿的谐波", "role": "减速器", "elasticity": 0.84, "risk": "高"},
+        {"name": "埃斯顿", "role": "工业机器人", "elasticity": 0.74, "risk": "中高"},
+        {"name": "鸣志电器", "role": "控制电机", "elasticity": 0.78, "risk": "中高"}
+      ]
+    },
+    "储能": {
+      "industries": ["新能源"],
+      "etfs": ["储能ETF", "新能源ETF"],
+      "clarity": 0.68,
+      "stocks": [
+        {"name": "阳光电源", "role": "储能逆变器", "elasticity": 0.66, "risk": "中"},
+        {"name": "科华数据", "role": "储能/数据中心", "elasticity": 0.70, "risk": "中高"}
+      ]
+    },
+    "减肥药": {
+      "industries": ["创新药"],
+      "etfs": ["创新药ETF", "医药ETF"],
+      "clarity": 0.78,
+      "stocks": [
+        {"name": "信达生物", "role": "GLP-1", "elasticity": 0.66, "risk": "中"},
+        {"name": "华东医药", "role": "减重药管线", "elasticity": 0.62, "risk": "中"},
+        {"name": "博瑞医药", "role": "减肥药弹性", "elasticity": 0.86, "risk": "高"}
+      ]
+    },
+    "创新药": {
+      "industries": ["医药"],
+      "etfs": ["创新药ETF", "医药ETF"],
+      "clarity": 0.72,
+      "stocks": [
+        {"name": "恒瑞医药", "role": "创新药龙头", "elasticity": 0.48, "risk": "低"},
+        {"name": "百济神州", "role": "创新药", "elasticity": 0.58, "risk": "中"},
+        {"name": "药明康德", "role": "CXO", "elasticity": 0.62, "risk": "中"}
+      ]
+    }
+  }
+}

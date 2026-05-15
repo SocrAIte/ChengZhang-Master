@@ -1,0 +1,8 @@
+{
+  "type": "object",
+  "required": ["themes"],
+  "properties": {
+    "as_of": {"type": "string"},
+    "themes": {"type": "object"}
+  }
+}

@@ -1,0 +1,117 @@
+{
+  "score_weights": {
+    "signal_strength": 0.20,
+    "resonance_score": 0.20,
+    "historical_edge": 0.20,
+    "mapping_clarity": 0.15,
+    "market_environment": 0.15
+  },
+  "tier_thresholds": {
+    "strong": 80,
+    "watch": 65,
+    "weak": 50,
+    "risk_discount_risk": 18
+  },
+  "risk_cap": 45,
+  "stock_risk_penalty": {
+    "低": 0,
+    "中": 3,
+    "中高": 5,
+    "高": 7,
+    "极高": 10
+  },
+  "crowding_penalty": {
+    "low": 0,
+    "medium": 4,
+    "high": 10,
+    "extreme": 16,
+    "低": 0,
+    "中": 4,
+    "高": 10,
+    "极高": 16
+  },
+  "historical_edge_score": {
+    "default_score": 60,
+    "win_rate_weight": 68,
+    "avg_close_shift": 1,
+    "avg_close_multiplier": 8,
+    "avg_close_cap": 20,
+    "avg_high_multiplier": 2,
+    "avg_high_cap": 12,
+    "fade_baseline": 0.35,
+    "fade_penalty_multiplier": 22,
+    "drawdown_free_pct": 3,
+    "drawdown_penalty_multiplier": 2
+  },
+  "risk_rules": {
+    "previous_change_pct": [
+      {"direction": "up", "gte": 5, "penalty": 16, "message": "A股{theme}昨日已大涨 {value:.1f}%，利好兑现风险高"},
+      {"direction": "up", "gte": 3, "penalty": 10, "message": "A股{theme}昨日已上涨 {value:.1f}%，追高性价比下降"},
+      {"direction": "down", "gte": 3, "penalty": 7, "message": "A股{theme}前一交易日偏强，外盘转弱后可能补跌"}
+    ],
+    "three_day_change_pct": [
+      {"direction": "up", "gte": 10, "penalty": 11, "message": "{theme}近3日已上涨 {value:.1f}%，短线拥挤度偏高"},
+      {"direction": "up", "gte": 6, "penalty": 6, "message": "{theme}近3日涨幅 {value:.1f}%，需要防止高开兑现"}
+    ],
+    "five_day_change_pct": [
+      {"direction": "up", "gte": 15, "penalty": 6, "message": "{theme}近5日涨幅 {value:.1f}%，不适合无条件追涨"}
+    ],
+    "consecutive_up_days": [
+      {"gte": 4, "penalty": 8, "message": "{theme}已连续上涨 {value:.0f} 天，分歧风险升高"},
+      {"gte": 3, "penalty": 4, "message": "{theme}已连续上涨 {value:.0f} 天，优先等回踩"}
+    ],
+    "limit_up_count": [
+      {"gte": 8, "penalty": 9, "message": "{theme}昨日涨停家数达到 {value:.0f} 只，板块可能过热"},
+      {"gte": 5, "penalty": 6, "message": "{theme}昨日涨停家数较多，短线拥挤"},
+      {"gte": 2, "penalty": 3, "message": "{theme}已有多个涨停标的，注意分歧"}
+    ],
+    "turnover_ratio": [
+      {"gte": 2.5, "penalty": 6, "message": "{theme}昨日换手显著放大，可能进入短线博弈阶段"},
+      {"gte": 1.8, "penalty": 3, "message": "{theme}昨日换手放大，追高需谨慎"}
+    ],
+    "volume_ratio": [
+      {"gte": 2.2, "penalty": 5, "message": "{theme}昨日成交量放大 {value:.1f}x，注意放量分歧"}
+    ],
+    "etf_premium_pct": [
+      {"gte": 2, "penalty": 6, "message": "{theme}相关ETF溢价 {value:.1f}%，不宜用市价追"},
+      {"gte": 1, "penalty": 3, "message": "{theme}相关ETF已有溢价，注意买入成本"}
+    ],
+    "main_fund_flow_pct": [
+      {"lte": -1.5, "penalty": 5, "message": "{theme}昨日主力资金净流出，隔夜利好需等待确认"}
+    ],
+    "northbound_flow_pct": [
+      {"lte": -1, "penalty": 3, "message": "{theme}昨日北向/外资口径偏流出，传导强度打折"}
+    ],
+    "auction_open_gap_pct": [
+      {"gt": 8, "penalty": 18, "message": "{theme}竞价高开超过 8%，不适合追"},
+      {"gt": 5, "penalty": 12, "message": "{theme}竞价高开超过 5%，兑现风险较高"},
+      {"gt": 2, "penalty": 5, "message": "{theme}竞价高开 {value:.1f}%，宜等回踩确认"}
+    ],
+    "leader_open_gap_pct": [
+      {"gt": 7, "penalty": 6, "message": "{theme}龙头竞价高开 {value:.1f}%，后排追涨风险较高"}
+    ],
+    "market_score": [
+      {"lt": 45, "penalty": 10, "message": "大盘环境偏弱，外盘传导成功率下降"},
+      {"lt": 60, "penalty": 5, "message": "大盘环境一般，强信号也要降低追高权重"}
+    ],
+    "market_turnover_billion": [
+      {"lt": 7000, "penalty": 5, "message": "A股成交额约 {value:.0f} 亿，题材承接可能不足"}
+    ],
+    "market_up_down_ratio": [
+      {"lt": 0.75, "penalty": 4, "message": "市场涨跌家数偏弱，题材扩散难度较高"}
+    ]
+  },
+  "leader_status_penalty": {
+    "fade": {"penalty": 7, "message": "{theme}核心龙头昨日冲高回落，开盘需要重新验证"},
+    "high_open_fade": {"penalty": 7, "message": "{theme}核心龙头昨日冲高回落，开盘需要重新验证"},
+    "冲高回落": {"penalty": 7, "message": "{theme}核心龙头昨日冲高回落，开盘需要重新验证"},
+    "one_word_limit": {"penalty": 5, "message": "{theme}前排可能一字过强，后排补涨更依赖板块扩散"},
+    "一字板": {"penalty": 5, "message": "{theme}前排可能一字过强，后排补涨更依赖板块扩散"}
+  },
+  "index_trend_penalty": {
+    "down": {"penalty": 4, "message": "主要指数趋势偏弱，隔夜信号需等待盘中确认"},
+    "weak": {"penalty": 4, "message": "主要指数趋势偏弱，隔夜信号需等待盘中确认"},
+    "下行": {"penalty": 4, "message": "主要指数趋势偏弱，隔夜信号需等待盘中确认"},
+    "弱": {"penalty": 4, "message": "主要指数趋势偏弱，隔夜信号需等待盘中确认"}
+  }
+}
