@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 from typing import Any
 
+from .html_components import PAGE_NAV_CSS, relative_output_href, render_page_nav
 from .io import write_text
 
 
@@ -54,6 +55,7 @@ def render_run_diagnostics_html(run_summary: dict[str, Any] | None) -> str:
     .num {{ text-align: right; white-space: nowrap; }}
     .note-list {{ margin: 8px 0 0 18px; padding: 0; }}
     .links a {{ display: inline-block; margin-right: 8px; }}
+{PAGE_NAV_CSS}
   </style>
 </head>
 <body>
@@ -61,6 +63,7 @@ def render_run_diagnostics_html(run_summary: dict[str, Any] | None) -> str:
     <h1>Run Diagnostics</h1>
     <p>{html.escape(_text(summary.get("run_date") or "unknown"))} &middot; status {html.escape(_text(summary.get("status") or "unknown"))}</p>
   </header>
+  {_diagnostics_nav(summary)}
   <main>
     {_run_summary_html(summary, warnings)}
     {_steps_html(summary)}
@@ -82,6 +85,21 @@ def write_run_diagnostics_html(
     path = Path(output_dir) / "run_diagnostics.html"
     write_text(path, render_run_diagnostics_html(payload))
     return path
+
+
+def _diagnostics_nav(summary: dict[str, Any]) -> str:
+    outputs = _safe_dict(summary.get("outputs"))
+    report_href = relative_output_href(outputs.get("report_md"))
+    items = (
+        ("daily_runs", "Back to Daily Runs", "../index.html"),
+        ("dashboard", "Dashboard", "dashboard.html"),
+        ("knowledge_review", "Knowledge Review", "knowledge_review.html"),
+        ("run_diagnostics", "Run Diagnostics", "run_diagnostics.html"),
+        ("run_summary", "run_summary.json", "run_summary.json"),
+        ("dashboard_data", "dashboard_data.json", "dashboard_data.json"),
+        ("report", "report.md", report_href),
+    )
+    return render_page_nav(items, current_key="run_diagnostics")
 
 
 def _run_summary_html(summary: dict[str, Any], warnings: list[Any]) -> str:

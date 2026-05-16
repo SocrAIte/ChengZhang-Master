@@ -152,6 +152,11 @@ class DashboardDataRenderTest(unittest.TestCase):
         self.assertIn("sample/yahoo", html)
         self.assertIn("sample-context", html)
         self.assertIn("Output Links", html)
+        self.assertIn("Back to Daily Runs", html)
+        self.assertIn("href='../index.html'", html)
+        self.assertIn("aria-current='page'>Dashboard</a>", html)
+        self.assertIn("href='dashboard_data.json'", html)
+        self.assertIn("href='run_summary.json'", html)
         self.assertIn("report.md", html)
         self.assertIn("knowledge_review.html", html)
         self.assertIn("href='knowledge_review.html'", html)
@@ -173,6 +178,8 @@ class DashboardDataRenderTest(unittest.TestCase):
         self.assertIn("Knowledge Graph", html)
         self.assertIn("not_checked", html)
         self.assertIn("External context not provided.", html)
+        self.assertIn("report.md unavailable", html)
+        self.assertNotIn("href='report.md'", html)
 
     def test_candidate_fields_accept_string_and_dict_values(self) -> None:
         html = render_dashboard_from_data(

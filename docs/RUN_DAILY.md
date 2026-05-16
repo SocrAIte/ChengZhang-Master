@@ -143,6 +143,17 @@ This page is a diagnostic view only. It does not recompute signals, modify data 
 
 The optional browser smoke check for daily preview opens this history index and the linked `dashboard.html`, `knowledge_review.html`, and `run_diagnostics.html` pages.
 
+### Daily Report Bundle Navigation
+
+The static pages share a consistent navigation area:
+
+- `index.html`: historical daily runs entry, latest run link, and links to each run's Dashboard, Knowledge Review, Run Diagnostics, and raw JSON files.
+- `dashboard.html`: daily signals and candidates, with links back to Daily Runs and across to Knowledge Review, Run Diagnostics, `dashboard_data.json`, `run_summary.json`, and `report.md` when present.
+- `knowledge_review.html`: read-only knowledge graph review, with links back to Daily Runs, Dashboard, Run Diagnostics, and raw knowledge check files when present.
+- `run_diagnostics.html`: pipeline diagnostics, with links back to Daily Runs, Dashboard, Knowledge Review, `run_summary.json`, and `dashboard_data.json`.
+
+All links are relative paths so the bundle works from local files, CI artifacts, and the manual Pages preview.
+
 You can rebuild it manually:
 
 ```powershell

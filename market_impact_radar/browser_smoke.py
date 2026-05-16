@@ -32,25 +32,25 @@ def run_daily_bundle_browser_smoke(
         _PageCheck(
             label="index.html",
             path=root / "index.html",
-            required_text=("Daily Runs", "2026-05-15", "dashboard.html", "knowledge_review.html", "run_diagnostics.html"),
+            required_text=("Daily Runs", "2026-05-15", "Dashboard", "Knowledge Review", "Run Diagnostics"),
         ),
         _PageCheck(
             label="dashboard.html",
             path=root / "2026-05-15" / "dashboard.html",
-            required_text=("knowledge_review.html", "run_diagnostics.html"),
+            required_text=("Back to Daily Runs", "knowledge_review.html", "run_diagnostics.html"),
             any_text=(("Schema: 1.0", "schema version"), ("Daily Market Radar", "Status"), ("Signal Overview", "Signal List", "summary")),
             selectors=("#signal-search",),
         ),
         _PageCheck(
             label="knowledge_review.html",
             path=root / "2026-05-15" / "knowledge_review.html",
-            required_text=("Knowledge Graph Review",),
+            required_text=("Knowledge Graph Review", "Dashboard", "Run Diagnostics"),
             any_text=(("clean", "skipped", "issues", "not available", "not_available"),),
         ),
         _PageCheck(
             label="run_diagnostics.html",
             path=root / "2026-05-15" / "run_diagnostics.html",
-            required_text=("Run Diagnostics", "Pipeline Steps", "Outputs"),
+            required_text=("Run Diagnostics", "Dashboard", "Knowledge Review", "Pipeline Steps", "Outputs"),
             any_text=(("Warnings / Errors", "No warnings or errors"),),
         ),
     )

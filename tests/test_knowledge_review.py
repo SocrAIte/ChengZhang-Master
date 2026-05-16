@@ -13,6 +13,12 @@ class KnowledgeReviewTest(unittest.TestCase):
 
         self.assertIn("Knowledge graph is clean.", html)
         self.assertIn("Total Issues", html)
+        self.assertIn("Back to Daily Runs", html)
+        self.assertIn("href='../index.html'", html)
+        self.assertIn("aria-current='page'>Knowledge Review</a>", html)
+        self.assertIn("Dashboard", html)
+        self.assertIn("Run Diagnostics", html)
+        self.assertIn("knowledge_check.json unavailable", html)
 
     def test_issues_group_by_severity(self) -> None:
         html = render_knowledge_review_html(

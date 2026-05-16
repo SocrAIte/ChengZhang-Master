@@ -7,6 +7,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from .html_components import PAGE_NAV_CSS, render_page_nav
 from .io import write_text
 
 
@@ -29,6 +30,7 @@ def render_daily_history_index_html(index_data: dict[str, Any] | None) -> str:
     data = index_data if isinstance(index_data, dict) else {}
     runs = data.get("runs") if isinstance(data.get("runs"), list) else []
     latest_status = _text(runs[0].get("status") if runs and isinstance(runs[0], dict) else "unknown")
+    latest_dashboard = _latest_dashboard_href(runs)
     rows = "".join(_run_row(_safe_dict(run)) for run in runs)
     if not rows:
         rows = "<tr><td colspan='11'>No daily runs found.</td></tr>"
@@ -70,6 +72,7 @@ def render_daily_history_index_html(index_data: dict[str, Any] | None) -> str:
     tr:last-child td {{ border-bottom: 0; }}
     .num {{ text-align: right; white-space: nowrap; }}
     .links a {{ display: inline-block; margin-right: 8px; }}
+{PAGE_NAV_CSS}
   </style>
 </head>
 <body>
@@ -77,10 +80,12 @@ def render_daily_history_index_html(index_data: dict[str, Any] | None) -> str:
     <h1>Daily Runs</h1>
     <p>Generated at {html.escape(_text(data.get('generated_at') or 'unknown'))} &middot; Schema: {html.escape(_text(data.get('schema_version') or 'unknown'))}</p>
   </header>
+  {_history_nav(latest_dashboard)}
   <main>
     <section class="grid">
       <div class="card"><h2>Runs</h2><p>{len(runs)}</p></div>
       <div class="card"><h2>Latest Status</h2><p><span class="pill {html.escape(latest_status)}">{html.escape(latest_status)}</span></p></div>
+      <div class="card"><h2>Latest Run</h2><p>{_latest_run_link(latest_dashboard)}</p></div>
     </section>
     <section>
       <table>
@@ -108,6 +113,28 @@ def write_daily_history_index(reports_dir: str | Path) -> dict[str, Path]:
     write_text(index_json, json.dumps(index_data, ensure_ascii=False, indent=2))
     write_text(index_html, render_daily_history_index_html(index_data))
     return {"index_json": index_json, "index_html": index_html}
+
+
+def _history_nav(latest_dashboard: str | None) -> str:
+    items = (
+        ("daily_runs", "Daily Runs", "index.html"),
+        ("latest_run", "Latest Run", latest_dashboard),
+    )
+    return render_page_nav(items, current_key="daily_runs")
+
+
+def _latest_dashboard_href(runs: list[Any]) -> str | None:
+    if not runs or not isinstance(runs[0], dict):
+        return None
+    outputs = _safe_dict(runs[0].get("outputs"))
+    value = outputs.get("dashboard_html")
+    return str(value) if value else None
+
+
+def _latest_run_link(latest_dashboard: str | None) -> str:
+    if not latest_dashboard:
+        return "<span class='muted'>unavailable</span>"
+    return f"<a href='{html.escape(latest_dashboard, quote=True)}'>Open latest dashboard</a>"
 
 
 def _date_dirs(root: Path) -> list[Path]:
@@ -208,9 +235,9 @@ def _run_row(run: dict[str, Any]) -> str:
 
 def _links(outputs: dict[str, Any]) -> str:
     labels = (
-        ("dashboard_html", "dashboard.html"),
-        ("knowledge_review_html", "knowledge_review.html"),
-        ("run_diagnostics_html", "run_diagnostics.html"),
+        ("dashboard_html", "Dashboard"),
+        ("knowledge_review_html", "Knowledge Review"),
+        ("run_diagnostics_html", "Run Diagnostics"),
         ("dashboard_data_json", "dashboard_data.json"),
         ("run_summary_json", "run_summary.json"),
         ("report_md", "report.md"),

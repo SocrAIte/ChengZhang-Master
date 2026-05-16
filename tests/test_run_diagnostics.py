@@ -36,6 +36,13 @@ class RunDiagnosticsTest(unittest.TestCase):
         self.assertIn("external completed with partial data", html)
         self.assertIn("dashboard.html", html)
         self.assertIn("run_diagnostics.html", html)
+        self.assertIn("Back to Daily Runs", html)
+        self.assertIn("href='../index.html'", html)
+        self.assertIn("Dashboard", html)
+        self.assertIn("Knowledge Review", html)
+        self.assertIn("aria-current='page'>Run Diagnostics</a>", html)
+        self.assertIn("href='run_summary.json'", html)
+        self.assertIn("href='dashboard_data.json'", html)
 
     def test_missing_sections_do_not_crash(self) -> None:
         html = render_run_diagnostics_html({"run_date": "2026-05-15"})
@@ -65,6 +72,8 @@ class RunDiagnosticsTest(unittest.TestCase):
 
         self.assertIn("dashboard.html", html)
         self.assertIn("unavailable", html)
+        self.assertIn("report.md unavailable", html)
+        self.assertNotIn("href='report.md'", html)
 
     def test_escapes_visible_text(self) -> None:
         html = render_run_diagnostics_html(

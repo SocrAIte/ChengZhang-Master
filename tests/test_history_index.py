@@ -139,6 +139,11 @@ class DailyHistoryIndexTest(unittest.TestCase):
         )
 
         self.assertIn("2026-05-15", html)
+        self.assertIn("Latest Run", html)
+        self.assertIn("Open latest dashboard", html)
+        self.assertIn("Dashboard", html)
+        self.assertIn("Knowledge Review", html)
+        self.assertIn("Run Diagnostics", html)
         self.assertIn("dashboard.html", html)
         self.assertIn("knowledge_review.html", html)
         self.assertIn("run_diagnostics.html", html)

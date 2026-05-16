@@ -85,14 +85,14 @@ def _factory(body_text: str):
 
 def _bundle_factory():
     pages = [
-        _FakePage("Daily Runs 2026-05-15 dashboard.html knowledge_review.html run_diagnostics.html", "Daily Runs"),
+        _FakePage("Daily Runs 2026-05-15 Dashboard Knowledge Review Run Diagnostics", "Daily Runs"),
         _FakePage(
-            "Daily Market Radar Status Signal Overview Signal List Schema: 1.0 knowledge_review.html run_diagnostics.html",
+            "Daily Market Radar Back to Daily Runs Status Signal Overview Signal List Schema: 1.0 knowledge_review.html run_diagnostics.html",
             "Daily Market Radar",
             {"#signal-search": 1},
         ),
-        _FakePage("Knowledge Graph Review skipped", "Knowledge Graph Review"),
-        _FakePage("Run Diagnostics Pipeline Steps Outputs Warnings / Errors", "Run Diagnostics"),
+        _FakePage("Knowledge Graph Review Dashboard Run Diagnostics skipped", "Knowledge Graph Review"),
+        _FakePage("Run Diagnostics Dashboard Knowledge Review Pipeline Steps Outputs Warnings / Errors", "Run Diagnostics"),
     ]
     return lambda: _FakePlaywright(pages)
 
@@ -100,13 +100,13 @@ def _bundle_factory():
 def _write_bundle(root: Path) -> None:
     run_dir = root / "2026-05-15"
     run_dir.mkdir(parents=True, exist_ok=True)
-    (root / "index.html").write_text("<html>Daily Runs 2026-05-15 dashboard.html knowledge_review.html run_diagnostics.html</html>", encoding="utf-8")
+    (root / "index.html").write_text("<html>Daily Runs 2026-05-15 Dashboard Knowledge Review Run Diagnostics</html>", encoding="utf-8")
     (run_dir / "dashboard.html").write_text(
-        "<html>Daily Market Radar Status Signal Overview Schema: 1.0 knowledge_review.html run_diagnostics.html <input id='signal-search'></html>",
+        "<html>Daily Market Radar Back to Daily Runs Status Signal Overview Schema: 1.0 knowledge_review.html run_diagnostics.html <input id='signal-search'></html>",
         encoding="utf-8",
     )
-    (run_dir / "knowledge_review.html").write_text("<html>Knowledge Graph Review skipped</html>", encoding="utf-8")
-    (run_dir / "run_diagnostics.html").write_text("<html>Run Diagnostics Pipeline Steps Outputs Warnings / Errors</html>", encoding="utf-8")
+    (run_dir / "knowledge_review.html").write_text("<html>Knowledge Graph Review Dashboard Run Diagnostics skipped</html>", encoding="utf-8")
+    (run_dir / "run_diagnostics.html").write_text("<html>Run Diagnostics Dashboard Knowledge Review Pipeline Steps Outputs Warnings / Errors</html>", encoding="utf-8")
 
 
 class BrowserSmokeTest(unittest.TestCase):

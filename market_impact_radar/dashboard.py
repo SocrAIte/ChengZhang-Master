@@ -5,6 +5,7 @@ from datetime import date
 from typing import Any
 
 from .dashboard_contract import normalize_dashboard_data
+from .html_components import PAGE_NAV_CSS, relative_output_href, render_page_nav
 from .intraday import summarize_intraday_evaluation
 from .models import RadarResult, ScoredTheme
 from .scoring import signal_tier
@@ -321,6 +322,7 @@ def render_dashboard_from_data(dashboard_data: dict[str, Any] | None) -> str:
     .filter-chip.active {{ border-color: var(--watch); color: var(--watch); background: #eaf1ff; }}
     .signal-count {{ color: var(--muted); font-size: 12px; }}
     .signal-card[hidden] {{ display: none; }}
+{PAGE_NAV_CSS}
   </style>
 </head>
 <body>
@@ -328,6 +330,7 @@ def render_dashboard_from_data(dashboard_data: dict[str, Any] | None) -> str:
     <h1>Daily Market Radar</h1>
     <p>{html.escape(run_date)} · generated_at {html.escape(generated_at)} · Schema: {html.escape(schema_version)}</p>
   </header>
+  {_dashboard_nav(data)}
   <main>
     {_run_summary_from_data(run_date, generated_at, status, warnings, schema_version)}
     {_market_context_from_data(data)}
@@ -340,6 +343,21 @@ def render_dashboard_from_data(dashboard_data: dict[str, Any] | None) -> str:
 </body>
 </html>
 """
+
+
+def _dashboard_nav(data: dict[str, Any]) -> str:
+    outputs = _safe_dict(data.get("outputs"))
+    report_href = relative_output_href(outputs.get("report_md"))
+    items = (
+        ("daily_runs", "Back to Daily Runs", "../index.html"),
+        ("dashboard", "Dashboard", "dashboard.html"),
+        ("knowledge_review", "Knowledge Review", "knowledge_review.html"),
+        ("run_diagnostics", "Run Diagnostics", "run_diagnostics.html"),
+        ("dashboard_data", "dashboard_data.json", "dashboard_data.json"),
+        ("run_summary", "run_summary.json", "run_summary.json"),
+        ("report", "report.md", report_href),
+    )
+    return render_page_nav(items, current_key="dashboard")
 
 
 def _run_summary_from_data(

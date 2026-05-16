@@ -108,6 +108,8 @@ GitHub Pages Preview is a separate manual workflow:
 - [ ] `reports/daily/YYYY-MM-DD/dashboard.html` exists.
 - [ ] `reports/daily/YYYY-MM-DD/knowledge_review.html` exists.
 - [ ] `reports/daily/YYYY-MM-DD/run_diagnostics.html` exists.
+- [ ] `dashboard.html`, `knowledge_review.html`, and `run_diagnostics.html` can return to `../index.html`.
+- [ ] `dashboard.html`, `knowledge_review.html`, and `run_diagnostics.html` link to each other with relative paths.
 - [ ] `knowledge_review.html` shows clean, issues, skipped, or not available state correctly.
 - [ ] `run_diagnostics.html` shows steps, warnings, errors, outputs, and data source health.
 - [ ] `run_summary.json` status is reasonable for the run.
@@ -123,6 +125,7 @@ GitHub Pages Preview is a separate manual workflow:
 - [ ] Date links open the corresponding `dashboard.html`.
 - [ ] Date links show `knowledge_review.html` when present.
 - [ ] Date links show `run_diagnostics.html` when present.
+- [ ] `index.html` shows Dashboard, Knowledge Review, and Run Diagnostics links for each run.
 - [ ] Missing `dashboard_data.json` or `run_summary.json` is shown as partial or missing, not as a clean pass.
 
 ## Dashboard Data Contract
@@ -147,5 +150,6 @@ GitHub Pages Preview is a separate manual workflow:
 - [ ] Dashboard handles missing knowledge data without crashing.
 - [ ] Dashboard links to `knowledge_review.html` when available.
 - [ ] Dashboard links to `run_diagnostics.html` when available.
+- [ ] Dashboard links back to the Daily Runs index.
 - [ ] Dashboard does not recompute financial signals.
 - [ ] Dashboard avoids certainty or direct-buy language.

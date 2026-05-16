@@ -6,12 +6,14 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from .html_components import PAGE_NAV_CSS, render_page_nav
 from .io import write_text
 
 
 def render_knowledge_review_html(
     knowledge_check: dict[str, Any] | None,
     suggestions: dict[str, Any] | list[Any] | None = None,
+    nav_links: dict[str, str | None] | None = None,
 ) -> str:
     check = _safe_dict(knowledge_check)
     status = _status(check)
@@ -67,6 +69,7 @@ def render_knowledge_review_html(
     th {{ background: #eef2f6; font-size: 12px; color: #344054; }}
     tr:last-child td {{ border-bottom: 0; }}
     .num {{ text-align: right; white-space: nowrap; }}
+{PAGE_NAV_CSS}
   </style>
 </head>
 <body>
@@ -74,6 +77,7 @@ def render_knowledge_review_html(
     <h1>Knowledge Graph Review</h1>
     <p>Generated at {html.escape(generated_at)}</p>
   </header>
+  {_knowledge_nav(nav_links)}
   <main>
     {_overview_html(status, counts, generated_at)}
     {_state_html(status, counts)}
@@ -90,9 +94,32 @@ def write_knowledge_review_html(
     knowledge_check: dict[str, Any] | None,
     suggestions: dict[str, Any] | list[Any] | None = None,
 ) -> Path:
+    root = Path(output_dir)
     path = Path(output_dir) / "knowledge_review.html"
-    write_text(path, render_knowledge_review_html(knowledge_check, suggestions))
+    write_text(path, render_knowledge_review_html(knowledge_check, suggestions, _nav_links(root)))
     return path
+
+
+def _knowledge_nav(nav_links: dict[str, str | None] | None = None) -> str:
+    links = nav_links or {}
+    items = (
+        ("daily_runs", "Back to Daily Runs", "../index.html"),
+        ("dashboard", "Dashboard", "dashboard.html"),
+        ("knowledge_review", "Knowledge Review", "knowledge_review.html"),
+        ("run_diagnostics", "Run Diagnostics", "run_diagnostics.html"),
+        ("knowledge_check", "knowledge_check.json", links.get("knowledge_check_json")),
+        ("knowledge_fix_suggestions", "knowledge_fix_suggestions.json", links.get("knowledge_fix_suggestions_json")),
+    )
+    return render_page_nav(items, current_key="knowledge_review")
+
+
+def _nav_links(output_dir: Path) -> dict[str, str | None]:
+    return {
+        "knowledge_check_json": "knowledge_check.json" if (output_dir / "knowledge_check.json").exists() else None,
+        "knowledge_fix_suggestions_json": (
+            "knowledge_fix_suggestions.json" if (output_dir / "knowledge_fix_suggestions.json").exists() else None
+        ),
+    }
 
 
 def _overview_html(status: str, counts: dict[str, int], generated_at: str) -> str:
