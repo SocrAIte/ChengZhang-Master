@@ -24,12 +24,31 @@ Browser smoke check is optional:
 python -m market_impact_radar pre-release-check --with-browser
 ```
 
-By default, `pre-release-check` does not start a browser. `--with-browser` opens the generated `dashboard.html` with Playwright and performs a minimal browser smoke check. It requires:
+By default, `pre-release-check` does not start a browser. `--with-browser` opens the generated `dashboard.html` with Playwright and performs a minimal browser smoke check. Install Playwright inside the project conda environment:
 
 ```powershell
-pip install playwright
+python -m pip install --no-user playwright
 python -m playwright install chromium
 ```
+
+Windows conda setup:
+
+```powershell
+conda activate market_impact_radar
+python -c "import sys; print(sys.executable)"
+```
+
+If PowerShell does not switch to the target environment Python, use `conda run` for every command instead:
+
+```powershell
+conda run -n market_impact_radar python -c "import sys; print(sys.executable)"
+conda run -n market_impact_radar python -m pip install --no-user playwright
+conda run -n market_impact_radar python -m playwright install chromium
+conda run -n market_impact_radar python -m market_impact_radar pre-release-check
+conda run -n market_impact_radar python -m market_impact_radar pre-release-check --with-browser
+```
+
+Default `pre-release-check` does not require Playwright. Chromium installation may download browser binaries, so it can require network access.
 
 ## Daily Pipeline
 

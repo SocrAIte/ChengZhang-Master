@@ -25,6 +25,7 @@ python -m market_impact_radar pre-release-check
 ```
 
 Optionally add `--with-browser` to run a Playwright smoke check against the generated dashboard HTML.
+On Windows, use `conda run -n market_impact_radar ...` if `conda activate` does not switch Python into the project environment.
 
 这个项目用于在 A 股开盘前，把美股、日股、台股、商品期货等隔夜异动，映射成 A 股 ETF/个股候选，并给出风险过滤与盘中验证条件。
 
