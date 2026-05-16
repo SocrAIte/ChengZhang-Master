@@ -1,0 +1,55 @@
+name: Pages Preview
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages-preview
+  cancel-in-progress: true
+
+jobs:
+  pages-preview:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install project
+        run: python -m pip install -e .
+
+      - name: Run sample daily preview
+        run: python -m market_impact_radar pre-release-check --skip-tests
+
+      - name: Verify Pages preview files
+        run: |
+          test -f reports/daily/pre-release-check/index.html
+          test -f reports/daily/pre-release-check/index.json
+          test -f reports/daily/pre-release-check/2026-05-15/dashboard.html
+          test -f reports/daily/pre-release-check/2026-05-15/dashboard_data.json
+          test -f reports/daily/pre-release-check/2026-05-15/run_summary.json
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: reports/daily/pre-release-check/
+
+      - name: Deploy Pages preview
+        id: deployment
+        uses: actions/deploy-pages@v4
