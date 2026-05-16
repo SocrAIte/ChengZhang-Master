@@ -153,3 +153,16 @@ GitHub Pages Preview is a separate manual workflow:
 - [ ] Dashboard links back to the Daily Runs index.
 - [ ] Dashboard does not recompute financial signals.
 - [ ] Dashboard avoids certainty or direct-buy language.
+
+## Merge Readiness
+
+- [ ] `python -m unittest discover -s tests` passes.
+- [ ] `python -m market_impact_radar pre-release-check` passes.
+- [ ] `python -m market_impact_radar pre-release-check --with-browser` passes when Playwright is available.
+- [ ] Pre-release Check GitHub Action passes on the pushed commit.
+- [ ] Browser Smoke Check manual workflow passes.
+- [ ] Pages Preview manual workflow passes.
+- [ ] `daily-report-preview` artifact is downloadable.
+- [ ] Pages `index.html` opens.
+- [ ] Dashboard, Knowledge Review, and Run Diagnostics links work from the Pages preview or artifact.
+- [ ] `git status` is clean.

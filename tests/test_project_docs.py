@@ -13,6 +13,8 @@ class ProjectDocsTest(unittest.TestCase):
             ROOT / "docs" / "RUN_DAILY.md",
             ROOT / "docs" / "DEVELOPMENT_PROCESS.md",
             ROOT / "docs" / "CHECKLIST.md",
+            ROOT / "docs" / "CHECKPOINT_DAILY_REPORT_BUNDLE.md",
+            ROOT / "docs" / "PR_DAILY_REPORT_BUNDLE.md",
         ):
             self.assertTrue(path.exists(), f"{path} should exist")
 
