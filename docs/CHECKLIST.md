@@ -80,6 +80,14 @@ Browser smoke is not part of the default push / PR gate because Playwright and C
 - [ ] `skipped` is not displayed as `failed`.
 - [ ] `partial` is not treated as a clean pass.
 
+## History Index
+
+- [ ] `reports/daily/index.json` exists.
+- [ ] `reports/daily/index.html` exists.
+- [ ] `index.html` shows at least one daily run after a sample run.
+- [ ] Date links open the corresponding `dashboard.html`.
+- [ ] Missing `dashboard_data.json` or `run_summary.json` is shown as partial or missing, not as a clean pass.
+
 ## Dashboard Data Contract
 
 - [ ] `schema_version` is present.

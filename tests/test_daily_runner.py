@@ -6,6 +6,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from market_impact_radar.daily_runner import DailyRunOptions, run_daily
 from market_impact_radar.dashboard_contract import DASHBOARD_SCHEMA_VERSION
@@ -42,15 +43,22 @@ class DailyRunnerTest(unittest.TestCase):
             run_summary_path = output_dir / "run_summary.json"
             dashboard_data_path = output_dir / "dashboard_data.json"
             dashboard_html_path = output_dir / "dashboard.html"
+            index_json_path = Path(tmpdir) / "index.json"
+            index_html_path = Path(tmpdir) / "index.html"
             persisted_summary = json.loads(run_summary_path.read_text(encoding="utf-8"))
             dashboard_data = json.loads(dashboard_data_path.read_text(encoding="utf-8"))
             dashboard_html = dashboard_html_path.read_text(encoding="utf-8")
+            history_index = json.loads(index_json_path.read_text(encoding="utf-8"))
 
             self.assertEqual(summary["status"], "ok")
             self.assertTrue(run_summary_path.exists())
             self.assertTrue(dashboard_data_path.exists())
             self.assertTrue(dashboard_html_path.exists())
+            self.assertTrue(index_json_path.exists())
+            self.assertTrue(index_html_path.exists())
+            self.assertEqual(history_index["runs"][0]["date"], "2026-05-15")
             self.assertEqual(dashboard_data["schema_version"], DASHBOARD_SCHEMA_VERSION)
+            self.assertIn("history_index_html", persisted_summary["outputs"])
             self.assertEqual(persisted_summary["steps"]["pipeline"]["status"], "ok")
             self.assertEqual(persisted_summary["steps"]["knowledge"]["status"], "skipped")
             self.assertEqual(dashboard_data["run"]["status"], "ok")
@@ -143,6 +151,26 @@ class DailyRunnerTest(unittest.TestCase):
         self.assertEqual(summary["steps"]["a_share"]["status"], "partial")
         self.assertEqual(dashboard_data["run"]["status"], "partial")
         self.assertTrue(dashboard_data["signals"])
+
+    def test_history_index_failure_records_warning_without_failing_daily_run(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            with patch("market_impact_radar.daily_runner.write_daily_history_index", side_effect=RuntimeError("boom")):
+                summary = run_daily(
+                    DailyRunOptions(
+                        **{
+                            **_base_options(tmpdir).__dict__,
+                            "a_share_snapshot_path": ROOT / "data" / "a_share_snapshot.sample.json",
+                            "skip_knowledge": True,
+                        }
+                    )
+                )
+            persisted_summary = json.loads(
+                (Path(tmpdir) / "2026-05-15" / "run_summary.json").read_text(encoding="utf-8")
+            )
+
+        self.assertEqual(summary["status"], "ok")
+        self.assertIn("history index update failed: boom", summary["warnings"])
+        self.assertIn("history index update failed: boom", persisted_summary["warnings"])
 
 
 if __name__ == "__main__":

@@ -16,6 +16,12 @@ By default, outputs are written to:
 reports/daily/YYYY-MM-DD/
 ```
 
+The historical entry point is:
+
+```text
+reports/daily/index.html
+```
+
 ## Sample Command
 
 Use this sample-data command for local verification:
@@ -47,6 +53,13 @@ reports/daily/YYYY-MM-DD/
   run_summary.json
   dashboard_data.json
   dashboard.html
+```
+
+`run-daily` also refreshes:
+
+```text
+reports/daily/index.json
+reports/daily/index.html
 ```
 
 ### run_summary.json
@@ -85,6 +98,18 @@ Fields may be `null`, empty arrays, `0`, or `"unknown"` when data is unavailable
 ### dashboard.html
 
 `dashboard.html` is rendered from `dashboard_data.json` by the existing dashboard module. The HTML displays the daily run summary, signal overview, market context, signal evidence, ETF and stock candidates, knowledge graph status, and output links. It also includes local-only search, filter chips, field filters, sorting, and visible signal counts for browsing rendered signals. It only presents existing data and does not recompute financial signals.
+
+### History Index
+
+`reports/daily/index.html` is a static list of available daily runs. It links to each date's `dashboard.html`, `dashboard_data.json`, `run_summary.json`, and `report.md` when present.
+
+You can rebuild it manually:
+
+```powershell
+python -m market_impact_radar build-history-index --reports-dir reports/daily
+```
+
+If automatic history index refresh fails during `run-daily`, the daily run still keeps its core outputs and records the index warning in `run_summary.json`.
 
 ## Skip Options
 

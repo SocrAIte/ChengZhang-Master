@@ -10,6 +10,7 @@ from .a_share_sources import fetch_a_share_snapshot
 from .dashboard import render_dashboard_from_data
 from .dashboard_contract import build_dashboard_data as build_dashboard_contract_data
 from .dashboard_contract import validate_dashboard_data
+from .history_index import write_daily_history_index
 from .intraday import evaluate_intraday, summarize_intraday_evaluation
 from .io import load_json, load_mappings, write_text
 from .knowledge_verifier import suggest_mapping_fixes, verify_knowledge_graph
@@ -155,6 +156,13 @@ def run_daily(options: DailyRunOptions) -> dict[str, Any]:
     _write_json(summary["outputs"]["run_summary"], summary)
     _write_json(summary["outputs"]["dashboard_data"], dashboard_data)
     write_text(summary["outputs"]["dashboard_html"], render_dashboard_from_data(dashboard_data))
+    try:
+        index_outputs = write_daily_history_index(options.output_root)
+        summary["outputs"]["history_index_json"] = str(index_outputs["index_json"])
+        summary["outputs"]["history_index_html"] = str(index_outputs["index_html"])
+    except Exception as exc:
+        summary["warnings"].append(f"history index update failed: {exc}")
+    _write_json(summary["outputs"]["run_summary"], summary)
     return summary
 
 

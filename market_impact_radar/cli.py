@@ -14,6 +14,7 @@ from .backtest import (
 from .a_share_sources import fetch_a_share_snapshot
 from .dashboard import render_dashboard_html
 from .daily_runner import DailyRunOptions, run_daily
+from .history_index import write_daily_history_index
 from .intraday import evaluate_intraday, render_intraday_report
 from .io import load_json, load_mappings, write_text
 from .knowledge_crawler import crawl_and_enrich
@@ -119,6 +120,9 @@ def main() -> int:
     pre_release_parser.add_argument("--output-dir", default=DEFAULT_OUTPUT_DIR, help="Output root for the sample daily run")
     pre_release_parser.add_argument("--skip-tests", action="store_true", help="Skip unittest discovery")
     pre_release_parser.add_argument("--with-browser", action="store_true", help="Run optional Playwright dashboard browser smoke check")
+
+    history_index_parser = subparsers.add_parser("build-history-index", help="Build reports/daily history index")
+    history_index_parser.add_argument("--reports-dir", default="reports/daily", help="Daily reports root")
 
     backtest_parser = subparsers.add_parser("backtest", help="计算单个隔夜传导统计")
     backtest_parser.add_argument("--history", required=True, help="历史 CSV")
@@ -282,6 +286,11 @@ def main() -> int:
             print(f"Pre-release check failed\n- {exc}")
             return 1
         print(format_pre_release_summary(summary))
+        return 0
+
+    if args.command == "build-history-index":
+        outputs = write_daily_history_index(args.reports_dir)
+        print(f"History index written to {outputs['index_html']}")
         return 0
 
     if args.command == "report":
