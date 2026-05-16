@@ -21,6 +21,7 @@ class DashboardDataContractTest(unittest.TestCase):
         self.assertEqual(normalized["knowledge"]["status"], "unknown")
         self.assertIsNone(normalized["outputs"]["dashboard_html"])
         self.assertIsNone(normalized["outputs"]["knowledge_review_html"])
+        self.assertIsNone(normalized["outputs"]["run_diagnostics_html"])
 
     def test_validate_dashboard_data_finds_missing_schema_version(self) -> None:
         issues = validate_dashboard_data(
@@ -126,6 +127,7 @@ class DashboardDataRenderTest(unittest.TestCase):
                     "report_md": "report.md",
                     "dashboard_html": "dashboard.html",
                     "knowledge_review_html": "reports/daily/2026-05-15/knowledge_review.html",
+                    "run_diagnostics_html": "reports/daily/2026-05-15/run_diagnostics.html",
                 },
             }
         )
@@ -153,6 +155,8 @@ class DashboardDataRenderTest(unittest.TestCase):
         self.assertIn("report.md", html)
         self.assertIn("knowledge_review.html", html)
         self.assertIn("href='knowledge_review.html'", html)
+        self.assertIn("run_diagnostics.html", html)
+        self.assertIn("href='run_diagnostics.html'", html)
         self.assertIn("Mapping Suggestions", html)
         self.assertIn("data-signal-card", html)
         self.assertIn("data-intraday-status=\"confirmed\"", html)

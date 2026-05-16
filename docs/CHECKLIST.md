@@ -18,6 +18,7 @@ The command performs:
 - [ ] `dashboard_data.json` schema check.
 - [ ] `dashboard.html` smoke check.
 - [ ] `knowledge_review.html` fixed-output check.
+- [ ] `run_diagnostics.html` fixed-output check.
 
 Browser smoke check is optional:
 
@@ -68,6 +69,7 @@ Pre-release Check uploads a CI preview artifact named `daily-report-preview` fro
 - [ ] `2026-05-15/dashboard_data.json`
 - [ ] `2026-05-15/run_summary.json`
 - [ ] `2026-05-15/knowledge_review.html`
+- [ ] `2026-05-15/run_diagnostics.html`
 
 Browser smoke CI is a separate manual workflow:
 
@@ -76,14 +78,14 @@ Browser smoke CI is a separate manual workflow:
 - [ ] It runs `python -m market_impact_radar pre-release-check --with-browser`.
 - [ ] It uploads `browser-smoke-daily-report-preview` from `reports/daily/pre-release-check/`.
 
-Artifacts can be downloaded from the workflow run to inspect `index.html`, `dashboard.html`, `dashboard_data.json`, `run_summary.json`, and `knowledge_review.html`. These artifacts are CI previews, not formal deployment; GitHub Pages can be handled separately later. Browser smoke is not part of the default push / PR gate because Playwright and Chromium make the job heavier. Locally, continue to use `conda run -n market_impact_radar ...` for browser smoke checks on Windows.
+Artifacts can be downloaded from the workflow run to inspect `index.html`, `dashboard.html`, `dashboard_data.json`, `run_summary.json`, `knowledge_review.html`, and `run_diagnostics.html`. These artifacts are CI previews, not formal deployment; GitHub Pages can be handled separately later. Browser smoke is not part of the default push / PR gate because Playwright and Chromium make the job heavier. Locally, continue to use `conda run -n market_impact_radar ...` for browser smoke checks on Windows.
 
 GitHub Pages Preview is a separate manual workflow:
 
 - [ ] Trigger `Pages Preview` from GitHub Actions `workflow_dispatch`.
 - [ ] It runs the sample `pre-release-check --skip-tests`.
 - [ ] It deploys only `reports/daily/pre-release-check/` to GitHub Pages.
-- [ ] The Pages root opens `index.html`, with relative links to `2026-05-15/dashboard.html`, `dashboard_data.json`, `run_summary.json`, and `knowledge_review.html`.
+- [ ] The Pages root opens `index.html`, with relative links to `2026-05-15/dashboard.html`, `dashboard_data.json`, `run_summary.json`, `knowledge_review.html`, and `run_diagnostics.html`.
 - [ ] This is a sample preview, not production data.
 - [ ] Default push / PR workflows do not deploy Pages.
 - [ ] The GitHub repository must allow GitHub Actions to deploy Pages.
@@ -97,7 +99,9 @@ GitHub Pages Preview is a separate manual workflow:
 - [ ] `dashboard_data.json` contains `schema_version`.
 - [ ] `reports/daily/YYYY-MM-DD/dashboard.html` exists.
 - [ ] `reports/daily/YYYY-MM-DD/knowledge_review.html` exists.
+- [ ] `reports/daily/YYYY-MM-DD/run_diagnostics.html` exists.
 - [ ] `knowledge_review.html` shows clean, issues, skipped, or not available state correctly.
+- [ ] `run_diagnostics.html` shows steps, warnings, errors, outputs, and data source health.
 - [ ] `run_summary.json` status is reasonable for the run.
 - [ ] Warnings are visible and not silently dropped.
 - [ ] `skipped` is not displayed as `failed`.
@@ -110,6 +114,7 @@ GitHub Pages Preview is a separate manual workflow:
 - [ ] `index.html` shows at least one daily run after a sample run.
 - [ ] Date links open the corresponding `dashboard.html`.
 - [ ] Date links show `knowledge_review.html` when present.
+- [ ] Date links show `run_diagnostics.html` when present.
 - [ ] Missing `dashboard_data.json` or `run_summary.json` is shown as partial or missing, not as a clean pass.
 
 ## Dashboard Data Contract
@@ -133,5 +138,6 @@ GitHub Pages Preview is a separate manual workflow:
 - [ ] Dashboard handles empty signals without crashing.
 - [ ] Dashboard handles missing knowledge data without crashing.
 - [ ] Dashboard links to `knowledge_review.html` when available.
+- [ ] Dashboard links to `run_diagnostics.html` when available.
 - [ ] Dashboard does not recompute financial signals.
 - [ ] Dashboard avoids certainty or direct-buy language.

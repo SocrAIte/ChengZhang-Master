@@ -565,6 +565,7 @@ def _outputs_from_data(data: dict[str, Any]) -> str:
     report_md = outputs.get("report_md")
     dashboard_html = outputs.get("dashboard_html")
     knowledge_review_html = outputs.get("knowledge_review_html")
+    run_diagnostics_html = outputs.get("run_diagnostics_html")
     return f"""<section>
   <h2>Output Links</h2>
   <div class="card">
@@ -572,6 +573,7 @@ def _outputs_from_data(data: dict[str, Any]) -> str:
       <li><strong>report_md:</strong> {_path_link(report_md)}</li>
       <li><strong>dashboard_html:</strong> {_path_link(dashboard_html)}</li>
       <li><strong>knowledge_review_html:</strong> {_path_link(knowledge_review_html)}</li>
+      <li><strong>run_diagnostics_html:</strong> {_path_link(run_diagnostics_html)}</li>
     </ul>
   </div>
 </section>"""

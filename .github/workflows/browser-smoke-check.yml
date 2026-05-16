@@ -35,6 +35,7 @@ jobs:
           test -f reports/daily/pre-release-check/2026-05-15/dashboard_data.json
           test -f reports/daily/pre-release-check/2026-05-15/run_summary.json
           test -f reports/daily/pre-release-check/2026-05-15/knowledge_review.html
+          test -f reports/daily/pre-release-check/2026-05-15/run_diagnostics.html
 
       - name: Upload browser smoke daily report preview
         uses: actions/upload-artifact@v4

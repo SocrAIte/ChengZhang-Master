@@ -18,6 +18,7 @@ from .knowledge_verifier import suggest_mapping_fixes, verify_knowledge_graph
 from .models import Candidate, ScoredTheme, TransmissionEvent
 from .pipeline import run_report_pipeline
 from .quote_sources import fetch_external_snapshot
+from .run_diagnostics import write_run_diagnostics_html
 
 
 @dataclass(frozen=True)
@@ -61,6 +62,7 @@ def run_daily(options: DailyRunOptions) -> dict[str, Any]:
             "dashboard_data": str(output_dir / "dashboard_data.json"),
             "dashboard_html": str(output_dir / "dashboard.html"),
             "knowledge_review_html": str(output_dir / "knowledge_review.html"),
+            "run_diagnostics_html": str(output_dir / "run_diagnostics.html"),
         },
     }
     dashboard_data: dict[str, Any] = {
@@ -175,11 +177,19 @@ def run_daily(options: DailyRunOptions) -> dict[str, Any]:
     _write_json(summary["outputs"]["dashboard_data"], dashboard_data)
     write_text(summary["outputs"]["dashboard_html"], render_dashboard_from_data(dashboard_data))
     try:
+        write_run_diagnostics_html(output_dir, summary)
+    except Exception as exc:
+        summary["warnings"].append(f"run diagnostics render failed: {exc}")
+    try:
         index_outputs = write_daily_history_index(options.output_root)
         summary["outputs"]["history_index_json"] = str(index_outputs["index_json"])
         summary["outputs"]["history_index_html"] = str(index_outputs["index_html"])
     except Exception as exc:
         summary["warnings"].append(f"history index update failed: {exc}")
+    try:
+        write_run_diagnostics_html(output_dir, summary)
+    except Exception as exc:
+        summary["warnings"].append(f"run diagnostics render failed: {exc}")
     _write_json(summary["outputs"]["run_summary"], summary)
     return summary
 

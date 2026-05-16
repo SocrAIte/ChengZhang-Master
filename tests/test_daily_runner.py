@@ -44,12 +44,14 @@ class DailyRunnerTest(unittest.TestCase):
             dashboard_data_path = output_dir / "dashboard_data.json"
             dashboard_html_path = output_dir / "dashboard.html"
             knowledge_review_path = output_dir / "knowledge_review.html"
+            run_diagnostics_path = output_dir / "run_diagnostics.html"
             index_json_path = Path(tmpdir) / "index.json"
             index_html_path = Path(tmpdir) / "index.html"
             persisted_summary = json.loads(run_summary_path.read_text(encoding="utf-8"))
             dashboard_data = json.loads(dashboard_data_path.read_text(encoding="utf-8"))
             dashboard_html = dashboard_html_path.read_text(encoding="utf-8")
             knowledge_review_html = knowledge_review_path.read_text(encoding="utf-8")
+            run_diagnostics_html = run_diagnostics_path.read_text(encoding="utf-8")
             history_index = json.loads(index_json_path.read_text(encoding="utf-8"))
 
             self.assertEqual(summary["status"], "ok")
@@ -57,13 +59,17 @@ class DailyRunnerTest(unittest.TestCase):
             self.assertTrue(dashboard_data_path.exists())
             self.assertTrue(dashboard_html_path.exists())
             self.assertTrue(knowledge_review_path.exists())
+            self.assertTrue(run_diagnostics_path.exists())
             self.assertTrue(index_json_path.exists())
             self.assertTrue(index_html_path.exists())
             self.assertEqual(history_index["runs"][0]["date"], "2026-05-15")
             self.assertEqual(history_index["runs"][0]["outputs"]["knowledge_review_html"], "2026-05-15/knowledge_review.html")
+            self.assertEqual(history_index["runs"][0]["outputs"]["run_diagnostics_html"], "2026-05-15/run_diagnostics.html")
             self.assertEqual(dashboard_data["schema_version"], DASHBOARD_SCHEMA_VERSION)
             self.assertEqual(dashboard_data["outputs"]["knowledge_review_html"], str(knowledge_review_path))
+            self.assertEqual(dashboard_data["outputs"]["run_diagnostics_html"], str(run_diagnostics_path))
             self.assertIn("knowledge_review_html", persisted_summary["outputs"])
+            self.assertIn("run_diagnostics_html", persisted_summary["outputs"])
             self.assertIn("history_index_html", persisted_summary["outputs"])
             self.assertEqual(persisted_summary["steps"]["pipeline"]["status"], "ok")
             self.assertEqual(persisted_summary["steps"]["knowledge"]["status"], "skipped")
@@ -76,7 +82,10 @@ class DailyRunnerTest(unittest.TestCase):
             self.assertIn(dashboard_data["signals"][0]["etf_candidates"][0], dashboard_html)
             self.assertIn("Risks", dashboard_html)
             self.assertIn("knowledge_review.html", dashboard_html)
+            self.assertIn("run_diagnostics.html", dashboard_html)
             self.assertIn("Knowledge verification was skipped", knowledge_review_html)
+            self.assertIn("Run Diagnostics", run_diagnostics_html)
+            self.assertIn("Pipeline Steps", run_diagnostics_html)
 
     def test_cli_entry_can_skip_a_share_and_knowledge(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -106,6 +115,7 @@ class DailyRunnerTest(unittest.TestCase):
             dashboard_data = json.loads((output_dir / "dashboard_data.json").read_text(encoding="utf-8"))
             dashboard_html = (output_dir / "dashboard.html").read_text(encoding="utf-8")
             knowledge_review_html = (output_dir / "knowledge_review.html").read_text(encoding="utf-8")
+            run_diagnostics_html = (output_dir / "run_diagnostics.html").read_text(encoding="utf-8")
 
         self.assertEqual(completed.returncode, 0, completed.stderr)
         self.assertEqual(summary["steps"]["a_share"]["status"], "skipped")
@@ -115,6 +125,7 @@ class DailyRunnerTest(unittest.TestCase):
         self.assertTrue(all(signal["intraday_status"] == "not_checked" for signal in dashboard_data["signals"]))
         self.assertIn("not_checked", dashboard_html)
         self.assertIn("skipped", knowledge_review_html)
+        self.assertIn("Run Diagnostics", run_diagnostics_html)
 
     def test_run_daily_runs_knowledge_check_by_default(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:

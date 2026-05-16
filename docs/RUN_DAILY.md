@@ -54,6 +54,7 @@ reports/daily/YYYY-MM-DD/
   dashboard_data.json
   dashboard.html
   knowledge_review.html
+  run_diagnostics.html
 ```
 
 `run-daily` also refreshes:
@@ -122,9 +123,23 @@ The page is discoverable from:
 - the `browser-smoke-daily-report-preview` CI artifact
 - the manual GitHub Pages preview deployment
 
+### run_diagnostics.html
+
+`run_diagnostics.html` is a read-only run diagnostics page rendered from `run_summary.json`.
+
+It is used to inspect:
+
+- daily run status, date, generated time, output directory, and warning count
+- pipeline step status, including `ok`, `partial`, `skipped`, `failed`, and `unknown`
+- data source health for foreign quotes, A-share snapshots, signals, intraday validation, and knowledge checks when those fields are present
+- top-level and step-level warnings / errors
+- generated output file links
+
+This page is a diagnostic view only. It does not recompute signals, modify data sources, or repair any failures.
+
 ### History Index
 
-`reports/daily/index.html` is a static list of available daily runs. It links to each date's `dashboard.html`, `knowledge_review.html`, `dashboard_data.json`, `run_summary.json`, and `report.md` when present.
+`reports/daily/index.html` is a static list of available daily runs. It links to each date's `dashboard.html`, `knowledge_review.html`, `run_diagnostics.html`, `dashboard_data.json`, `run_summary.json`, and `report.md` when present.
 
 You can rebuild it manually:
 
