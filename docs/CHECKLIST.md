@@ -57,7 +57,15 @@ GitHub Actions runs the same baseline checks on pull requests and pushes to `mas
 - [ ] `python -m unittest discover -s tests`.
 - [ ] `python -m market_impact_radar pre-release-check --skip-tests`.
 
-CI uses `actions/setup-python` with Python 3.11 and installs the project with `python -m pip install -e .`. It does not use the local Windows conda environment. Browser smoke remains a local optional enhancement for now; enabling it in CI later will require Playwright and Chromium setup.
+CI uses `actions/setup-python` with Python 3.11 and installs the project with `python -m pip install -e .`. It does not use the local Windows conda environment.
+
+Browser smoke CI is a separate manual workflow:
+
+- [ ] Trigger `Browser Smoke Check` from GitHub Actions `workflow_dispatch`.
+- [ ] It installs Playwright and Chromium with `python -m playwright install --with-deps chromium`.
+- [ ] It runs `python -m market_impact_radar pre-release-check --with-browser`.
+
+Browser smoke is not part of the default push / PR gate because Playwright and Chromium make the job heavier. Locally, continue to use `conda run -n market_impact_radar ...` for browser smoke checks on Windows.
 
 ## Daily Pipeline
 
