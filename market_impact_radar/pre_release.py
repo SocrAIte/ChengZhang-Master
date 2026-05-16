@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable
 
+from .browser_smoke import BrowserSmokeError, run_dashboard_browser_smoke
 from .daily_runner import DailyRunOptions, run_daily
 from .dashboard_contract import DASHBOARD_SCHEMA_VERSION, validate_dashboard_data
 
@@ -24,6 +25,7 @@ class PreReleaseCheckOptions:
     date: str = DEFAULT_CHECK_DATE
     output_dir: str | Path = DEFAULT_OUTPUT_DIR
     skip_tests: bool = False
+    with_browser: bool = False
     project_root: str | Path = "."
 
 
@@ -31,6 +33,7 @@ def run_pre_release_check(
     options: PreReleaseCheckOptions,
     test_runner: Callable[[Path], dict[str, Any]] | None = None,
     daily_runner: Callable[[DailyRunOptions], dict[str, Any]] | None = None,
+    browser_smoke: Callable[[Path], Any] | None = None,
 ) -> dict[str, Any]:
     root = Path(options.project_root)
     checks: list[dict[str, Any]] = []
@@ -74,6 +77,13 @@ def run_pre_release_check(
 
     check_dashboard_html(paths["dashboard_html"])
     checks.append({"name": "dashboard.html", "status": "passed"})
+
+    if options.with_browser:
+        try:
+            (browser_smoke or run_dashboard_browser_smoke)(paths["dashboard_html"])
+        except BrowserSmokeError as exc:
+            raise PreReleaseCheckError(f"browser smoke failed: {exc}") from exc
+        checks.append({"name": "browser smoke", "status": "passed"})
 
     return {
         "status": "passed",

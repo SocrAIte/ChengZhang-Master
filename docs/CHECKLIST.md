@@ -18,6 +18,19 @@ The command performs:
 - [ ] `dashboard_data.json` schema check.
 - [ ] `dashboard.html` smoke check.
 
+Browser smoke check is optional:
+
+```powershell
+python -m market_impact_radar pre-release-check --with-browser
+```
+
+By default, `pre-release-check` does not start a browser. `--with-browser` opens the generated `dashboard.html` with Playwright and performs a minimal browser smoke check. It requires:
+
+```powershell
+pip install playwright
+python -m playwright install chromium
+```
+
 ## Daily Pipeline
 
 - [ ] `python -m unittest discover -s tests` passes.

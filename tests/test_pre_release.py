@@ -53,7 +53,7 @@ def _write_valid_outputs(output_dir: Path) -> None:
 class PreReleaseCheckTest(unittest.TestCase):
     def test_run_pre_release_check_happy_path(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
-            calls = {"tests": 0, "daily": 0}
+            calls = {"tests": 0, "daily": 0, "browser": 0}
 
             def fake_tests(project_root: Path) -> dict:
                 calls["tests"] += 1
@@ -69,11 +69,53 @@ class PreReleaseCheckTest(unittest.TestCase):
                 PreReleaseCheckOptions(date="2026-05-15", output_dir=tmpdir),
                 test_runner=fake_tests,
                 daily_runner=fake_daily,
+                browser_smoke=lambda path: calls.__setitem__("browser", calls["browser"] + 1),
             )
 
         self.assertEqual(summary["status"], "passed")
-        self.assertEqual(calls, {"tests": 1, "daily": 1})
+        self.assertEqual(calls, {"tests": 1, "daily": 1, "browser": 0})
         self.assertTrue(any(check["name"] == "dashboard_data.json" for check in summary["checks"]))
+
+    def test_with_browser_calls_browser_smoke(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            calls = {"browser": 0}
+
+            def fake_daily(options: DailyRunOptions) -> dict:
+                output_dir = Path(options.output_root) / str(options.run_date)
+                _write_valid_outputs(output_dir)
+                return {"status": "ok", "output_dir": str(output_dir)}
+
+            def fake_browser(path: Path) -> None:
+                calls["browser"] += 1
+
+            summary = run_pre_release_check(
+                PreReleaseCheckOptions(date="2026-05-15", output_dir=tmpdir, skip_tests=True, with_browser=True),
+                daily_runner=fake_daily,
+                browser_smoke=fake_browser,
+            )
+
+        self.assertEqual(calls["browser"], 1)
+        self.assertTrue(any(check["name"] == "browser smoke" for check in summary["checks"]))
+
+    def test_browser_smoke_failure_fails_pre_release(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+
+            def fake_daily(options: DailyRunOptions) -> dict:
+                output_dir = Path(options.output_root) / str(options.run_date)
+                _write_valid_outputs(output_dir)
+                return {"status": "ok", "output_dir": str(output_dir)}
+
+            def failing_browser(path: Path) -> None:
+                from market_impact_radar.browser_smoke import BrowserSmokeError
+
+                raise BrowserSmokeError("console errors")
+
+            with self.assertRaisesRegex(PreReleaseCheckError, "browser smoke failed"):
+                run_pre_release_check(
+                    PreReleaseCheckOptions(date="2026-05-15", output_dir=tmpdir, skip_tests=True, with_browser=True),
+                    daily_runner=fake_daily,
+                    browser_smoke=failing_browser,
+                )
 
     def test_skip_tests_does_not_call_test_runner(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:

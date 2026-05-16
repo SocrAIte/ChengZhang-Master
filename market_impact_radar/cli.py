@@ -118,6 +118,7 @@ def main() -> int:
     pre_release_parser.add_argument("--date", default=DEFAULT_CHECK_DATE, help="Sample run date")
     pre_release_parser.add_argument("--output-dir", default=DEFAULT_OUTPUT_DIR, help="Output root for the sample daily run")
     pre_release_parser.add_argument("--skip-tests", action="store_true", help="Skip unittest discovery")
+    pre_release_parser.add_argument("--with-browser", action="store_true", help="Run optional Playwright dashboard browser smoke check")
 
     backtest_parser = subparsers.add_parser("backtest", help="计算单个隔夜传导统计")
     backtest_parser.add_argument("--history", required=True, help="历史 CSV")
@@ -274,6 +275,7 @@ def main() -> int:
                     date=args.date,
                     output_dir=args.output_dir,
                     skip_tests=args.skip_tests,
+                    with_browser=args.with_browser,
                 )
             )
         except PreReleaseCheckError as exc:
