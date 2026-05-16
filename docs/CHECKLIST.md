@@ -50,6 +50,15 @@ conda run -n market_impact_radar python -m market_impact_radar pre-release-check
 
 Default `pre-release-check` does not require Playwright. Chromium installation may download browser binaries, so it can require network access.
 
+## CI Gate
+
+GitHub Actions runs the same baseline checks on pull requests and pushes to `master` or `feature-a-share-data-calendar`:
+
+- [ ] `python -m unittest discover -s tests`.
+- [ ] `python -m market_impact_radar pre-release-check --skip-tests`.
+
+CI uses `actions/setup-python` with Python 3.11 and installs the project with `python -m pip install -e .`. It does not use the local Windows conda environment. Browser smoke remains a local optional enhancement for now; enabling it in CI later will require Playwright and Chromium setup.
+
 ## Daily Pipeline
 
 - [ ] `python -m unittest discover -s tests` passes.

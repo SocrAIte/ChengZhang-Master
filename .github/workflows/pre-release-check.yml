@@ -1,0 +1,32 @@
+name: Pre-release Check
+
+on:
+  pull_request:
+  push:
+    branches:
+      - master
+      - feature-a-share-data-calendar
+
+jobs:
+  pre-release-check:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install project
+        run: python -m pip install -e .
+
+      - name: Run tests
+        run: python -m unittest discover -s tests
+
+      - name: Run sample pre-release check
+        run: python -m market_impact_radar pre-release-check --skip-tests
+
+      # Browser smoke can be enabled later with Playwright setup.
