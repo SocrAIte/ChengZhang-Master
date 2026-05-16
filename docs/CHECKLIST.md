@@ -2,6 +2,22 @@
 
 Use this checklist for daily pipeline or dashboard data contract changes.
 
+## Pre-release Check
+
+Run the local quality gate before release-oriented changes:
+
+```powershell
+python -m market_impact_radar pre-release-check
+```
+
+The command performs:
+
+- [ ] `python -m unittest discover -s tests`.
+- [ ] Sample `run-daily` with local sample data.
+- [ ] Required output validation.
+- [ ] `dashboard_data.json` schema check.
+- [ ] `dashboard.html` smoke check.
+
 ## Daily Pipeline
 
 - [ ] `python -m unittest discover -s tests` passes.

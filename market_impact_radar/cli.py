@@ -19,6 +19,14 @@ from .io import load_json, load_mappings, write_text
 from .knowledge_crawler import crawl_and_enrich
 from .knowledge_verifier import build_daily_check_result, suggest_mapping_fixes, verify_knowledge_graph
 from .pipeline import run_report_pipeline
+from .pre_release import (
+    DEFAULT_CHECK_DATE,
+    DEFAULT_OUTPUT_DIR,
+    PreReleaseCheckError,
+    PreReleaseCheckOptions,
+    format_pre_release_summary,
+    run_pre_release_check,
+)
 from .quote_sources import fetch_external_snapshot
 from .report import render_markdown_report
 from .review import render_review_template
@@ -105,6 +113,11 @@ def main() -> int:
     run_daily_parser.add_argument("--proxy", help="HTTP/HTTPS proxy")
     run_daily_parser.add_argument("--skip-a-share", action="store_true", help="Skip A-share snapshot and intraday validation")
     run_daily_parser.add_argument("--skip-knowledge", action="store_true", help="Skip knowledge graph verification")
+
+    pre_release_parser = subparsers.add_parser("pre-release-check", help="Run local pre-release daily pipeline checks")
+    pre_release_parser.add_argument("--date", default=DEFAULT_CHECK_DATE, help="Sample run date")
+    pre_release_parser.add_argument("--output-dir", default=DEFAULT_OUTPUT_DIR, help="Output root for the sample daily run")
+    pre_release_parser.add_argument("--skip-tests", action="store_true", help="Skip unittest discovery")
 
     backtest_parser = subparsers.add_parser("backtest", help="计算单个隔夜传导统计")
     backtest_parser.add_argument("--history", required=True, help="历史 CSV")
@@ -253,6 +266,21 @@ def main() -> int:
         summary = run_daily(options)
         print(f"Daily run {summary['status']}: {Path(summary['output_dir'])}")
         return 0 if summary["status"] in {"ok", "partial"} else 1
+
+    if args.command == "pre-release-check":
+        try:
+            summary = run_pre_release_check(
+                PreReleaseCheckOptions(
+                    date=args.date,
+                    output_dir=args.output_dir,
+                    skip_tests=args.skip_tests,
+                )
+            )
+        except PreReleaseCheckError as exc:
+            print(f"Pre-release check failed\n- {exc}")
+            return 1
+        print(format_pre_release_summary(summary))
+        return 0
 
     if args.command == "report":
         _validate_report_inputs(args)
