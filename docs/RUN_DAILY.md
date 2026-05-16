@@ -53,6 +53,7 @@ reports/daily/YYYY-MM-DD/
   run_summary.json
   dashboard_data.json
   dashboard.html
+  knowledge_review.html
 ```
 
 `run-daily` also refreshes:
@@ -97,11 +98,25 @@ Fields may be `null`, empty arrays, `0`, or `"unknown"` when data is unavailable
 
 ### dashboard.html
 
-`dashboard.html` is rendered from `dashboard_data.json` by the existing dashboard module. The HTML displays the daily run summary, signal overview, market context, signal evidence, ETF and stock candidates, knowledge graph status, and output links. It also includes local-only search, filter chips, field filters, sorting, and visible signal counts for browsing rendered signals. It only presents existing data and does not recompute financial signals.
+`dashboard.html` is rendered from `dashboard_data.json` by the existing dashboard module. The HTML displays the daily run summary, signal overview, market context, signal evidence, ETF and stock candidates, knowledge graph status, and output links. It also links to `knowledge_review.html` when available. It includes local-only search, filter chips, field filters, sorting, and visible signal counts for browsing rendered signals. It only presents existing data and does not recompute financial signals.
+
+### knowledge_review.html
+
+`knowledge_review.html` is a read-only knowledge graph quality page for the daily run. It renders the existing knowledge check and mapping fix suggestions into a static HTML view.
+
+It shows:
+
+- review status and high / medium / low / total issue counts
+- issues grouped by severity
+- fix suggestions, confidence, source, and warnings when present
+- a clean state when no issues are present
+- a skipped or not available state when knowledge verification was skipped or missing
+
+This page does not automatically modify `data/mappings.json` and does not provide online editing.
 
 ### History Index
 
-`reports/daily/index.html` is a static list of available daily runs. It links to each date's `dashboard.html`, `dashboard_data.json`, `run_summary.json`, and `report.md` when present.
+`reports/daily/index.html` is a static list of available daily runs. It links to each date's `dashboard.html`, `knowledge_review.html`, `dashboard_data.json`, `run_summary.json`, and `report.md` when present.
 
 You can rebuild it manually:
 
@@ -114,7 +129,7 @@ If automatic history index refresh fails during `run-daily`, the daily run still
 ## Skip Options
 
 - `--skip-a-share`: Skip A-share snapshot loading/fetching and intraday validation. Signals should display `not_checked` rather than confirmed or failed.
-- `--skip-knowledge`: Skip knowledge graph verification. The dashboard should display knowledge status as not checked.
+- `--skip-knowledge`: Skip knowledge graph verification. The dashboard should display knowledge status as not checked, and `knowledge_review.html` should show a skipped state.
 
 ## Status Meanings
 

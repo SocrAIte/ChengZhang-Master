@@ -176,6 +176,7 @@ def _outputs(run_dir: Path) -> dict[str, str | None]:
     date_prefix = run_dir.name
     files = {
         "dashboard_html": run_dir / "dashboard.html",
+        "knowledge_review_html": run_dir / "knowledge_review.html",
         "dashboard_data_json": run_dir / "dashboard_data.json",
         "run_summary_json": run_dir / "run_summary.json",
         "report_md": run_dir / "report.md",
@@ -207,6 +208,7 @@ def _run_row(run: dict[str, Any]) -> str:
 def _links(outputs: dict[str, Any]) -> str:
     labels = (
         ("dashboard_html", "dashboard.html"),
+        ("knowledge_review_html", "knowledge_review.html"),
         ("dashboard_data_json", "dashboard_data.json"),
         ("run_summary_json", "run_summary.json"),
         ("report_md", "report.md"),

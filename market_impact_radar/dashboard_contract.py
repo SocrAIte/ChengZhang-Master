@@ -207,6 +207,7 @@ def _normalize_outputs(source: dict[str, Any]) -> dict[str, Any]:
     return {
         "report_md": outputs.get("report_md"),
         "dashboard_html": outputs.get("dashboard_html"),
+        "knowledge_review_html": outputs.get("knowledge_review_html"),
     }
 
 

@@ -20,6 +20,7 @@ class DashboardDataContractTest(unittest.TestCase):
         self.assertEqual(normalized["signals"], [])
         self.assertEqual(normalized["knowledge"]["status"], "unknown")
         self.assertIsNone(normalized["outputs"]["dashboard_html"])
+        self.assertIsNone(normalized["outputs"]["knowledge_review_html"])
 
     def test_validate_dashboard_data_finds_missing_schema_version(self) -> None:
         issues = validate_dashboard_data(
@@ -121,7 +122,11 @@ class DashboardDataRenderTest(unittest.TestCase):
                     "issues": [{"severity": "medium", "kind": "theme_stock_unverified", "target": "storage chips"}],
                     "suggestions": [{"kind": "add_stock_code_or_fix_name", "target": "storage chips", "confidence": "medium"}],
                 },
-                "outputs": {"report_md": "report.md", "dashboard_html": "dashboard.html"},
+                "outputs": {
+                    "report_md": "report.md",
+                    "dashboard_html": "dashboard.html",
+                    "knowledge_review_html": "reports/daily/2026-05-15/knowledge_review.html",
+                },
             }
         )
 
@@ -146,6 +151,8 @@ class DashboardDataRenderTest(unittest.TestCase):
         self.assertIn("sample-context", html)
         self.assertIn("Output Links", html)
         self.assertIn("report.md", html)
+        self.assertIn("knowledge_review.html", html)
+        self.assertIn("href='knowledge_review.html'", html)
         self.assertIn("Mapping Suggestions", html)
         self.assertIn("data-signal-card", html)
         self.assertIn("data-intraday-status=\"confirmed\"", html)

@@ -65,6 +65,7 @@ def _write_run(
             encoding="utf-8",
         )
     (run_dir / "dashboard.html").write_text("<html>dashboard</html>", encoding="utf-8")
+    (run_dir / "knowledge_review.html").write_text("<html>knowledge</html>", encoding="utf-8")
     (run_dir / "report.md").write_text("# report", encoding="utf-8")
     return run_dir
 
@@ -82,6 +83,7 @@ class DailyHistoryIndexTest(unittest.TestCase):
         self.assertEqual([run["date"] for run in index["runs"]], ["2026-05-15", "2026-05-14"])
         self.assertEqual(index["runs"][0]["summary"]["strong_signals"], 2)
         self.assertEqual(index["runs"][0]["outputs"]["dashboard_html"], "2026-05-15/dashboard.html")
+        self.assertEqual(index["runs"][0]["outputs"]["knowledge_review_html"], "2026-05-15/knowledge_review.html")
 
     def test_missing_run_summary_does_not_crash(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -123,6 +125,7 @@ class DailyHistoryIndexTest(unittest.TestCase):
                         "warnings": ["<warning>"],
                         "outputs": {
                             "dashboard_html": "2026-05-15/dashboard.html",
+                            "knowledge_review_html": "2026-05-15/knowledge_review.html",
                             "dashboard_data_json": "2026-05-15/dashboard_data.json",
                             "run_summary_json": "2026-05-15/run_summary.json",
                             "report_md": "2026-05-15/report.md",
@@ -134,6 +137,7 @@ class DailyHistoryIndexTest(unittest.TestCase):
 
         self.assertIn("2026-05-15", html)
         self.assertIn("dashboard.html", html)
+        self.assertIn("knowledge_review.html", html)
         self.assertIn("dashboard_data.json", html)
         self.assertIn("run_summary.json", html)
         self.assertIn("report.md", html)

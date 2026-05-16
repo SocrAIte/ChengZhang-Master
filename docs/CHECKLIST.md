@@ -88,6 +88,8 @@ GitHub Pages Preview is a separate manual workflow:
 - [ ] `reports/daily/YYYY-MM-DD/dashboard_data.json` exists.
 - [ ] `dashboard_data.json` contains `schema_version`.
 - [ ] `reports/daily/YYYY-MM-DD/dashboard.html` exists.
+- [ ] `reports/daily/YYYY-MM-DD/knowledge_review.html` exists.
+- [ ] `knowledge_review.html` shows clean, issues, skipped, or not available state correctly.
 - [ ] `run_summary.json` status is reasonable for the run.
 - [ ] Warnings are visible and not silently dropped.
 - [ ] `skipped` is not displayed as `failed`.
@@ -99,6 +101,7 @@ GitHub Pages Preview is a separate manual workflow:
 - [ ] `reports/daily/index.html` exists.
 - [ ] `index.html` shows at least one daily run after a sample run.
 - [ ] Date links open the corresponding `dashboard.html`.
+- [ ] Date links show `knowledge_review.html` when present.
 - [ ] Missing `dashboard_data.json` or `run_summary.json` is shown as partial or missing, not as a clean pass.
 
 ## Dashboard Data Contract
@@ -121,5 +124,6 @@ GitHub Pages Preview is a separate manual workflow:
 - [ ] Dashboard displays signal rows when present.
 - [ ] Dashboard handles empty signals without crashing.
 - [ ] Dashboard handles missing knowledge data without crashing.
+- [ ] Dashboard links to `knowledge_review.html` when available.
 - [ ] Dashboard does not recompute financial signals.
 - [ ] Dashboard avoids certainty or direct-buy language.

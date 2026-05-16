@@ -522,10 +522,12 @@ def _filter_select(element_id: str, label: str, dataset_field: str, signals: lis
 
 def _knowledge_from_data(data: dict[str, Any]) -> str:
     knowledge = _safe_dict(data.get("knowledge"))
+    outputs = _safe_dict(data.get("outputs"))
+    review_link = _path_link(outputs.get("knowledge_review_html"))
     if knowledge.get("status") == "unknown" and not _as_list(knowledge.get("issues")):
-        return """<section>
+        return f"""<section>
   <h2>Knowledge Graph</h2>
-  <div class="card"><h3>Status <span class="pill not_checked">not_checked</span></h3><p class="muted">Knowledge verification was not provided.</p></div>
+  <div class="card"><h3>Status <span class="pill not_checked">not_checked</span></h3><p class="muted">Knowledge verification was not provided.</p><p><strong>Review:</strong> {review_link}</p></div>
 </section>"""
     issues = _as_list(knowledge.get("issues"))
     suggestions = _as_list(knowledge.get("suggestions"))
@@ -549,6 +551,7 @@ def _knowledge_from_data(data: dict[str, Any]) -> str:
   <h2>Knowledge Graph</h2>
   <div class="card"><h3>Status <span class="pill {'partial' if total else 'ok'}">{html.escape(status)}</span></h3>
     <p>issues={total}; suggestions={len(suggestions)}</p>
+    <p><strong>Review:</strong> {review_link}</p>
   </div>
   <h2>Knowledge Issues</h2>
   <table><thead><tr><th>Severity</th><th>Kind</th><th>Target</th><th>Message</th></tr></thead><tbody>{issue_rows}</tbody></table>
@@ -561,12 +564,14 @@ def _outputs_from_data(data: dict[str, Any]) -> str:
     outputs = _safe_dict(data.get("outputs"))
     report_md = outputs.get("report_md")
     dashboard_html = outputs.get("dashboard_html")
+    knowledge_review_html = outputs.get("knowledge_review_html")
     return f"""<section>
   <h2>Output Links</h2>
   <div class="card">
     <ul class="output-list">
       <li><strong>report_md:</strong> {_path_link(report_md)}</li>
       <li><strong>dashboard_html:</strong> {_path_link(dashboard_html)}</li>
+      <li><strong>knowledge_review_html:</strong> {_path_link(knowledge_review_html)}</li>
     </ul>
   </div>
 </section>"""
@@ -809,5 +814,9 @@ def _path_link(value: Any) -> str:
         return "<span class='muted'>not provided</span>"
     text = _text(value)
     escaped = html.escape(text)
-    href = html.escape(text.replace("\\", "/"), quote=True)
+    normalized = text.replace("\\", "/")
+    href_target = normalized
+    if "://" not in normalized and "/" in normalized:
+        href_target = normalized.rstrip("/").split("/")[-1]
+    href = html.escape(href_target, quote=True)
     return f"<a href='{href}'>{escaped}</a>"

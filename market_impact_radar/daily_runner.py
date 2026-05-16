@@ -13,6 +13,7 @@ from .dashboard_contract import validate_dashboard_data
 from .history_index import write_daily_history_index
 from .intraday import evaluate_intraday, summarize_intraday_evaluation
 from .io import load_json, load_mappings, write_text
+from .knowledge_review import write_knowledge_review_html
 from .knowledge_verifier import suggest_mapping_fixes, verify_knowledge_graph
 from .models import Candidate, ScoredTheme, TransmissionEvent
 from .pipeline import run_report_pipeline
@@ -59,6 +60,7 @@ def run_daily(options: DailyRunOptions) -> dict[str, Any]:
             "run_summary": str(output_dir / "run_summary.json"),
             "dashboard_data": str(output_dir / "dashboard_data.json"),
             "dashboard_html": str(output_dir / "dashboard.html"),
+            "knowledge_review_html": str(output_dir / "knowledge_review.html"),
         },
     }
     dashboard_data: dict[str, Any] = {
@@ -74,6 +76,8 @@ def run_daily(options: DailyRunOptions) -> dict[str, Any]:
         "intraday_evaluation": None,
         "knowledge_verification": None,
     }
+    knowledge_review_payload: dict[str, Any] | None = {"status": "not_available", "issues": [], "suggestions": []}
+    knowledge_review_suggestions: dict[str, Any] | list[Any] | None = None
 
     try:
         external_path, external_step = _prepare_external_snapshot(options, output_dir)
@@ -119,8 +123,15 @@ def run_daily(options: DailyRunOptions) -> dict[str, Any]:
 
         if options.skip_knowledge:
             summary["steps"]["knowledge"] = {"status": "skipped"}
+            knowledge_review_payload = {
+                "status": "skipped",
+                "quality_counts": {"high": 0, "medium": 0, "low": 0, "total": 0},
+                "issues": [],
+                "suggestions": [],
+            }
         else:
             knowledge = _verify_knowledge(options)
+            knowledge_suggestions = suggest_mapping_fixes(knowledge)
             knowledge_status = _knowledge_status(knowledge)
             summary["steps"]["knowledge"] = {
                 "status": knowledge_status,
@@ -128,7 +139,9 @@ def run_daily(options: DailyRunOptions) -> dict[str, Any]:
                 "source_summary": knowledge.get("source_summary", {}),
             }
             _apply_step_status(summary, summary["steps"]["knowledge"])
-            dashboard_data["knowledge_verification"] = _knowledge_dashboard_subset(knowledge)
+            knowledge_review_payload = knowledge
+            knowledge_review_suggestions = knowledge_suggestions
+            dashboard_data["knowledge_verification"] = _knowledge_dashboard_subset(knowledge, knowledge_suggestions)
     except Exception as exc:
         summary["status"] = "error"
         summary.setdefault("errors", []).append(str(exc))
@@ -152,6 +165,11 @@ def run_daily(options: DailyRunOptions) -> dict[str, Any]:
         if has_errors and summary["status"] != "error":
             summary["status"] = "partial"
         dashboard_data["run"]["status"] = summary["status"]
+        dashboard_data["run"]["warnings"] = list(summary["warnings"])
+    try:
+        write_knowledge_review_html(output_dir, knowledge_review_payload, knowledge_review_suggestions)
+    except Exception as exc:
+        summary["warnings"].append(f"knowledge review render failed: {exc}")
         dashboard_data["run"]["warnings"] = list(summary["warnings"])
     _write_json(summary["outputs"]["run_summary"], summary)
     _write_json(summary["outputs"]["dashboard_data"], dashboard_data)
@@ -272,8 +290,11 @@ def _candidate_to_dict(candidate: Candidate) -> dict[str, Any]:
     return asdict(candidate)
 
 
-def _knowledge_dashboard_subset(knowledge: dict[str, Any]) -> dict[str, Any]:
-    suggestions = suggest_mapping_fixes(knowledge)
+def _knowledge_dashboard_subset(
+    knowledge: dict[str, Any],
+    suggestions: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    suggestions = suggestions if suggestions is not None else suggest_mapping_fixes(knowledge)
     return {
         "quality_counts": knowledge.get("quality_counts", {}),
         "source_summary": knowledge.get("source_summary", {}),
