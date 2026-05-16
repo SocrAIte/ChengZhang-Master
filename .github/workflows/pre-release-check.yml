@@ -29,4 +29,14 @@ jobs:
       - name: Run sample pre-release check
         run: python -m market_impact_radar pre-release-check --skip-tests
 
+      - name: Verify daily report preview directory
+        run: test -d reports/daily/pre-release-check
+
+      - name: Upload daily report preview
+        uses: actions/upload-artifact@v4
+        with:
+          name: daily-report-preview
+          path: reports/daily/pre-release-check/
+          if-no-files-found: error
+
       # Browser smoke can be enabled later with Playwright setup.

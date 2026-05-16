@@ -59,13 +59,16 @@ GitHub Actions runs the same baseline checks on pull requests and pushes to `mas
 
 CI uses `actions/setup-python` with Python 3.11 and installs the project with `python -m pip install -e .`. It does not use the local Windows conda environment.
 
+Pre-release Check uploads a CI preview artifact named `daily-report-preview` from `reports/daily/pre-release-check/`. It includes the generated daily index and sample run outputs for inspection.
+
 Browser smoke CI is a separate manual workflow:
 
 - [ ] Trigger `Browser Smoke Check` from GitHub Actions `workflow_dispatch`.
 - [ ] It installs Playwright and Chromium with `python -m playwright install --with-deps chromium`.
 - [ ] It runs `python -m market_impact_radar pre-release-check --with-browser`.
+- [ ] It uploads `browser-smoke-daily-report-preview` from `reports/daily/pre-release-check/`.
 
-Browser smoke is not part of the default push / PR gate because Playwright and Chromium make the job heavier. Locally, continue to use `conda run -n market_impact_radar ...` for browser smoke checks on Windows.
+Artifacts can be downloaded from the workflow run to inspect `index.html`, `dashboard.html`, `dashboard_data.json`, and `run_summary.json`. These artifacts are CI previews, not formal deployment; GitHub Pages can be handled separately later. Browser smoke is not part of the default push / PR gate because Playwright and Chromium make the job heavier. Locally, continue to use `conda run -n market_impact_radar ...` for browser smoke checks on Windows.
 
 ## Daily Pipeline
 

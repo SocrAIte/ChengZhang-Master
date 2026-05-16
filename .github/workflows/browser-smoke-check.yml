@@ -26,3 +26,13 @@ jobs:
 
       - name: Run dashboard browser smoke check
         run: python -m market_impact_radar pre-release-check --with-browser
+
+      - name: Verify daily report preview directory
+        run: test -d reports/daily/pre-release-check
+
+      - name: Upload browser smoke daily report preview
+        uses: actions/upload-artifact@v4
+        with:
+          name: browser-smoke-daily-report-preview
+          path: reports/daily/pre-release-check/
+          if-no-files-found: error
