@@ -7,6 +7,9 @@ This project separates market signal logic, data contracts, and presentation. Ke
 - Do not work directly on `main` or `master`.
 - Create or use a feature branch before implementation.
 - Keep one branch focused on one purpose.
+- Current mainline branch is `feature-a-share-data-calendar` until the repository explicitly adopts a remote `main` or `master`.
+- Start new feature branches from the current mainline branch.
+- Do not push the old local `master` branch to the remote repository unless the branch strategy has been explicitly changed.
 
 ## Patch Discipline
 
@@ -46,6 +49,19 @@ Before committing code or process changes, run:
 ```powershell
 python -m unittest discover -s tests
 ```
+
+Before updating the current mainline checkpoint, also run:
+
+```powershell
+python -m market_impact_radar pre-release-check
+python -m market_impact_radar pre-release-check --with-browser
+```
+
+Remote merge-readiness checks for daily report bundle work:
+
+- GitHub Actions Pre-release Check
+- Browser Smoke Check workflow
+- Pages Preview workflow
 
 For daily pipeline work, also run the sample command:
 
