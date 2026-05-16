@@ -78,6 +78,9 @@ def run_pre_release_check(
     check_dashboard_html(paths["dashboard_html"])
     checks.append({"name": "dashboard.html", "status": "passed"})
 
+    check_knowledge_review_html(paths["knowledge_review"])
+    checks.append({"name": "knowledge_review.html", "status": "passed"})
+
     if options.with_browser:
         try:
             (browser_smoke or run_dashboard_browser_smoke)(paths["dashboard_html"])
@@ -116,6 +119,7 @@ def check_required_outputs(output_dir: str | Path) -> dict[str, Path]:
         "run_summary": root / "run_summary.json",
         "dashboard_data": root / "dashboard_data.json",
         "dashboard_html": root / "dashboard.html",
+        "knowledge_review": root / "knowledge_review.html",
     }
     missing = [str(path) for path in paths.values() if not path.exists()]
     if missing:
@@ -154,6 +158,8 @@ def check_run_summary(path: str | Path) -> dict[str, Any]:
         raise PreReleaseCheckError("run_summary.json outputs missing dashboard_data")
     if not outputs.get("dashboard_html"):
         raise PreReleaseCheckError("run_summary.json outputs missing dashboard_html")
+    if not outputs.get("knowledge_review_html"):
+        raise PreReleaseCheckError("run_summary.json outputs missing knowledge_review_html")
     return payload
 
 
@@ -168,6 +174,19 @@ def check_dashboard_html(path: str | Path) -> None:
         raise PreReleaseCheckError("dashboard.html missing schema version display")
     if "Daily Market Radar" not in text and "Status" not in text:
         raise PreReleaseCheckError("dashboard.html missing dashboard title or status")
+    if "knowledge_review.html" not in text:
+        raise PreReleaseCheckError("dashboard.html missing knowledge review link")
+
+
+def check_knowledge_review_html(path: str | Path) -> None:
+    target = Path(path)
+    if not target.exists():
+        raise PreReleaseCheckError(f"knowledge_review.html missing: {target}")
+    text = target.read_text(encoding="utf-8")
+    if not text.strip():
+        raise PreReleaseCheckError("knowledge_review.html is empty")
+    if "Knowledge Graph Review" not in text:
+        raise PreReleaseCheckError("knowledge_review.html missing review title")
 
 
 def format_pre_release_summary(summary: dict[str, Any]) -> str:

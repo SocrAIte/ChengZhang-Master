@@ -17,6 +17,7 @@ The command performs:
 - [ ] Required output validation.
 - [ ] `dashboard_data.json` schema check.
 - [ ] `dashboard.html` smoke check.
+- [ ] `knowledge_review.html` fixed-output check.
 
 Browser smoke check is optional:
 
@@ -59,7 +60,14 @@ GitHub Actions runs the same baseline checks on pull requests and pushes to `mas
 
 CI uses `actions/setup-python` with Python 3.11 and installs the project with `python -m pip install -e .`. It does not use the local Windows conda environment.
 
-Pre-release Check uploads a CI preview artifact named `daily-report-preview` from `reports/daily/pre-release-check/`. It includes the generated daily index and sample run outputs for inspection.
+Pre-release Check uploads a CI preview artifact named `daily-report-preview` from `reports/daily/pre-release-check/`. It includes the generated daily index and sample run outputs for inspection:
+
+- [ ] `index.html`
+- [ ] `index.json`
+- [ ] `2026-05-15/dashboard.html`
+- [ ] `2026-05-15/dashboard_data.json`
+- [ ] `2026-05-15/run_summary.json`
+- [ ] `2026-05-15/knowledge_review.html`
 
 Browser smoke CI is a separate manual workflow:
 
@@ -68,14 +76,14 @@ Browser smoke CI is a separate manual workflow:
 - [ ] It runs `python -m market_impact_radar pre-release-check --with-browser`.
 - [ ] It uploads `browser-smoke-daily-report-preview` from `reports/daily/pre-release-check/`.
 
-Artifacts can be downloaded from the workflow run to inspect `index.html`, `dashboard.html`, `dashboard_data.json`, and `run_summary.json`. These artifacts are CI previews, not formal deployment; GitHub Pages can be handled separately later. Browser smoke is not part of the default push / PR gate because Playwright and Chromium make the job heavier. Locally, continue to use `conda run -n market_impact_radar ...` for browser smoke checks on Windows.
+Artifacts can be downloaded from the workflow run to inspect `index.html`, `dashboard.html`, `dashboard_data.json`, `run_summary.json`, and `knowledge_review.html`. These artifacts are CI previews, not formal deployment; GitHub Pages can be handled separately later. Browser smoke is not part of the default push / PR gate because Playwright and Chromium make the job heavier. Locally, continue to use `conda run -n market_impact_radar ...` for browser smoke checks on Windows.
 
 GitHub Pages Preview is a separate manual workflow:
 
 - [ ] Trigger `Pages Preview` from GitHub Actions `workflow_dispatch`.
 - [ ] It runs the sample `pre-release-check --skip-tests`.
 - [ ] It deploys only `reports/daily/pre-release-check/` to GitHub Pages.
-- [ ] The Pages root opens `index.html`, with relative links to `2026-05-15/dashboard.html`, `dashboard_data.json`, and `run_summary.json`.
+- [ ] The Pages root opens `index.html`, with relative links to `2026-05-15/dashboard.html`, `dashboard_data.json`, `run_summary.json`, and `knowledge_review.html`.
 - [ ] This is a sample preview, not production data.
 - [ ] Default push / PR workflows do not deploy Pages.
 - [ ] The GitHub repository must allow GitHub Actions to deploy Pages.

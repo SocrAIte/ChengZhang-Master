@@ -102,7 +102,7 @@ Fields may be `null`, empty arrays, `0`, or `"unknown"` when data is unavailable
 
 ### knowledge_review.html
 
-`knowledge_review.html` is a read-only knowledge graph quality page for the daily run. It renders the existing knowledge check and mapping fix suggestions into a static HTML view.
+`knowledge_review.html` is a fixed read-only knowledge graph review entry for every daily run. It renders the existing knowledge check and mapping fix suggestions into a static HTML view.
 
 It shows:
 
@@ -112,7 +112,15 @@ It shows:
 - a clean state when no issues are present
 - a skipped or not available state when knowledge verification was skipped or missing
 
-This page does not automatically modify `data/mappings.json` and does not provide online editing.
+This page does not automatically modify `data/mappings.json` and does not provide online editing. It is generated even when `--skip-knowledge` is used; skipped runs should show a skipped or not available state instead of omitting the page.
+
+The page is discoverable from:
+
+- the Knowledge Graph section in `dashboard.html`
+- each daily row in `reports/daily/index.html`
+- the `daily-report-preview` CI artifact
+- the `browser-smoke-daily-report-preview` CI artifact
+- the manual GitHub Pages preview deployment
 
 ### History Index
 
@@ -129,7 +137,7 @@ If automatic history index refresh fails during `run-daily`, the daily run still
 ## Skip Options
 
 - `--skip-a-share`: Skip A-share snapshot loading/fetching and intraday validation. Signals should display `not_checked` rather than confirmed or failed.
-- `--skip-knowledge`: Skip knowledge graph verification. The dashboard should display knowledge status as not checked, and `knowledge_review.html` should show a skipped state.
+- `--skip-knowledge`: Skip knowledge graph verification. The dashboard should display knowledge status as not checked, and `knowledge_review.html` should show a skipped or not available state rather than being missing.
 
 ## Status Meanings
 

@@ -29,8 +29,14 @@ jobs:
       - name: Run sample pre-release check
         run: python -m market_impact_radar pre-release-check --skip-tests
 
-      - name: Verify daily report preview directory
-        run: test -d reports/daily/pre-release-check
+      - name: Verify daily report preview files
+        run: |
+          test -f reports/daily/pre-release-check/index.html
+          test -f reports/daily/pre-release-check/index.json
+          test -f reports/daily/pre-release-check/2026-05-15/dashboard.html
+          test -f reports/daily/pre-release-check/2026-05-15/dashboard_data.json
+          test -f reports/daily/pre-release-check/2026-05-15/run_summary.json
+          test -f reports/daily/pre-release-check/2026-05-15/knowledge_review.html
 
       - name: Upload daily report preview
         uses: actions/upload-artifact@v4
