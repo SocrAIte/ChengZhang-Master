@@ -141,6 +141,8 @@ This page is a diagnostic view only. It does not recompute signals, modify data 
 
 `reports/daily/index.html` is a static list of available daily runs. It links to each date's `dashboard.html`, `knowledge_review.html`, `run_diagnostics.html`, `dashboard_data.json`, `run_summary.json`, and `report.md` when present.
 
+The optional browser smoke check for daily preview opens this history index and the linked `dashboard.html`, `knowledge_review.html`, and `run_diagnostics.html` pages.
+
 You can rebuild it manually:
 
 ```powershell

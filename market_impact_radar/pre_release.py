@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable
 
-from .browser_smoke import BrowserSmokeError, run_dashboard_browser_smoke
+from .browser_smoke import BrowserSmokeError, run_daily_bundle_browser_smoke
 from .daily_runner import DailyRunOptions, run_daily
 from .dashboard_contract import DASHBOARD_SCHEMA_VERSION, validate_dashboard_data
 
@@ -86,10 +86,16 @@ def run_pre_release_check(
 
     if options.with_browser:
         try:
-            (browser_smoke or run_dashboard_browser_smoke)(paths["dashboard_html"])
+            browser_result = (browser_smoke or run_daily_bundle_browser_smoke)(output_dir.parent)
         except BrowserSmokeError as exc:
             raise PreReleaseCheckError(f"browser smoke failed: {exc}") from exc
-        checks.append({"name": "browser smoke", "status": "passed"})
+        checks.append(
+            {
+                "name": "browser smoke",
+                "status": "passed",
+                "pages_checked": getattr(browser_result, "pages_checked", None),
+            }
+        )
 
     return {
         "status": "passed",
@@ -215,6 +221,9 @@ def format_pre_release_summary(summary: dict[str, Any]) -> str:
         status = check.get("status", "unknown")
         if name == "dashboard_data.json":
             lines.append(f"- {name}: schema_version {check.get('schema_version', 'unknown')}")
+        elif name == "browser smoke" and check.get("pages_checked"):
+            lines.append(f"- {name}: {status}")
+            lines.append(f"- browser pages checked: {check.get('pages_checked')}")
         else:
             lines.append(f"- {name}: {status}")
     return "\n".join(lines)

@@ -6,6 +6,7 @@ import unittest
 from pathlib import Path
 
 from market_impact_radar.daily_runner import DailyRunOptions
+from market_impact_radar.browser_smoke import BrowserSmokeResult
 from market_impact_radar.dashboard_contract import DASHBOARD_SCHEMA_VERSION
 from market_impact_radar.pre_release import (
     PreReleaseCheckError,
@@ -92,15 +93,17 @@ class PreReleaseCheckTest(unittest.TestCase):
 
     def test_with_browser_calls_browser_smoke(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
-            calls = {"browser": 0}
+            calls = {"browser": 0, "path": ""}
 
             def fake_daily(options: DailyRunOptions) -> dict:
                 output_dir = Path(options.output_root) / str(options.run_date)
                 _write_valid_outputs(output_dir)
                 return {"status": "ok", "output_dir": str(output_dir)}
 
-            def fake_browser(path: Path) -> None:
+            def fake_browser(path: Path) -> BrowserSmokeResult:
                 calls["browser"] += 1
+                calls["path"] = str(path)
+                return BrowserSmokeResult(status="passed", url=Path(path).as_uri(), checks=("index.html",), pages_checked=4)
 
             summary = run_pre_release_check(
                 PreReleaseCheckOptions(date="2026-05-15", output_dir=tmpdir, skip_tests=True, with_browser=True),
@@ -109,7 +112,8 @@ class PreReleaseCheckTest(unittest.TestCase):
             )
 
         self.assertEqual(calls["browser"], 1)
-        self.assertTrue(any(check["name"] == "browser smoke" for check in summary["checks"]))
+        self.assertEqual(calls["path"], tmpdir)
+        self.assertTrue(any(check["name"] == "browser smoke" and check.get("pages_checked") == 4 for check in summary["checks"]))
 
     def test_browser_smoke_failure_fails_pre_release(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:

@@ -26,7 +26,14 @@ Browser smoke check is optional:
 python -m market_impact_radar pre-release-check --with-browser
 ```
 
-By default, `pre-release-check` does not start a browser. `--with-browser` opens the generated `dashboard.html` with Playwright and performs a minimal browser smoke check. Install Playwright inside the project conda environment:
+By default, `pre-release-check` does not start a browser. `--with-browser` opens the generated daily report bundle with Playwright and performs a minimal browser smoke check across:
+
+- [ ] `index.html`
+- [ ] `2026-05-15/dashboard.html`
+- [ ] `2026-05-15/knowledge_review.html`
+- [ ] `2026-05-15/run_diagnostics.html`
+
+Install Playwright inside the project conda environment:
 
 ```powershell
 python -m pip install --no-user playwright
@@ -76,6 +83,7 @@ Browser smoke CI is a separate manual workflow:
 - [ ] Trigger `Browser Smoke Check` from GitHub Actions `workflow_dispatch`.
 - [ ] It installs Playwright and Chromium with `python -m playwright install --with-deps chromium`.
 - [ ] It runs `python -m market_impact_radar pre-release-check --with-browser`.
+- [ ] It checks the daily report bundle pages: index, dashboard, knowledge review, and run diagnostics.
 - [ ] It uploads `browser-smoke-daily-report-preview` from `reports/daily/pre-release-check/`.
 
 Artifacts can be downloaded from the workflow run to inspect `index.html`, `dashboard.html`, `dashboard_data.json`, `run_summary.json`, `knowledge_review.html`, and `run_diagnostics.html`. These artifacts are CI previews, not formal deployment; GitHub Pages can be handled separately later. Browser smoke is not part of the default push / PR gate because Playwright and Chromium make the job heavier. Locally, continue to use `conda run -n market_impact_radar ...` for browser smoke checks on Windows.
