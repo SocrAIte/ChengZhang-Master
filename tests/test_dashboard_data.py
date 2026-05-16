@@ -128,6 +128,14 @@ class DashboardDataRenderTest(unittest.TestCase):
         self.assertIn("Schema: 1.0", html)
         self.assertIn("Signal Overview", html)
         self.assertIn("Market Context", html)
+        self.assertIn("id=\"signal-search\"", html)
+        self.assertIn("id=\"filter-strength\"", html)
+        self.assertIn("id=\"filter-intraday-status\"", html)
+        self.assertIn("id=\"filter-risk-level\"", html)
+        self.assertIn("id=\"filter-data-status\"", html)
+        self.assertIn("data-quick-filter=\"confirmed\"", html)
+        self.assertIn("data-quick-filter=\"high-risk\"", html)
+        self.assertIn("visible-signal-count", html)
         self.assertIn("2026-05-15", html)
         self.assertIn("storage chips", html)
         self.assertIn("Risk Level", html)
@@ -139,11 +147,17 @@ class DashboardDataRenderTest(unittest.TestCase):
         self.assertIn("Output Links", html)
         self.assertIn("report.md", html)
         self.assertIn("Mapping Suggestions", html)
+        self.assertIn("data-signal-card", html)
+        self.assertIn("data-intraday-status=\"confirmed\"", html)
+        self.assertIn("data-risk-level=\"watch\"", html)
+        self.assertIn("data-data-status=\"ok\"", html)
 
     def test_render_dashboard_data_handles_minimal_input(self) -> None:
         html = render_dashboard_from_data({"run": {"date": "2026-05-15"}})
 
         self.assertIn("2026-05-15", html)
+        self.assertIn("id=\"signal-search\"", html)
+        self.assertIn("0</span> / <span id=\"total-signal-count\">0</span> signals visible", html)
         self.assertIn("No signals available.", html)
         self.assertIn("Knowledge Graph", html)
         self.assertIn("not_checked", html)
@@ -170,6 +184,8 @@ class DashboardDataRenderTest(unittest.TestCase):
         self.assertIn("optical leader 300000", html)
         self.assertIn("risk: high", html)
         self.assertIn("No risk notes provided.", html)
+        self.assertIn("data-strength=\"unknown\"", html)
+        self.assertIn("data-risk-level=\"high\"", html)
 
     def test_empty_candidates_show_empty_state(self) -> None:
         html = render_dashboard_from_data(
@@ -182,6 +198,25 @@ class DashboardDataRenderTest(unittest.TestCase):
 
         self.assertIn("No ETF candidates available.", html)
         self.assertIn("No stock candidates available.", html)
+
+    def test_filter_data_attributes_escape_values(self) -> None:
+        html = render_dashboard_from_data(
+            {
+                "schema_version": DASHBOARD_SCHEMA_VERSION,
+                "run": {"date": "2026-05-15"},
+                "signals": [
+                    {
+                        "theme": "quote test",
+                        "external_triggers": ['MU" onclick="bad'],
+                        "risk_level": '" high',
+                    }
+                ],
+            }
+        )
+
+        self.assertIn("data-search=", html)
+        self.assertIn("&quot; onclick=&quot;bad", html)
+        self.assertNotIn('onclick="bad', html)
 
     def test_dashboard_data_escapes_visible_values(self) -> None:
         html = render_dashboard_from_data(

@@ -312,6 +312,15 @@ def render_dashboard_from_data(dashboard_data: dict[str, Any] | None) -> str:
     summary {{ cursor: pointer; font-weight: 600; }}
     .output-list {{ margin: 0; padding: 0; list-style: none; }}
     .output-list li {{ margin-bottom: 6px; }}
+    .controls {{ display: grid; gap: 12px; }}
+    .control-grid {{ display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); }}
+    .control-label {{ display: grid; gap: 4px; color: var(--muted); font-size: 12px; }}
+    .control-label input, .control-label select {{ border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px; color: var(--text); background: var(--panel); font: inherit; }}
+    .filter-chips {{ display: flex; flex-wrap: wrap; gap: 8px; }}
+    .filter-chip {{ border: 1px solid var(--line); border-radius: 999px; background: var(--panel); color: var(--text); padding: 6px 10px; cursor: pointer; font: inherit; }}
+    .filter-chip.active {{ border-color: var(--watch); color: var(--watch); background: #eaf1ff; }}
+    .signal-count {{ color: var(--muted); font-size: 12px; }}
+    .signal-card[hidden] {{ display: none; }}
   </style>
 </head>
 <body>
@@ -327,6 +336,7 @@ def render_dashboard_from_data(dashboard_data: dict[str, Any] | None) -> str:
     {_knowledge_from_data(data)}
     {_outputs_from_data(data)}
   </main>
+  {_dashboard_filter_script()}
 </body>
 </html>
 """
@@ -406,10 +416,15 @@ def _signal_list_from_data(data: dict[str, Any]) -> str:
     cards = []
     for signal in signals:
         theme_name = _text(signal.get("theme") or "unknown")
+        strength = _text(signal.get("strength") or "unknown")
         intraday_status = _text(signal.get("intraday_status") or "not_checked")
         risk_level = _text(signal.get("risk_level") or "unknown")
+        data_status = _text(signal.get("data_status") or "unknown")
+        score = _score_attr(signal.get("score"))
+        search_text = _signal_search_text(signal)
+        quick_tags = " ".join(_quick_filter_tags(signal, strength, intraday_status, risk_level, data_status))
         cards.append(
-            f"""<article class="card signal-card">
+            f"""<article class="card signal-card" data-signal-card data-strength="{_attr(strength)}" data-intraday-status="{_attr(intraday_status)}" data-risk-level="{_attr(risk_level)}" data-data-status="{_attr(data_status)}" data-score="{_attr(score)}" data-search="{_attr(search_text)}" data-quick-tags="{_attr(quick_tags)}">
   <div class="signal-head">
     <h3>{html.escape(theme_name)}</h3>
     <div>
@@ -418,11 +433,11 @@ def _signal_list_from_data(data: dict[str, Any]) -> str:
     </div>
   </div>
   <div class="signal-grid">
-    <div><p class="field-label">Strength</p><p class="field-value">{html.escape(_text(signal.get('strength') or 'unknown'))}</p></div>
+    <div><p class="field-label">Strength</p><p class="field-value">{html.escape(strength)}</p></div>
     <div><p class="field-label">Score</p><p class="field-value">{_number(signal.get('score'))}</p></div>
     <div><p class="field-label">Intraday Status</p><p class="field-value">{html.escape(intraday_status)}</p></div>
     <div><p class="field-label">Risk Level</p><p class="field-value">{html.escape(risk_level)}</p></div>
-    <div><p class="field-label">Data Status</p><p class="field-value">{html.escape(_text(signal.get('data_status') or 'unknown'))}</p></div>
+    <div><p class="field-label">Data Status</p><p class="field-value">{html.escape(data_status)}</p></div>
     <div><p class="field-label">Sources</p><p class="field-value">{_join_html(_as_list(signal.get('sources'))) or 'unknown'}</p></div>
     <div><p class="field-label">Fetched At</p><p class="field-value">{_join_html(_as_list(signal.get('fetched_at'))) or 'unknown'}</p></div>
   </div>
@@ -447,8 +462,62 @@ def _signal_list_from_data(data: dict[str, Any]) -> str:
     body = "".join(cards) or "<div class='card'>No signals available.</div>"
     return f"""<section>
   <h2>Signal List</h2>
-  {body}
+  {_signal_controls_from_data(signals)}
+  <div id="signal-card-list">{body}</div>
 </section>"""
+
+
+def _signal_controls_from_data(signals: list[dict[str, Any]]) -> str:
+    total = len(signals)
+    return f"""<div class="card controls" id="signal-browser-controls">
+  <div class="control-grid">
+    <label class="control-label" for="signal-search">Search
+      <input id="signal-search" type="search" placeholder="Search theme, triggers, mapping, candidates, risks">
+    </label>
+    {_filter_select("filter-strength", "strength", "strength", signals)}
+    {_filter_select("filter-intraday-status", "intraday_status", "intradayStatus", signals)}
+    {_filter_select("filter-risk-level", "risk_level", "riskLevel", signals)}
+    {_filter_select("filter-data-status", "data_status", "dataStatus", signals)}
+    <label class="control-label" for="signal-sort">sort
+      <select id="signal-sort">
+        <option value="">Original order</option>
+        <option value="score_desc">Score descending</option>
+        <option value="risk_level">Risk level</option>
+        <option value="intraday_status">Intraday status</option>
+      </select>
+    </label>
+  </div>
+  <div class="filter-chips" aria-label="Quick signal views">
+    <button type="button" class="filter-chip active" data-quick-filter="all">All</button>
+    <button type="button" class="filter-chip" data-quick-filter="confirmed">Confirmed</button>
+    <button type="button" class="filter-chip" data-quick-filter="downgraded">Downgraded</button>
+    <button type="button" class="filter-chip" data-quick-filter="missing">Missing Data</button>
+    <button type="button" class="filter-chip" data-quick-filter="high-risk">High Risk</button>
+    <button type="button" class="filter-chip" data-quick-filter="strong">Strong Signals</button>
+  </div>
+  <div class="signal-count"><span id="visible-signal-count">{total}</span> / <span id="total-signal-count">{total}</span> signals visible</div>
+</div>"""
+
+
+def _filter_select(element_id: str, label: str, dataset_field: str, signals: list[dict[str, Any]]) -> str:
+    values = []
+    for signal in signals:
+        value = _text(signal.get(label) or "unknown")
+        if value not in values:
+            values.append(value)
+    options = [f"<option value=''>All {html.escape(label)}</option>"]
+    options.extend(
+        f"<option value='{_attr(value)}'>{html.escape(value)}</option>"
+        for value in sorted(values, key=str.lower)
+        if value not in {"", "unknown"}
+    )
+    if "unknown" in values:
+        options.append("<option value='unknown'>unknown</option>")
+    return f"""<label class="control-label" for="{html.escape(element_id)}">{html.escape(label)}
+      <select id="{html.escape(element_id)}" data-signal-filter data-field="{html.escape(dataset_field)}">
+        {''.join(options)}
+      </select>
+    </label>"""
 
 
 def _knowledge_from_data(data: dict[str, Any]) -> str:
@@ -503,6 +572,116 @@ def _outputs_from_data(data: dict[str, Any]) -> str:
 </section>"""
 
 
+def _dashboard_filter_script() -> str:
+    return """<script>
+(function () {
+  var cards = Array.prototype.slice.call(document.querySelectorAll("[data-signal-card]"));
+  var list = document.getElementById("signal-card-list");
+  var search = document.getElementById("signal-search");
+  var filters = Array.prototype.slice.call(document.querySelectorAll("[data-signal-filter]"));
+  var chips = Array.prototype.slice.call(document.querySelectorAll("[data-quick-filter]"));
+  var sort = document.getElementById("signal-sort");
+  var visibleCount = document.getElementById("visible-signal-count");
+  var totalCount = document.getElementById("total-signal-count");
+  var activeQuick = "all";
+
+  if (!list || !search || !visibleCount || !totalCount) {
+    return;
+  }
+
+  function normalize(value) {
+    return String(value || "").toLowerCase();
+  }
+
+  function cardValue(card, field) {
+    return normalize(card.dataset[field] || "");
+  }
+
+  function matchesQuick(card) {
+    if (activeQuick === "all") {
+      return true;
+    }
+    return (" " + normalize(card.dataset.quickTags) + " ").indexOf(" " + activeQuick + " ") !== -1;
+  }
+
+  function matchesFilters(card) {
+    return filters.every(function (filter) {
+      var value = normalize(filter.value);
+      if (!value) {
+        return true;
+      }
+      return cardValue(card, filter.dataset.field).indexOf(value) !== -1;
+    });
+  }
+
+  function matchesSearch(card) {
+    var query = normalize(search.value).trim();
+    if (!query) {
+      return true;
+    }
+    return normalize(card.dataset.search).indexOf(query) !== -1;
+  }
+
+  function applySort() {
+    var mode = sort ? sort.value : "";
+    var ordered = cards.slice();
+    if (mode === "score_desc") {
+      ordered.sort(function (a, b) {
+        return (Number(b.dataset.score) || 0) - (Number(a.dataset.score) || 0);
+      });
+    } else if (mode === "risk_level") {
+      ordered.sort(function (a, b) {
+        return cardValue(a, "riskLevel").localeCompare(cardValue(b, "riskLevel"));
+      });
+    } else if (mode === "intraday_status") {
+      ordered.sort(function (a, b) {
+        return cardValue(a, "intradayStatus").localeCompare(cardValue(b, "intradayStatus"));
+      });
+    }
+    ordered.forEach(function (card) {
+      list.appendChild(card);
+    });
+  }
+
+  function applyFilters() {
+    var visible = 0;
+    cards.forEach(function (card) {
+      var show = matchesQuick(card) && matchesFilters(card) && matchesSearch(card);
+      card.hidden = !show;
+      if (show) {
+        visible += 1;
+      }
+    });
+    visibleCount.textContent = String(visible);
+    totalCount.textContent = String(cards.length);
+  }
+
+  search.addEventListener("input", applyFilters);
+  filters.forEach(function (filter) {
+    filter.addEventListener("change", applyFilters);
+  });
+  chips.forEach(function (chip) {
+    chip.addEventListener("click", function () {
+      activeQuick = chip.dataset.quickFilter || "all";
+      chips.forEach(function (item) {
+        item.classList.toggle("active", item === chip);
+      });
+      applyFilters();
+    });
+  });
+  if (sort) {
+    sort.addEventListener("change", function () {
+      applySort();
+      applyFilters();
+    });
+  }
+
+  applySort();
+  applyFilters();
+})();
+</script>"""
+
+
 def _safe_dict(value: Any) -> dict[str, Any]:
     return value if isinstance(value, dict) else {}
 
@@ -530,6 +709,13 @@ def _number(value: Any) -> str:
         return f"{float(value):.0f}"
     except (TypeError, ValueError):
         return "unknown"
+
+
+def _score_attr(value: Any) -> str:
+    try:
+        return f"{float(value):.6f}"
+    except (TypeError, ValueError):
+        return ""
 
 
 def _as_int(value: Any) -> int:
@@ -572,6 +758,50 @@ def _format_item(value: Any) -> str:
     if isinstance(value, (list, tuple)):
         return ", ".join(_format_item(item) for item in value if _format_item(item))
     return _text(value)
+
+
+def _signal_search_text(signal: dict[str, Any]) -> str:
+    values: list[Any] = [
+        signal.get("theme"),
+        *_as_list(signal.get("external_triggers")),
+        *_as_list(signal.get("a_share_mapping_reason")),
+        *_as_list(signal.get("etf_candidates")),
+        *_as_list(signal.get("stock_candidates")),
+        *_as_list(signal.get("risks")),
+    ]
+    return " ".join(_format_item(value) for value in values if _format_item(value) not in {"", "unknown"})
+
+
+def _quick_filter_tags(
+    signal: dict[str, Any],
+    strength: str,
+    intraday_status: str,
+    risk_level: str,
+    data_status: str,
+) -> list[str]:
+    tags = []
+    if intraday_status == "confirmed":
+        tags.append("confirmed")
+    if intraday_status == "downgraded":
+        tags.append("downgraded")
+    if "missing" in data_status.lower() or "missing" in intraday_status.lower():
+        tags.append("missing")
+    if risk_level.lower() in {"high", "risk", "failed", "flagged"} or intraday_status == "failed":
+        tags.append("high-risk")
+    if "strong" in strength.lower() or _is_at_least(signal.get("score"), 80.0):
+        tags.append("strong")
+    return tags
+
+
+def _is_at_least(value: Any, threshold: float) -> bool:
+    try:
+        return float(value) >= threshold
+    except (TypeError, ValueError):
+        return False
+
+
+def _attr(value: Any) -> str:
+    return html.escape(_text(value), quote=True)
 
 
 def _path_link(value: Any) -> str:
