@@ -5,9 +5,12 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from http.client import HTTPConnection
+from http.server import ThreadingHTTPServer
 from pathlib import Path
+from threading import Thread
 
-from market_impact_radar.web_api import DailyReportApi
+from market_impact_radar.web_api import DailyReportApi, make_handler
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -131,6 +134,26 @@ class WebApiTest(unittest.TestCase):
         self.assertEqual(completed.returncode, 0, completed.stderr)
         self.assertIn("--reports-dir", completed.stdout)
         self.assertIn("--port", completed.stdout)
+
+    def test_http_api_smoke_serves_runs_route(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            _write_run(Path(tmpdir))
+            server = ThreadingHTTPServer(("127.0.0.1", 0), make_handler(tmpdir))
+            thread = Thread(target=server.serve_forever, daemon=True)
+            thread.start()
+            try:
+                connection = HTTPConnection("127.0.0.1", server.server_port, timeout=5)
+                connection.request("GET", "/api/runs")
+                response = connection.getresponse()
+                payload = json.loads(response.read().decode("utf-8"))
+            finally:
+                server.shutdown()
+                server.server_close()
+                thread.join(timeout=5)
+
+        self.assertEqual(response.status, 200)
+        self.assertEqual(payload["runs"][0]["date"], "2026-05-15")
+        self.assertEqual(payload["runs"][0]["links"]["run_summary"], "/api/runs/2026-05-15/run-summary")
 
 
 if __name__ == "__main__":

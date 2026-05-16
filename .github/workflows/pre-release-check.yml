@@ -6,6 +6,7 @@ on:
     branches:
       - master
       - feature-a-share-data-calendar
+      - "feat-*"
 
 jobs:
   pre-release-check:
