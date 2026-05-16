@@ -33,6 +33,7 @@ from .report import render_markdown_report
 from .review import render_review_template
 from .review_feedback import summarize_review_result, write_review_edges, write_review_summary
 from .validation import validate_file
+from .web_api import serve_api
 
 
 DEFAULT_MAPPING = "data/mappings.json"
@@ -123,6 +124,11 @@ def main() -> int:
 
     history_index_parser = subparsers.add_parser("build-history-index", help="Build reports/daily history index")
     history_index_parser.add_argument("--reports-dir", default="reports/daily", help="Daily reports root")
+
+    serve_api_parser = subparsers.add_parser("serve-api", help="Serve daily report bundle through a read-only HTTP API")
+    serve_api_parser.add_argument("--reports-dir", default="reports/daily", help="Daily reports root")
+    serve_api_parser.add_argument("--host", default="127.0.0.1", help="API bind host")
+    serve_api_parser.add_argument("--port", type=int, default=8000, help="API bind port")
 
     backtest_parser = subparsers.add_parser("backtest", help="计算单个隔夜传导统计")
     backtest_parser.add_argument("--history", required=True, help="历史 CSV")
@@ -291,6 +297,10 @@ def main() -> int:
     if args.command == "build-history-index":
         outputs = write_daily_history_index(args.reports_dir)
         print(f"History index written to {outputs['index_html']}")
+        return 0
+
+    if args.command == "serve-api":
+        serve_api(host=args.host, port=args.port, reports_dir=args.reports_dir)
         return 0
 
     if args.command == "report":

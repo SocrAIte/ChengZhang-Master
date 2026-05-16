@@ -11,6 +11,7 @@ class ProjectDocsTest(unittest.TestCase):
     def test_process_docs_exist(self) -> None:
         for path in (
             ROOT / "docs" / "RUN_DAILY.md",
+            ROOT / "docs" / "API.md",
             ROOT / "docs" / "BRANCHING.md",
             ROOT / "docs" / "DEVELOPMENT_PROCESS.md",
             ROOT / "docs" / "CHECKLIST.md",
