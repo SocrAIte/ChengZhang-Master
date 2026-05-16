@@ -84,7 +84,7 @@ Fields may be `null`, empty arrays, `0`, or `"unknown"` when data is unavailable
 
 ### dashboard.html
 
-`dashboard.html` is rendered from `dashboard_data.json` by the existing dashboard module. The HTML displays the daily run summary, market context, signal overview, signal list, and knowledge graph status. It only presents existing data and does not recompute financial signals.
+`dashboard.html` is rendered from `dashboard_data.json` by the existing dashboard module. The HTML displays the daily run summary, signal overview, market context, signal evidence, ETF and stock candidates, knowledge graph status, and output links. It only presents existing data and does not recompute financial signals.
 
 ## Skip Options
 

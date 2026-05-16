@@ -291,8 +291,8 @@ def render_dashboard_from_data(dashboard_data: dict[str, Any] | None) -> str:
     .pill {{ display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 12px; font-weight: 600; }}
     .strong, .confirmed, .ok {{ color: var(--strong); background: #e8f6f0; }}
     .watch, .not_checked, .unknown {{ color: var(--watch); background: #eaf1ff; }}
-    .weak, .downgraded, .partial {{ color: var(--weak); background: #fff4d6; }}
-    .risk, .failed, .missing, .error {{ color: var(--risk); background: #fee4e2; }}
+    .weak, .downgraded, .partial, .medium {{ color: var(--weak); background: #fff4d6; }}
+    .risk, .failed, .missing, .error, .high, .flagged {{ color: var(--risk); background: #fee4e2; }}
     table {{ width: 100%; border-collapse: collapse; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }}
     th, td {{ padding: 9px 10px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }}
     th {{ background: #eef2f6; font-size: 12px; color: #344054; }}
@@ -300,6 +300,18 @@ def render_dashboard_from_data(dashboard_data: dict[str, Any] | None) -> str:
     .num {{ text-align: right; white-space: nowrap; }}
     .note-list {{ margin: 8px 0 0 18px; padding: 0; }}
     .muted {{ color: var(--muted); }}
+    .signal-card {{ margin-bottom: 14px; }}
+    .signal-head {{ display: flex; gap: 10px; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; }}
+    .signal-head h3 {{ margin: 0; font-size: 16px; }}
+    .signal-grid {{ display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); margin-top: 12px; }}
+    .field-label {{ margin: 0 0 4px; color: var(--muted); font-size: 12px; }}
+    .field-value {{ margin: 0; }}
+    .candidate-list {{ margin: 6px 0 0 18px; padding: 0; }}
+    .candidate-list li {{ margin-bottom: 4px; }}
+    details {{ margin-top: 12px; }}
+    summary {{ cursor: pointer; font-weight: 600; }}
+    .output-list {{ margin: 0; padding: 0; list-style: none; }}
+    .output-list li {{ margin-bottom: 6px; }}
   </style>
 </head>
 <body>
@@ -313,6 +325,7 @@ def render_dashboard_from_data(dashboard_data: dict[str, Any] | None) -> str:
     {_signal_overview_from_data(data)}
     {_signal_list_from_data(data)}
     {_knowledge_from_data(data)}
+    {_outputs_from_data(data)}
   </main>
 </body>
 </html>
@@ -344,6 +357,8 @@ def _market_context_from_data(data: dict[str, Any]) -> str:
     context = _safe_dict(data.get("market_context"))
     a_trade_day = _text(context.get("a_share_trading_day") or "unknown")
     is_trading = _text(context.get("is_a_share_trading_day") if "is_a_share_trading_day" in context else "unknown")
+    context_source = _join_html(_as_list(context.get("sources") or context.get("source"))) or "unknown"
+    context_time = _join_html(_as_list(context.get("fetched_at") or context.get("updated_at"))) or "unknown"
     sessions = _as_list(context.get("foreign_market_context"))
     session_rows = "".join(
         f"<tr><td>{html.escape(_text(_safe_dict(payload).get('market') or 'unknown'))}</td>"
@@ -359,6 +374,8 @@ def _market_context_from_data(data: dict[str, Any]) -> str:
   <div class="grid">
     <div class="card"><h3>A-share Trade Day</h3><p>{html.escape(a_trade_day)}</p></div>
     <div class="card"><h3>A-share Trading Status</h3><p>{html.escape(is_trading)}</p></div>
+    <div class="card"><h3>Context Source</h3><p>{context_source}</p></div>
+    <div class="card"><h3>Updated At</h3><p>{context_time}</p></div>
   </div>
   <table><thead><tr><th>Market</th><th>Session Date</th><th>Trading Day</th><th>Mapped A-share Day</th></tr></thead><tbody>{session_rows}</tbody></table>
 </section>"""
@@ -386,35 +403,51 @@ def _signal_overview_from_data(data: dict[str, Any]) -> str:
 
 def _signal_list_from_data(data: dict[str, Any]) -> str:
     signals = [_safe_dict(item) for item in _as_list(data.get("signals"))]
-    rows = []
+    cards = []
     for signal in signals:
         theme_name = _text(signal.get("theme") or "unknown")
         intraday_status = _text(signal.get("intraday_status") or "not_checked")
-        rows.append(
-            "<tr>"
-            f"<td>{html.escape(theme_name)}</td>"
-            f"<td>{html.escape(_text(signal.get('strength') or 'unknown'))}</td>"
-            f"<td class='num'>{_number(signal.get('score'))}</td>"
-            f"<td>{_join_html(_as_list(signal.get('external_triggers'))) or 'unknown'}</td>"
-            f"<td>{_join_html(_as_list(signal.get('a_share_mapping_reason'))) or 'unknown'}</td>"
-            f"<td>{_join_html(_as_list(signal.get('etf_candidates'))) or 'none'}</td>"
-            f"<td>{_join_html(_as_list(signal.get('stock_candidates'))) or 'none'}</td>"
-            f"<td><span class='pill {html.escape(intraday_status)}'>{html.escape(intraday_status)}</span></td>"
-            f"<td>{html.escape(_text(signal.get('risk_level') or 'unknown'))}</td>"
-            f"<td>{_join_html(_as_list(signal.get('risks'))) or 'none'}</td>"
-            f"<td>{html.escape(_text(signal.get('data_status') or 'unknown'))}</td>"
-            f"<td>{_join_html(_as_list(signal.get('sources'))) or 'unknown'}</td>"
-            f"<td>{_join_html(_as_list(signal.get('fetched_at'))) or 'unknown'}</td>"
-            "</tr>"
+        risk_level = _text(signal.get("risk_level") or "unknown")
+        cards.append(
+            f"""<article class="card signal-card">
+  <div class="signal-head">
+    <h3>{html.escape(theme_name)}</h3>
+    <div>
+      <span class="pill {html.escape(intraday_status)}">{html.escape(intraday_status)}</span>
+      <span class="pill {html.escape(risk_level)}">{html.escape(risk_level)}</span>
+    </div>
+  </div>
+  <div class="signal-grid">
+    <div><p class="field-label">Strength</p><p class="field-value">{html.escape(_text(signal.get('strength') or 'unknown'))}</p></div>
+    <div><p class="field-label">Score</p><p class="field-value">{_number(signal.get('score'))}</p></div>
+    <div><p class="field-label">Intraday Status</p><p class="field-value">{html.escape(intraday_status)}</p></div>
+    <div><p class="field-label">Risk Level</p><p class="field-value">{html.escape(risk_level)}</p></div>
+    <div><p class="field-label">Data Status</p><p class="field-value">{html.escape(_text(signal.get('data_status') or 'unknown'))}</p></div>
+    <div><p class="field-label">Sources</p><p class="field-value">{_join_html(_as_list(signal.get('sources'))) or 'unknown'}</p></div>
+    <div><p class="field-label">Fetched At</p><p class="field-value">{_join_html(_as_list(signal.get('fetched_at'))) or 'unknown'}</p></div>
+  </div>
+  <details open>
+    <summary>Signal Evidence</summary>
+    <div class="signal-grid">
+      <div><p class="field-label">External Triggers</p>{_items_html(_as_list(signal.get('external_triggers')), 'No external triggers provided.')}</div>
+      <div><p class="field-label">A-share Mapping Reason</p>{_items_html(_as_list(signal.get('a_share_mapping_reason')), 'No mapping reason provided.')}</div>
+      <div><p class="field-label">Risks</p>{_items_html(_as_list(signal.get('risks')), 'No risk notes provided.')}</div>
+    </div>
+  </details>
+  <details open>
+    <summary>ETF Candidates</summary>
+    {_items_html(_as_list(signal.get('etf_candidates')), 'No ETF candidates available.')}
+  </details>
+  <details open>
+    <summary>Stock Candidates</summary>
+    {_items_html(_as_list(signal.get('stock_candidates')), 'No stock candidates available.')}
+  </details>
+</article>"""
         )
-    body = "".join(rows) or "<tr><td colspan='13'>No signals available.</td></tr>"
+    body = "".join(cards) or "<div class='card'>No signals available.</div>"
     return f"""<section>
   <h2>Signal List</h2>
-  <table><thead><tr>
-    <th>Theme</th><th>Strength</th><th class="num">Score</th><th>External Triggers</th>
-    <th>A-share Mapping Reason</th><th>ETF Candidates</th><th>Stock Candidates</th>
-    <th>Intraday Status</th><th>Risk Level</th><th>Risks</th><th>Data Status</th><th>Sources</th><th>Fetched At</th>
-  </tr></thead><tbody>{body}</tbody></table>
+  {body}
 </section>"""
 
 
@@ -455,16 +488,33 @@ def _knowledge_from_data(data: dict[str, Any]) -> str:
 </section>"""
 
 
+def _outputs_from_data(data: dict[str, Any]) -> str:
+    outputs = _safe_dict(data.get("outputs"))
+    report_md = outputs.get("report_md")
+    dashboard_html = outputs.get("dashboard_html")
+    return f"""<section>
+  <h2>Output Links</h2>
+  <div class="card">
+    <ul class="output-list">
+      <li><strong>report_md:</strong> {_path_link(report_md)}</li>
+      <li><strong>dashboard_html:</strong> {_path_link(dashboard_html)}</li>
+    </ul>
+  </div>
+</section>"""
+
+
 def _safe_dict(value: Any) -> dict[str, Any]:
     return value if isinstance(value, dict) else {}
 
 
 def _as_list(value: Any) -> list[Any]:
+    if value is None:
+        return []
     if isinstance(value, list):
         return value
     if isinstance(value, tuple):
         return list(value)
-    return []
+    return [value]
 
 
 def _text(value: Any) -> str:
@@ -490,5 +540,44 @@ def _as_int(value: Any) -> int:
 
 
 def _join_html(values: list[Any]) -> str:
-    clean = [_text(value) for value in values if _text(value) not in {"", "unknown"}]
+    clean = [_format_item(value) for value in values if _format_item(value) not in {"", "unknown"}]
     return "<br>".join(html.escape(item) for item in clean[:8])
+
+
+def _items_html(values: list[Any], empty_text: str) -> str:
+    items = [_format_item(value) for value in values if _format_item(value) not in {"", "unknown"}]
+    if not items:
+        return f"<p class='muted'>{html.escape(empty_text)}</p>"
+    return "<ul class='candidate-list'>" + "".join(f"<li>{html.escape(item)}</li>" for item in items[:12]) + "</ul>"
+
+
+def _format_item(value: Any) -> str:
+    if isinstance(value, dict):
+        preferred = [
+            value.get("name"),
+            value.get("ticker"),
+            value.get("code"),
+            value.get("category"),
+            value.get("sector"),
+        ]
+        title = " ".join(str(item) for item in preferred if item)
+        details = []
+        for key in ("score", "risk", "risk_level", "source", "fetched_at", "reason", "mapping_reason"):
+            if value.get(key) is not None:
+                details.append(f"{key}: {value.get(key)}")
+        fallback = "; ".join(f"{key}: {payload}" for key, payload in value.items() if payload is not None)
+        if title and details:
+            return f"{title} ({'; '.join(details)})"
+        return title or fallback or "unknown"
+    if isinstance(value, (list, tuple)):
+        return ", ".join(_format_item(item) for item in value if _format_item(item))
+    return _text(value)
+
+
+def _path_link(value: Any) -> str:
+    if value in (None, ""):
+        return "<span class='muted'>not provided</span>"
+    text = _text(value)
+    escaped = html.escape(text)
+    href = html.escape(text.replace("\\", "/"), quote=True)
+    return f"<a href='{href}'>{escaped}</a>"

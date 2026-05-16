@@ -82,6 +82,8 @@ def _normalize_market_context(value: Any) -> dict[str, Any]:
         "a_share_trading_day": context.get("a_share_trading_day") or context.get("a_share_trade_day"),
         "is_a_share_trading_day": context.get("is_a_share_trading_day"),
         "foreign_market_context": foreign_market_context,
+        "sources": _as_list(context.get("sources") or context.get("source")),
+        "fetched_at": _as_list(context.get("fetched_at") or context.get("updated_at")),
     }
 
 
@@ -250,11 +252,13 @@ def _safe_dict(value: Any) -> dict[str, Any]:
 
 
 def _as_list(value: Any) -> list[Any]:
+    if value is None:
+        return []
     if isinstance(value, list):
         return value
     if isinstance(value, tuple):
         return list(value)
-    return []
+    return [value]
 
 
 def _int(value: Any) -> int:

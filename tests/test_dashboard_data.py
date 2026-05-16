@@ -80,6 +80,8 @@ class DashboardDataRenderTest(unittest.TestCase):
                 "market_context": {
                     "a_share_trading_day": "2026-05-15",
                     "is_a_share_trading_day": True,
+                    "sources": ["sample-context"],
+                    "fetched_at": "2026-05-15T09:00:00+08:00",
                     "foreign_market_context": [
                         {
                             "market": "US",
@@ -119,17 +121,23 @@ class DashboardDataRenderTest(unittest.TestCase):
                     "issues": [{"severity": "medium", "kind": "theme_stock_unverified", "target": "storage chips"}],
                     "suggestions": [{"kind": "add_stock_code_or_fix_name", "target": "storage chips", "confidence": "medium"}],
                 },
-                "outputs": {"report_md": None, "dashboard_html": "dashboard.html"},
+                "outputs": {"report_md": "report.md", "dashboard_html": "dashboard.html"},
             }
         )
 
         self.assertIn("Schema: 1.0", html)
+        self.assertIn("Signal Overview", html)
+        self.assertIn("Market Context", html)
         self.assertIn("2026-05-15", html)
         self.assertIn("storage chips", html)
+        self.assertIn("Risk Level", html)
         self.assertIn("chip ETF", html)
         self.assertIn("memory leader", html)
         self.assertIn("gap risk", html)
         self.assertIn("sample/yahoo", html)
+        self.assertIn("sample-context", html)
+        self.assertIn("Output Links", html)
+        self.assertIn("report.md", html)
         self.assertIn("Mapping Suggestions", html)
 
     def test_render_dashboard_data_handles_minimal_input(self) -> None:
@@ -140,6 +148,52 @@ class DashboardDataRenderTest(unittest.TestCase):
         self.assertIn("Knowledge Graph", html)
         self.assertIn("not_checked", html)
         self.assertIn("External context not provided.", html)
+
+    def test_candidate_fields_accept_string_and_dict_values(self) -> None:
+        html = render_dashboard_from_data(
+            {
+                "schema_version": DASHBOARD_SCHEMA_VERSION,
+                "run": {"date": "2026-05-15"},
+                "signals": [
+                    {
+                        "theme": "AI compute",
+                        "etf_candidates": "AI ETF",
+                        "stock_candidates": [{"name": "optical leader", "code": "300000", "risk": "high"}],
+                        "risk_level": "high",
+                    }
+                ],
+            }
+        )
+
+        self.assertIn("AI compute", html)
+        self.assertIn("AI ETF", html)
+        self.assertIn("optical leader 300000", html)
+        self.assertIn("risk: high", html)
+        self.assertIn("No risk notes provided.", html)
+
+    def test_empty_candidates_show_empty_state(self) -> None:
+        html = render_dashboard_from_data(
+            {
+                "schema_version": DASHBOARD_SCHEMA_VERSION,
+                "run": {"date": "2026-05-15"},
+                "signals": [{"theme": "gold", "risk_level": "watch"}],
+            }
+        )
+
+        self.assertIn("No ETF candidates available.", html)
+        self.assertIn("No stock candidates available.", html)
+
+    def test_dashboard_data_escapes_visible_values(self) -> None:
+        html = render_dashboard_from_data(
+            {
+                "schema_version": DASHBOARD_SCHEMA_VERSION,
+                "run": {"date": "2026-05-15"},
+                "signals": [{"theme": "<script>alert(1)</script>", "risk_level": "watch"}],
+            }
+        )
+
+        self.assertIn("&lt;script&gt;alert(1)&lt;/script&gt;", html)
+        self.assertNotIn("<script>alert(1)</script>", html)
 
     def test_render_dashboard_data_accepts_legacy_shape(self) -> None:
         html = render_dashboard_from_data(
