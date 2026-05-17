@@ -79,6 +79,10 @@ class WebApiTest(unittest.TestCase):
         self.assertIn("Read-only daily report viewer", response.payload)
         self.assertIn('fetchJson("/api/runs")', response.payload)
         self.assertIn("/api/runs/${date}/dashboard-data", response.payload)
+        self.assertIn("/api/runs/${date}/artifacts", response.payload)
+        self.assertIn("Artifacts", response.payload)
+        self.assertIn("Knowledge Review", response.payload)
+        self.assertIn("Run Diagnostics", response.payload)
 
     def test_root_endpoint_returns_console_shell(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:

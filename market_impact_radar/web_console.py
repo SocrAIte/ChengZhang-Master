@@ -22,6 +22,9 @@ def render_console_html() -> str:
     .badge { border: 1px solid #d9dee7; border-radius: 999px; display: inline-block; font-size: 12px; margin: 2px 4px 2px 0; padding: 2px 8px; }
     .error { color: #b42318; }
     .signals { display: grid; gap: 12px; }
+    .artifacts { margin-bottom: 14px; }
+    .artifacts li { margin-bottom: 4px; }
+    a { color: #1f6feb; }
     pre { background: #101828; border-radius: 8px; color: #f2f4f7; overflow: auto; padding: 12px; }
     @media (max-width: 760px) { main { grid-template-columns: 1fr; } }
   </style>
@@ -60,12 +63,35 @@ def render_console_html() -> str:
       return node;
     }
 
+    function link(href, label) {
+      const node = document.createElement("a");
+      node.href = href;
+      node.target = "_blank";
+      node.rel = "noreferrer";
+      node.textContent = label;
+      return node;
+    }
+
     function list(values) {
       const ul = document.createElement("ul");
       const items = Array.isArray(values) ? values : [];
       if (items.length === 0) items.push("None");
       for (const item of items) ul.appendChild(text("li", typeof item === "string" ? item : JSON.stringify(item)));
       return ul;
+    }
+
+    function artifactLabel(key, fallback) {
+      const labels = {
+        dashboard_html: "Dashboard",
+        dashboard_data_json: "Dashboard Data",
+        run_summary_json: "Run Summary",
+        knowledge_review_html: "Knowledge Review",
+        run_diagnostics_html: "Run Diagnostics",
+        knowledge_check_json: "Knowledge Check",
+        knowledge_fix_suggestions_json: "Knowledge Fix Suggestions",
+        report_md: "Report Markdown",
+      };
+      return labels[key] || fallback || "artifact";
     }
 
     function setStatus(node, message, failed = false) {
@@ -108,7 +134,33 @@ def render_console_html() -> str:
       return node;
     }
 
-    function renderDashboard(data) {
+    function renderArtifacts(payload) {
+      const section = document.createElement("article");
+      section.className = "artifacts";
+      section.appendChild(text("h2", "Artifacts"));
+      const items = Array.isArray(payload && payload.artifacts) ? payload.artifacts : [];
+      if (items.length === 0) {
+        section.appendChild(text("p", "No artifact index available.", "muted"));
+        return section;
+      }
+      const ul = document.createElement("ul");
+      for (const item of items) {
+        const li = document.createElement("li");
+        const status = item.exists ? "available" : "missing";
+        li.appendChild(text("span", `${artifactLabel(item.key, item.file_name)}: ${status}`, item.exists ? "" : "error"));
+        if (item.exists && item.api) {
+          li.appendChild(text("span", " "));
+          li.appendChild(link(item.api, "open API"));
+        } else if (item.exists) {
+          li.appendChild(text("span", ` (${item.relative_path || item.file_name || "local file"})`, "muted"));
+        }
+        ul.appendChild(li);
+      }
+      section.appendChild(ul);
+      return section;
+    }
+
+    function renderDashboard(data, artifacts) {
       clear(dashboardEl);
       const run = data.run || {};
       const summary = data.summary || {};
@@ -117,6 +169,7 @@ def render_console_html() -> str:
       metrics.className = "metrics";
       [["Date", run.date], ["Status", run.status], ["Schema", data.schema_version], ["Strong", summary.strong_signals], ["Confirmed", summary.confirmed], ["Missing data", summary.missing_data]].forEach(([label, value]) => metrics.appendChild(metric(label, value)));
       dashboardEl.appendChild(metrics);
+      dashboardEl.appendChild(renderArtifacts(artifacts));
 
       const wrap = document.createElement("div");
       wrap.className = "signals";
@@ -149,9 +202,12 @@ def render_console_html() -> str:
       if (button) button.classList.add("active");
       setStatus(dashboardStatusEl, `Loading ${date}...`);
       try {
-        const data = await fetchJson(`/api/runs/${date}/dashboard-data`);
+        const [data, artifacts] = await Promise.all([
+          fetchJson(`/api/runs/${date}/dashboard-data`),
+          fetchJson(`/api/runs/${date}/artifacts`),
+        ]);
         setStatus(dashboardStatusEl, `Loaded ${date}`);
-        renderDashboard(data);
+        renderDashboard(data, artifacts);
       } catch (error) {
         clear(dashboardEl);
         setStatus(dashboardStatusEl, `Failed to load dashboard data: ${error.message}`, true);

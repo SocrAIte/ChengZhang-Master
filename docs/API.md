@@ -30,6 +30,7 @@ It uses the existing API endpoints to:
 - load dashboard data from `GET /api/runs/{date}/dashboard-data`
 - discover run output availability from `GET /api/runs/{date}/artifacts`
 - show run status, summary fields, signals, candidates, risks, and raw `dashboard_data.json`
+- show Dashboard, Knowledge Review, Run Diagnostics, and raw JSON artifact availability
 
 The console does not call `run-daily`, write files, fetch live market data, edit the knowledge graph, or compute new financial signals.
 
