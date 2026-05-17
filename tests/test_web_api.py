@@ -83,6 +83,12 @@ class WebApiTest(unittest.TestCase):
         self.assertIn("Artifacts", response.payload)
         self.assertIn("Knowledge Review", response.payload)
         self.assertIn("Run Diagnostics", response.payload)
+        self.assertIn("Run Date", response.payload)
+        self.assertIn("Refresh Runs", response.payload)
+        self.assertIn("Signal Search", response.payload)
+        self.assertIn("Risk Filter", response.payload)
+        self.assertIn("Status Filter", response.payload)
+        self.assertIn("signal-count", response.payload)
 
     def test_root_endpoint_returns_console_shell(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:

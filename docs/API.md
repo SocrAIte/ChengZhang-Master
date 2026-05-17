@@ -37,6 +37,8 @@ It uses the existing API endpoints to:
 - list available daily runs from `GET /api/runs`
 - load dashboard data from `GET /api/runs/{date}/dashboard-data`
 - discover run output availability from `GET /api/runs/{date}/artifacts`
+- select a run date and refresh the run list
+- search signals and filter them by risk or intraday status
 - show run status, summary fields, signals, candidates, risks, and raw `dashboard_data.json`
 - show Dashboard, Knowledge Review, Run Diagnostics, and raw JSON artifact availability
 
