@@ -92,6 +92,13 @@ class WebApiTest(unittest.TestCase):
         self.assertIn("Grouped by theme", response.payload)
         self.assertIn("Flat signal list", response.payload)
         self.assertIn("Theme Hotlist", response.payload)
+        self.assertIn("Signal Detail Panel", response.payload)
+        self.assertIn("Evidence Chain", response.payload)
+        self.assertIn("Data Quality / Freshness", response.payload)
+        self.assertIn("ETF observation pool", response.payload)
+        self.assertIn("Stock observation pool", response.payload)
+        self.assertIn("API status and version", response.payload)
+        self.assertIn("Artifact Links", response.payload)
         self.assertIn("No signals match the current filters.", response.payload)
         self.assertIn("signal-count", response.payload)
         self.assertIn("readConsoleStateFromUrl", response.payload)
@@ -104,6 +111,10 @@ class WebApiTest(unittest.TestCase):
         self.assertIn('params.get("sort")', response.payload)
         self.assertIn('params.get("view")', response.payload)
         self.assertNotIn("POST /api/run-daily", response.payload)
+        self.assertNotIn("buy list", response.payload.lower())
+        self.assertNotIn("must buy", response.payload.lower())
+        self.assertNotIn("target price", response.payload.lower())
+        self.assertNotIn("guaranteed winner", response.payload.lower())
 
     def test_root_endpoint_returns_console_shell(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:

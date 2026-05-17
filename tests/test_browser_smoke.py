@@ -239,7 +239,7 @@ class BrowserSmokeTest(unittest.TestCase):
                 run_daily_bundle_browser_smoke(root, playwright_factory=_bundle_factory())
 
     def test_console_browser_smoke_happy_path_with_fake_browser(self) -> None:
-        body = "Market Impact Radar Console Daily Runs Dashboard Data 2026-05-15 Run Date Refresh Runs Signal Search Risk Filter Status Filter Sort Signals Grouped by theme Flat signal list Theme Hotlist Artifacts Dashboard Knowledge Review Run Diagnostics"
+        body = "Market Impact Radar Console Daily Runs Dashboard Data 2026-05-15 Run Date Refresh Runs Signal Search Risk Filter Status Filter Sort Signals Grouped by theme Flat signal list Theme Hotlist Signal Detail Panel Evidence Chain Data Quality / Freshness ETF observation pool Stock observation pool Artifact Links API: API version: Dashboard Knowledge Review Run Diagnostics"
         with tempfile.TemporaryDirectory() as tmpdir:
             root = Path(tmpdir)
             _write_console_run(root)
@@ -262,10 +262,10 @@ class BrowserSmokeTest(unittest.TestCase):
             _write_console_run(root)
 
             with self.assertRaisesRegex(BrowserSmokeError, "Theme Hotlist"):
-                run_console_browser_smoke(root, playwright_factory=_console_factory("Market Impact Radar Console Daily Runs Dashboard Data 2026-05-15 Run Date Refresh Runs Signal Search Risk Filter Status Filter Sort Signals Grouped by theme Flat signal list"))
+                run_console_browser_smoke(root, playwright_factory=_console_factory("Market Impact Radar Console Daily Runs Dashboard Data 2026-05-15 Run Date Refresh Runs Signal Search Risk Filter Status Filter Sort Signals Grouped by theme Flat signal list Signal Detail Panel Evidence Chain Data Quality / Freshness ETF observation pool Stock observation pool Artifact Links API: API version:"))
 
     def test_console_browser_smoke_missing_control_fails(self) -> None:
-        body = "Market Impact Radar Console Daily Runs Dashboard Data 2026-05-15 Run Date Refresh Runs Signal Search Risk Filter Status Filter Sort Signals Grouped by theme Flat signal list Theme Hotlist Artifacts Dashboard Knowledge Review Run Diagnostics"
+        body = "Market Impact Radar Console Daily Runs Dashboard Data 2026-05-15 Run Date Refresh Runs Signal Search Risk Filter Status Filter Sort Signals Grouped by theme Flat signal list Theme Hotlist Signal Detail Panel Evidence Chain Data Quality / Freshness ETF observation pool Stock observation pool Artifact Links API: API version: Dashboard Knowledge Review Run Diagnostics"
         with tempfile.TemporaryDirectory() as tmpdir:
             root = Path(tmpdir)
             _write_console_run(root)

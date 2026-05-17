@@ -24,8 +24,19 @@ def render_console_html() -> str:
     .signal-controls { grid-template-columns: minmax(180px, 1fr) repeat(4, minmax(130px, 180px)); }
     .metrics { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); margin-bottom: 14px; }
     .badge { border: 1px solid #d9dee7; border-radius: 999px; display: inline-block; font-size: 12px; margin: 2px 4px 2px 0; padding: 2px 8px; }
+    .status-strip { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
     .error { color: #b42318; }
     .signals { display: grid; gap: 12px; }
+    .analysis-layout { align-items: start; display: grid; gap: 14px; grid-template-columns: minmax(260px, 1fr) minmax(320px, 420px); }
+    .signal-card { cursor: pointer; }
+    .signal-card.selected { border-color: #1f6feb; box-shadow: 0 0 0 2px rgba(31, 111, 235, 0.12); }
+    .signal-detail { position: sticky; top: 12px; }
+    .detail-section { border-top: 1px solid #eef1f6; margin-top: 12px; padding-top: 12px; }
+    .detail-section h3 { font-size: 14px; margin: 0 0 8px; }
+    .evidence-chain { display: grid; gap: 8px; margin: 0; padding-left: 20px; }
+    .candidate-table { border-collapse: collapse; font-size: 13px; width: 100%; }
+    .candidate-table th, .candidate-table td { border-bottom: 1px solid #eef1f6; padding: 7px; text-align: left; vertical-align: top; }
+    .candidate-table th { color: #667085; font-weight: 600; }
     .theme-hotlist, .theme-group { margin-bottom: 14px; }
     .theme-summary { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); }
     .theme-card { background: #fff; border: 1px solid #d9dee7; border-radius: 8px; padding: 12px; }
@@ -35,13 +46,14 @@ def render_console_html() -> str:
     a { color: #1f6feb; }
     pre { background: #101828; border-radius: 8px; color: #f2f4f7; overflow: auto; padding: 12px; }
     [hidden] { display: none; }
-    @media (max-width: 760px) { main, .signal-controls { grid-template-columns: 1fr; } }
+    @media (max-width: 960px) { main, .signal-controls, .analysis-layout { grid-template-columns: 1fr; } .signal-detail { position: static; } }
   </style>
 </head>
 <body>
   <header>
     <h1>Market Impact Radar Console</h1>
     <div class="muted">Read-only daily report viewer. This page only reads existing API data and does not run the pipeline.</div>
+    <div id="status-strip" class="status-strip" aria-label="API status and version"></div>
   </header>
   <main>
     <section>
@@ -121,8 +133,15 @@ def render_console_html() -> str:
     const sortSelectEl = document.querySelector("#sort-select");
     const viewModeEl = document.querySelector("#view-mode");
     const signalCountEl = document.querySelector("#signal-count");
+    const statusStripEl = document.querySelector("#status-strip");
     let currentSignals = [];
     let signalsAreaEl = null;
+    let currentArtifacts = null;
+    let currentDashboardData = null;
+    let selectedSignalIndex = null;
+    let visibleSignalCount = 0;
+    let apiHealthData = null;
+    let apiVersionData = null;
     const VALID_RISKS = new Set(["", "low", "medium", "high", "unknown"]);
     const VALID_STATUSES = new Set(["", "confirmed", "downgraded", "missing_data", "failed", "not_checked", "unknown"]);
     const VALID_SORTS = new Set(["default", "score_desc", "risk_level", "intraday_status", "theme"]);
@@ -241,6 +260,66 @@ def render_console_html() -> str:
       if (Array.isArray(value)) return value;
       if (value == null || value === "") return [];
       return [value];
+    }
+
+    function firstText(value, fallback = "unknown") {
+      const values = arrayValue(value);
+      if (values.length === 0) return fallback;
+      const first = values[0];
+      if (first == null || first === "") return fallback;
+      return typeof first === "string" ? first : JSON.stringify(first);
+    }
+
+    function fieldValue(object, keys, fallback = "unknown") {
+      if (!object || typeof object !== "object" || Array.isArray(object)) return fallback;
+      for (const key of keys) {
+        const value = object[key];
+        if (value != null && value !== "") return Array.isArray(value) ? firstText(value, fallback) : String(value);
+      }
+      return fallback;
+    }
+
+    function sourceValues(signal) {
+      return arrayValue(signal.sources || signal.source);
+    }
+
+    function fetchedValues(signal) {
+      return arrayValue(signal.fetched_at || signal.fetchedAt);
+    }
+
+    function dataStatusLabel(value) {
+      const status = normalized(value);
+      if (status.includes("missing")) return "Missing Data";
+      if (status.includes("partial")) return "Partial";
+      if (status.includes("stale")) return "Stale";
+      if (status === "ok") return "Data OK";
+      if (status === "fresh") return "Fresh";
+      return "Unknown";
+    }
+
+    function dataQualityItems(signal) {
+      const items = [dataStatusLabel(signal.data_status)];
+      const sources = sourceValues(signal);
+      items.push(sources.length ? `Sources: ${sources.join(", ")}` : "Sources: Unknown");
+      const fetched = fetchedValues(signal);
+      items.push(fetched.length ? `Fetched: ${fetched.join(", ")}` : "Fetched: Unknown");
+      if (signal.fallback_used === true || normalized(signal.fallback_used) === "true") items.push("Fallback Source");
+      return items;
+    }
+
+    function candidateRows(values) {
+      return arrayValue(values).map((candidate) => {
+        if (candidate && typeof candidate === "object" && !Array.isArray(candidate)) {
+          return {
+            name: fieldValue(candidate, ["name", "label", "title", "symbol", "ticker", "code"]),
+            code: fieldValue(candidate, ["code", "ticker", "symbol"], ""),
+            category: fieldValue(candidate, ["category", "sector", "theme", "type"], ""),
+            reason: fieldValue(candidate, ["reason", "mapping_reason", "note", "description"], ""),
+            risk: fieldValue(candidate, ["risk", "risk_level", "warning"], ""),
+          };
+        }
+        return { name: String(candidate || "unknown"), code: "", category: "", reason: "", risk: "" };
+      });
     }
 
     function artifactLabel(key, fallback) {
@@ -373,6 +452,35 @@ def render_console_html() -> str:
       return payload;
     }
 
+    function renderStatusStrip() {
+      clear(statusStripEl);
+      const run = currentDashboardData?.run || {};
+      const schema = apiVersionData?.dashboard_schema_version || currentDashboardData?.schema_version || "unknown";
+      [
+        `API: ${apiHealthData?.status || "Unknown"}`,
+        `API version: ${apiVersionData?.api_version || apiHealthData?.version || "Unknown"}`,
+        `Schema: ${schema}`,
+        `Run date: ${run.date || runSelectEl.value || "unknown"}`,
+        `Signals: ${currentSignals.length}`,
+        `Visible: ${visibleSignalCount}`,
+        `Generated: ${run.generated_at || "unknown"}`,
+      ].forEach((value) => statusStripEl.appendChild(badge(value)));
+    }
+
+    async function loadApiStatus() {
+      try {
+        apiHealthData = await fetchJson("/api/health");
+      } catch (error) {
+        apiHealthData = { status: "Unknown" };
+      }
+      try {
+        apiVersionData = await fetchJson("/api/version");
+      } catch (error) {
+        apiVersionData = { api_version: "Unknown", dashboard_schema_version: "unknown" };
+      }
+      renderStatusStrip();
+    }
+
     function renderRuns(payload) {
       clear(runsEl);
       clear(runSelectEl);
@@ -476,7 +584,8 @@ def render_console_html() -> str:
     function renderArtifacts(payload) {
       const section = document.createElement("article");
       section.className = "artifacts";
-      section.appendChild(text("h2", "Artifacts"));
+      section.appendChild(text("h2", "Artifact Links"));
+      section.appendChild(text("p", "Artifacts for the current run. Missing files are shown as unavailable.", "muted"));
       const items = Array.isArray(payload && payload.artifacts) ? payload.artifacts : [];
       if (items.length === 0) {
         section.appendChild(text("p", "No artifact index available.", "muted"));
@@ -485,7 +594,7 @@ def render_console_html() -> str:
       const ul = document.createElement("ul");
       for (const item of items) {
         const li = document.createElement("li");
-        const status = item.exists ? "available" : "missing";
+        const status = item.exists ? "available" : "unavailable";
         li.appendChild(text("span", `${artifactLabel(item.key, item.file_name)}: ${status}`, item.exists ? "" : "error"));
         if (item.exists && item.api) {
           li.appendChild(text("span", " "));
@@ -495,6 +604,9 @@ def render_console_html() -> str:
         }
         ul.appendChild(li);
       }
+      const indexItem = document.createElement("li");
+      indexItem.appendChild(text("span", "Daily Runs Index: unavailable", "error"));
+      ul.appendChild(indexItem);
       section.appendChild(ul);
       return section;
     }
@@ -506,17 +618,150 @@ def render_console_html() -> str:
     function createSignalCard(signal) {
       const card = document.createElement("article");
       card.className = "signal-card";
+      if (selectedSignalIndex === signal.__index) card.className += " selected";
+      card.tabIndex = 0;
+      card.setAttribute("role", "button");
+      card.setAttribute("aria-label", `Open signal detail for ${themeName(signal)}`);
       card.dataset.search = signalText(signal);
       card.dataset.risk = normalized(signal.risk_level);
       card.dataset.status = normalized(signal.intraday_status || signal.status || "not_checked");
+      card.addEventListener("click", () => {
+        selectedSignalIndex = signal.__index;
+        renderSignalSections();
+      });
+      card.addEventListener("keydown", (event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          selectedSignalIndex = signal.__index;
+          renderSignalSections();
+        }
+      });
       card.appendChild(text("h3", themeName(signal)));
       [`strength: ${signal.strength || "unknown"}`, `score: ${signal.score ?? "unknown"}`, `intraday: ${signal.intraday_status || "not_checked"}`, `risk: ${signal.risk_level || "unknown"}`, `data: ${signal.data_status || "unknown"}`].forEach((value) => card.appendChild(badge(value)));
+      dataQualityItems(signal).forEach((value) => card.appendChild(badge(value)));
       card.appendChild(text("p", signal.a_share_mapping_reason || "No mapping reason provided.", "muted"));
       [["External triggers", signal.external_triggers], ["ETF candidates", signal.etf_candidates], ["Stock candidates", signal.stock_candidates], ["Risks", signal.risks]].forEach(([label, values]) => {
         card.appendChild(text("strong", label));
         card.appendChild(list(values));
       });
       return card;
+    }
+
+    function renderValueList(title, values) {
+      const section = document.createElement("div");
+      section.className = "detail-section";
+      section.appendChild(text("h3", title));
+      section.appendChild(list(arrayValue(values)));
+      return section;
+    }
+
+    function renderDataQualitySection(signal) {
+      const section = document.createElement("div");
+      section.className = "detail-section";
+      section.appendChild(text("h3", "Data Quality / Freshness"));
+      dataQualityItems(signal).forEach((value) => section.appendChild(badge(value)));
+      section.appendChild(text("p", "Data quality labels describe available source metadata only. They are not a trading signal.", "muted"));
+      return section;
+    }
+
+    function renderCandidateTable(title, values) {
+      const section = document.createElement("div");
+      section.className = "detail-section";
+      section.appendChild(text("h3", title));
+      const rows = candidateRows(values);
+      if (rows.length === 0) {
+        section.appendChild(text("p", "No candidates available.", "muted"));
+        return section;
+      }
+      const table = document.createElement("table");
+      table.className = "candidate-table";
+      const thead = document.createElement("thead");
+      const header = document.createElement("tr");
+      ["Name", "Code / ticker", "Category / sector", "Reason", "Risk / note"].forEach((label) => header.appendChild(text("th", label)));
+      thead.appendChild(header);
+      table.appendChild(thead);
+      const tbody = document.createElement("tbody");
+      for (const row of rows) {
+        const tr = document.createElement("tr");
+        [row.name, row.code || "unknown", row.category || "unknown", row.reason || "unknown", row.risk || "unknown"].forEach((value) => tr.appendChild(text("td", value)));
+        tbody.appendChild(tr);
+      }
+      table.appendChild(tbody);
+      section.appendChild(table);
+      return section;
+    }
+
+    function renderEvidenceChain(signal) {
+      const section = document.createElement("div");
+      section.className = "detail-section";
+      section.appendChild(text("h3", "Evidence Chain"));
+      const chain = document.createElement("ol");
+      chain.className = "evidence-chain";
+      [
+        ["External Move", arrayValue(signal.external_triggers).join(", ") || "unknown"],
+        ["A-share Theme Mapping", firstText(signal.a_share_mapping_reason)],
+        ["Candidate Pools", `${arrayValue(signal.etf_candidates).length} ETF candidates, ${arrayValue(signal.stock_candidates).length} stock candidates`],
+        ["Risk Notes", arrayValue(signal.risks).join(", ") || "No risk notes provided."],
+        ["Data Quality", dataQualityItems(signal).join(" | ")],
+      ].forEach(([label, value]) => {
+        const item = document.createElement("li");
+        item.appendChild(text("strong", label));
+        item.appendChild(text("div", value, "muted"));
+        chain.appendChild(item);
+      });
+      section.appendChild(chain);
+      return section;
+    }
+
+    function renderDetailArtifactLinks() {
+      const section = document.createElement("div");
+      section.className = "detail-section";
+      section.appendChild(text("h3", "Related Artifact Links"));
+      const items = Array.isArray(currentArtifacts && currentArtifacts.artifacts) ? currentArtifacts.artifacts : [];
+      if (items.length === 0) {
+        section.appendChild(text("p", "No artifact links available.", "muted"));
+        return section;
+      }
+      const ul = document.createElement("ul");
+      for (const item of items) {
+        const li = document.createElement("li");
+        li.appendChild(text("span", `${artifactLabel(item.key, item.file_name)}: ${item.exists ? "available" : "unavailable"}`, item.exists ? "" : "error"));
+        if (item.exists && item.api) {
+          li.appendChild(text("span", " "));
+          li.appendChild(link(item.api, "open API"));
+        }
+        ul.appendChild(li);
+      }
+      section.appendChild(ul);
+      return section;
+    }
+
+    function renderSignalDetail(signal) {
+      const panel = document.createElement("article");
+      panel.className = "signal-detail";
+      panel.appendChild(text("h2", "Signal Detail Panel"));
+      if (!signal) {
+        panel.appendChild(text("p", "No signals match the current filters.", "muted"));
+        return panel;
+      }
+      panel.appendChild(text("h3", themeName(signal)));
+      [`strength: ${signal.strength || "unknown"}`, `score: ${signal.score ?? "unknown"}`, `intraday: ${signal.intraday_status || "not_checked"}`, `risk: ${signal.risk_level || "unknown"}`, `data: ${signal.data_status || "unknown"}`].forEach((value) => panel.appendChild(badge(value)));
+      panel.appendChild(renderDataQualitySection(signal));
+      panel.appendChild(renderValueList("External Triggers", signal.external_triggers));
+      panel.appendChild(renderValueList("A-share Mapping Reason", signal.a_share_mapping_reason));
+      panel.appendChild(renderEvidenceChain(signal));
+      panel.appendChild(renderCandidateTable("ETF observation pool", signal.etf_candidates));
+      panel.appendChild(renderCandidateTable("Stock observation pool", signal.stock_candidates));
+      panel.appendChild(renderValueList("Risk Notes", signal.risks));
+      panel.appendChild(renderDetailArtifactLinks());
+      const details = document.createElement("details");
+      details.className = "detail-section";
+      details.appendChild(text("summary", "Raw signal JSON"));
+      const pre = document.createElement("pre");
+      pre.textContent = JSON.stringify(signal, null, 2);
+      details.appendChild(pre);
+      panel.appendChild(details);
+      return panel;
     }
 
     function createThemeSummaryCard(group) {
@@ -582,19 +827,40 @@ def render_console_html() -> str:
       if (!signalsAreaEl) return;
       clear(signalsAreaEl);
       const visibleSignals = sortSignals(filteredSignals());
+      visibleSignalCount = visibleSignals.length;
+      if (visibleSignals.length === 0) {
+        selectedSignalIndex = null;
+      } else if (!visibleSignals.some((signal) => signal.__index === selectedSignalIndex)) {
+        selectedSignalIndex = visibleSignals[0].__index;
+      }
+      const selectedSignal = visibleSignals.find((signal) => signal.__index === selectedSignalIndex) || null;
       signalCountEl.textContent = `${visibleSignals.length} of ${currentSignals.length} signals visible`;
       signalsAreaEl.appendChild(renderThemeHotlist(visibleSignals));
+      const layout = document.createElement("div");
+      layout.className = "analysis-layout";
+      const listPane = document.createElement("div");
       const heading = text("h2", viewModeEl.value === "flat" ? `Signals (${visibleSignals.length})` : `Signals grouped by theme (${visibleSignals.length})`);
-      signalsAreaEl.appendChild(heading);
+      listPane.appendChild(heading);
       if (visibleSignals.length === 0) {
-        signalsAreaEl.appendChild(text("p", "No signals match the current filters.", "muted"));
+        listPane.appendChild(text("p", "No signals match the current filters.", "muted"));
+        layout.appendChild(listPane);
+        layout.appendChild(renderSignalDetail(null));
+        signalsAreaEl.appendChild(layout);
+        renderStatusStrip();
         return;
       }
-      signalsAreaEl.appendChild(viewModeEl.value === "flat" ? renderFlatSignals(visibleSignals) : renderGroupedSignals(visibleSignals));
+      listPane.appendChild(viewModeEl.value === "flat" ? renderFlatSignals(visibleSignals) : renderGroupedSignals(visibleSignals));
+      layout.appendChild(listPane);
+      layout.appendChild(renderSignalDetail(selectedSignal));
+      signalsAreaEl.appendChild(layout);
+      renderStatusStrip();
     }
 
     function renderDashboard(data, artifacts) {
       clear(dashboardEl);
+      currentDashboardData = data;
+      currentArtifacts = artifacts;
+      selectedSignalIndex = null;
       const run = data.run || {};
       const summary = data.summary || {};
       const signals = Array.isArray(data.signals) ? data.signals : [];
@@ -636,7 +902,12 @@ def render_console_html() -> str:
         clear(dashboardEl);
         currentSignals = [];
         signalsAreaEl = null;
+        currentDashboardData = null;
+        currentArtifacts = null;
+        selectedSignalIndex = null;
+        visibleSignalCount = 0;
         signalCountEl.textContent = "No signals loaded.";
+        renderStatusStrip();
         setStatus(dashboardStatusEl, `Failed to load dashboard data: ${error.message}`, true);
       }
     }
@@ -647,7 +918,12 @@ def render_console_html() -> str:
       clear(dashboardEl);
       currentSignals = [];
       signalsAreaEl = null;
+      currentDashboardData = null;
+      currentArtifacts = null;
+      selectedSignalIndex = null;
+      visibleSignalCount = 0;
       signalCountEl.textContent = "No signals loaded.";
+      renderStatusStrip();
       try {
         renderRuns(await fetchJson("/api/runs"));
       } catch (error) {
@@ -665,6 +941,8 @@ def render_console_html() -> str:
     sortSelectEl.addEventListener("change", applySignalFilters);
     viewModeEl.addEventListener("change", applySignalFilters);
     syncControlsFromState(readConsoleStateFromUrl());
+    renderStatusStrip();
+    loadApiStatus();
     loadRuns();
   </script>
 </body>

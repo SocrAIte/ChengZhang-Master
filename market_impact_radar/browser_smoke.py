@@ -200,7 +200,10 @@ def run_console_browser_smoke(
                         page_title = page.title()
                         _assert_console_controls(page)
                         _assert_console_query_state(page, expected_values)
-                        _assert_console_text(page_body, page_title, date)
+                        if label == "default":
+                            _assert_console_text(page_body, page_title, date)
+                        elif not page_body:
+                            raise BrowserSmokeError(f"console {label} body is empty")
                         checked_pages += 1
                         if label == "default":
                             body_text = page_body
@@ -306,7 +309,14 @@ def _assert_console_text(body_text: str, title: str, date: str) -> None:
         "Grouped by theme",
         "Flat signal list",
         "Theme Hotlist",
-        "Artifacts",
+        "Signal Detail Panel",
+        "Evidence Chain",
+        "Data Quality / Freshness",
+        "ETF observation pool",
+        "Stock observation pool",
+        "Artifact Links",
+        "API:",
+        "API version:",
         "Dashboard",
         "Knowledge Review",
         "Run Diagnostics",

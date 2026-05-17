@@ -49,6 +49,12 @@ It uses the existing API endpoints to:
 - sort signals by default order, score, risk, intraday status, or theme name
 - preserve console state in the URL for `date`, `search`, `risk`, `status`, `sort`, and `view`
 - show a Theme Hotlist based on the currently visible signals
+- show a Signal Detail Panel for the selected visible signal
+- explain the Evidence Chain from external triggers to A-share mapping, candidate pools, risk notes, and data quality
+- show Data Quality / Freshness labels from existing `data_status`, `sources`, `fetched_at`, and fallback metadata
+- render ETF observation pool and Stock observation pool tables from the existing candidate fields
+- show an API status strip with health, API version, dashboard schema version, selected run, signal counts, and generated time
+- show Artifact Links for available report outputs
 - show run status, summary fields, signals, candidates, risks, and raw `dashboard_data.json`
 - show Dashboard, Knowledge Review, Run Diagnostics, and raw JSON artifact availability
 
