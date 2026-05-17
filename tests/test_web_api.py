@@ -64,6 +64,7 @@ class WebApiTest(unittest.TestCase):
         self.assertEqual(response.payload["console"], "/console")
         paths = {endpoint["path"] for endpoint in response.payload["endpoints"]}
         self.assertIn("/api/runs", paths)
+        self.assertIn("/api/runs/{date}/artifacts", paths)
         self.assertIn("/api/runs/{date}/dashboard-data", paths)
 
     def test_console_endpoint_returns_static_readonly_shell_without_file_access(self) -> None:
@@ -98,6 +99,7 @@ class WebApiTest(unittest.TestCase):
         self.assertEqual(response.payload["info"]["version"], "v1")
         paths = response.payload["paths"]
         self.assertIn("/api/health", paths)
+        self.assertIn("/api/runs/{date}/artifacts", paths)
         self.assertIn("/api/runs/{date}/diagnostics", paths)
 
     def test_health_endpoint_returns_ok_without_file_access(self) -> None:
@@ -131,7 +133,24 @@ class WebApiTest(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.payload["schema_version"], "1.0")
         self.assertEqual(response.payload["runs"][0]["date"], "2026-05-15")
+        self.assertEqual(response.payload["runs"][0]["links"]["artifacts"], "/api/runs/2026-05-15/artifacts")
         self.assertEqual(response.payload["runs"][0]["links"]["dashboard_data"], "/api/runs/2026-05-15/dashboard-data")
+
+    def test_artifacts_endpoint_returns_output_file_index(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            _write_run(Path(tmpdir))
+            response = DailyReportApi(tmpdir).handle_get("/api/runs/2026-05-15/artifacts")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.payload["date"], "2026-05-15")
+        artifacts = {item["key"]: item for item in response.payload["artifacts"]}
+        self.assertTrue(artifacts["dashboard_html"]["exists"])
+        self.assertTrue(artifacts["dashboard_data_json"]["exists"])
+        self.assertEqual(artifacts["dashboard_data_json"]["api"], "/api/runs/2026-05-15/dashboard-data")
+        self.assertEqual(artifacts["run_diagnostics_html"]["relative_path"], "2026-05-15/run_diagnostics.html")
+        self.assertIsInstance(artifacts["run_summary_json"]["size_bytes"], int)
+        self.assertFalse(artifacts["report_md"]["exists"])
+        self.assertIsNone(artifacts["report_md"]["size_bytes"])
 
     def test_dashboard_data_endpoint_returns_normalized_contract(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -174,6 +193,13 @@ class WebApiTest(unittest.TestCase):
     def test_missing_run_returns_404(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             response = DailyReportApi(tmpdir).handle_get("/api/runs/2026-05-15/dashboard-data")
+
+        self.assertEqual(response.status_code, 404)
+        self.assertIn("not found", response.payload["error"])
+
+    def test_artifacts_endpoint_missing_run_returns_404(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            response = DailyReportApi(tmpdir).handle_get("/api/runs/2026-05-15/artifacts")
 
         self.assertEqual(response.status_code, 404)
         self.assertIn("not found", response.payload["error"])
@@ -224,6 +250,7 @@ class WebApiTest(unittest.TestCase):
 
         self.assertEqual(response.status, 200)
         self.assertEqual(payload["runs"][0]["date"], "2026-05-15")
+        self.assertEqual(payload["runs"][0]["links"]["artifacts"], "/api/runs/2026-05-15/artifacts")
         self.assertEqual(payload["runs"][0]["links"]["run_summary"], "/api/runs/2026-05-15/run-summary")
 
     def test_http_api_smoke_serves_health_route(self) -> None:

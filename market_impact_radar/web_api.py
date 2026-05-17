@@ -57,6 +57,8 @@ class DailyReportApi:
             if len(parts) == 4 and parts[:2] == ["api", "runs"]:
                 date = self._validate_date(parts[2])
                 endpoint = parts[3]
+                if endpoint == "artifacts":
+                    return ApiResponse(200, self.artifacts(date))
                 if endpoint == "dashboard-data":
                     return ApiResponse(200, self.dashboard_data(date))
                 if endpoint == "run-summary":
@@ -113,6 +115,12 @@ class DailyReportApi:
                 "/api/runs/{date}/dashboard-data": {
                     "get": {
                         "summary": "Return normalized dashboard_data.json for a run.",
+                        "parameters": [date_parameter],
+                    }
+                },
+                "/api/runs/{date}/artifacts": {
+                    "get": {
+                        "summary": "Return available output files and API links for a run.",
                         "parameters": [date_parameter],
                     }
                 },
@@ -173,6 +181,24 @@ class DailyReportApi:
     def dashboard_data(self, date: str) -> dict[str, Any]:
         return normalize_dashboard_data(self._load_json(date, "dashboard_data.json"))
 
+    def artifacts(self, date: str) -> dict[str, Any]:
+        run_dir = self._run_dir(date)
+        if not run_dir.exists():
+            raise WebApiError(404, f"run {date} not found")
+        artifacts = []
+        for item in _artifact_catalog(date):
+            path = run_dir / item["file_name"]
+            artifact = dict(item)
+            artifact["exists"] = path.exists()
+            artifact["relative_path"] = f"{date}/{item['file_name']}"
+            artifact["size_bytes"] = path.stat().st_size if path.exists() else None
+            artifacts.append(artifact)
+        return {
+            "date": date,
+            "run_dir": str(run_dir),
+            "artifacts": artifacts,
+        }
+
     def run_summary(self, date: str) -> dict[str, Any]:
         return self._load_json(date, "run_summary.json")
 
@@ -220,6 +246,7 @@ class DailyReportApi:
 
     def _api_links(self, date: str) -> dict[str, str]:
         return {
+            "artifacts": f"/api/runs/{date}/artifacts",
             "dashboard_data": f"/api/runs/{date}/dashboard-data",
             "run_summary": f"/api/runs/{date}/run-summary",
             "knowledge_review": f"/api/runs/{date}/knowledge-review",
@@ -272,8 +299,22 @@ def _endpoint_catalog() -> list[dict[str, str]]:
         {"method": "GET", "path": "/api/version", "description": "API and dashboard contract versions."},
         {"method": "GET", "path": "/api/openapi.json", "description": "Lightweight OpenAPI description."},
         {"method": "GET", "path": "/api/runs", "description": "Available daily report runs."},
+        {"method": "GET", "path": "/api/runs/{date}/artifacts", "description": "Daily run output file index."},
         {"method": "GET", "path": "/api/runs/{date}/dashboard-data", "description": "Dashboard data JSON."},
         {"method": "GET", "path": "/api/runs/{date}/run-summary", "description": "Run summary JSON."},
         {"method": "GET", "path": "/api/runs/{date}/knowledge-review", "description": "Knowledge review HTML payload."},
         {"method": "GET", "path": "/api/runs/{date}/diagnostics", "description": "Run diagnostics HTML payload."},
+    ]
+
+
+def _artifact_catalog(date: str) -> list[dict[str, Any]]:
+    return [
+        {"key": "dashboard_html", "file_name": "dashboard.html", "kind": "html", "api": None},
+        {"key": "dashboard_data_json", "file_name": "dashboard_data.json", "kind": "json", "api": f"/api/runs/{date}/dashboard-data"},
+        {"key": "run_summary_json", "file_name": "run_summary.json", "kind": "json", "api": f"/api/runs/{date}/run-summary"},
+        {"key": "knowledge_review_html", "file_name": "knowledge_review.html", "kind": "html", "api": f"/api/runs/{date}/knowledge-review"},
+        {"key": "run_diagnostics_html", "file_name": "run_diagnostics.html", "kind": "html", "api": f"/api/runs/{date}/diagnostics"},
+        {"key": "knowledge_check_json", "file_name": "knowledge_check.json", "kind": "json", "api": None},
+        {"key": "knowledge_fix_suggestions_json", "file_name": "knowledge_fix_suggestions.json", "kind": "json", "api": None},
+        {"key": "report_md", "file_name": "report.md", "kind": "markdown", "api": None},
     ]

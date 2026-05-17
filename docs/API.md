@@ -28,6 +28,7 @@ It uses the existing API endpoints to:
 
 - list available daily runs from `GET /api/runs`
 - load dashboard data from `GET /api/runs/{date}/dashboard-data`
+- discover run output availability from `GET /api/runs/{date}/artifacts`
 - show run status, summary fields, signals, candidates, risks, and raw `dashboard_data.json`
 
 The console does not call `run-daily`, write files, fetch live market data, edit the knowledge graph, or compute new financial signals.
@@ -107,6 +108,30 @@ Each run includes status, generated time, summary, warnings, output metadata, an
 Returns normalized `dashboard_data.json` for the given date.
 
 The response preserves the `dashboard_data.json` v1 contract and includes `schema_version = "1.0"`.
+
+### GET /api/runs/{date}/artifacts
+
+Returns a read-only file index for the run output directory:
+
+```json
+{
+  "date": "2026-05-15",
+  "run_dir": "reports/daily/2026-05-15",
+  "artifacts": [
+    {
+      "key": "dashboard_data_json",
+      "file_name": "dashboard_data.json",
+      "kind": "json",
+      "api": "/api/runs/2026-05-15/dashboard-data",
+      "exists": true,
+      "relative_path": "2026-05-15/dashboard_data.json",
+      "size_bytes": 1234
+    }
+  ]
+}
+```
+
+This endpoint only checks local output file availability. It does not read artifact contents, run the daily pipeline, or create missing files.
 
 ### GET /api/runs/{date}/run-summary
 
