@@ -48,6 +48,13 @@ def render_console_html() -> str:
     .theme-summary { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); }
     .theme-card { background: #fff; border: 1px solid #d9dee7; border-radius: 8px; padding: 12px; }
     .theme-card h3, .theme-group h3 { margin: 0 0 8px; }
+    .morning-brief, .compare-workspace { margin-bottom: 14px; }
+    .compare-grid { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+    .compare-card { background: #fff; border: 1px solid #d9dee7; border-radius: 8px; padding: 12px; }
+    .compare-actions { align-items: end; display: grid; gap: 10px; grid-template-columns: minmax(180px, 1fr) auto; margin: 10px 0; }
+    .notice { border: 1px solid #fedf89; background: #fffaeb; border-radius: 6px; color: #93370d; padding: 8px; }
+    button.inline-action { display: inline-block; margin: 4px 6px 4px 0; padding: 7px 9px; text-align: center; width: auto; }
+    button.inline-action.active { background: #eff6ff; }
     .artifacts { margin-bottom: 14px; }
     .artifacts li { margin-bottom: 4px; }
     a { color: #1f6feb; }
@@ -147,6 +154,8 @@ def render_console_html() -> str:
     let currentDashboardData = null;
     let selectedSignalIndex = null;
     let selectedTheme = "";
+    let compareThemes = [];
+    let compareNotice = "";
     let visibleSignalCount = 0;
     let apiHealthData = null;
     let apiVersionData = null;
@@ -156,6 +165,7 @@ def render_console_html() -> str:
     const VALID_STATUSES = new Set(["", "confirmed", "downgraded", "missing_data", "failed", "not_checked", "unknown"]);
     const VALID_SORTS = new Set(["default", "score_desc", "risk_level", "intraday_status", "theme"]);
     const VALID_VIEWS = new Set(["grouped", "flat"]);
+    const MAX_COMPARE_THEMES = 3;
 
     function normalizeChoice(value, allowed, fallback) {
       const textValue = String(value == null ? "" : value).trim().toLowerCase();
@@ -179,7 +189,20 @@ def render_console_html() -> str:
         sort: normalizeSort(state.sort),
         view: normalizeChoice(state.view || "grouped", VALID_VIEWS, "grouped"),
         theme: String(state.theme || "").trim(),
+        compare: normalizeCompareThemes(state.compare),
       };
+    }
+
+    function normalizeCompareThemes(value) {
+      const rawValues = Array.isArray(value) ? value : String(value || "").split(",");
+      const themes = [];
+      for (const item of rawValues) {
+        const theme = String(item || "").trim();
+        if (!theme) continue;
+        if (!themes.some((existing) => sameTheme(existing, theme))) themes.push(theme);
+        if (themes.length >= MAX_COMPARE_THEMES) break;
+      }
+      return themes;
     }
 
     function readConsoleStateFromUrl() {
@@ -192,6 +215,7 @@ def render_console_html() -> str:
         sort: params.get("sort"),
         view: params.get("view"),
         theme: params.get("theme"),
+        compare: params.get("compare"),
       });
     }
 
@@ -211,6 +235,7 @@ def render_console_html() -> str:
       setSelectValue(sortSelectEl, normalizedState.sort, "default");
       setSelectValue(viewModeEl, normalizedState.view, "grouped");
       selectedTheme = normalizedState.theme;
+      compareThemes = normalizedState.compare;
       if (normalizedState.date && selectHasValue(runSelectEl, normalizedState.date)) {
         runSelectEl.value = normalizedState.date;
       }
@@ -225,6 +250,7 @@ def render_console_html() -> str:
         sort: sortSelectEl.value,
         view: viewModeEl.value,
         theme: selectedTheme,
+        compare: compareThemes,
       });
     }
 
@@ -238,6 +264,7 @@ def render_console_html() -> str:
       if (state.sort !== "default") params.set("sort", state.sort);
       if (state.view !== "grouped") params.set("view", state.view);
       if (state.theme) params.set("theme", state.theme);
+      if (state.compare.length) params.set("compare", state.compare.join(","));
       const query = params.toString();
       const nextUrl = `${window.location.pathname}${query ? `?${query}` : ""}${window.location.hash || ""}`;
       window.history.replaceState(null, "", nextUrl);
@@ -402,6 +429,54 @@ def render_console_html() -> str:
       return button;
     }
 
+    function addCompareTheme(theme) {
+      const normalizedTheme = String(theme || "Unknown Theme").trim() || "Unknown Theme";
+      if (compareThemes.some((item) => sameTheme(item, normalizedTheme))) {
+        compareNotice = `${normalizedTheme} is already in compare.`;
+      } else if (compareThemes.length >= MAX_COMPARE_THEMES) {
+        compareNotice = "Compare supports up to 3 themes.";
+      } else {
+        compareThemes = [...compareThemes, normalizedTheme];
+        compareNotice = "";
+      }
+      updateQueryState({ compare: compareThemes });
+      renderSignalSections();
+    }
+
+    function removeCompareTheme(theme) {
+      compareThemes = compareThemes.filter((item) => !sameTheme(item, theme));
+      compareNotice = "";
+      updateQueryState({ compare: compareThemes });
+      renderSignalSections();
+    }
+
+    function createCompareButton(theme, label = "Compare") {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "inline-action";
+      if (compareThemes.some((item) => sameTheme(item, theme))) button.className += " active";
+      button.dataset.compareTheme = String(theme || "Unknown Theme");
+      button.textContent = label;
+      button.addEventListener("click", (event) => {
+        event.stopPropagation();
+        addCompareTheme(theme);
+      });
+      return button;
+    }
+
+    function availableThemeNames() {
+      const names = [];
+      const addName = (value) => {
+        const theme = String(value || "Unknown Theme").trim() || "Unknown Theme";
+        if (!names.some((item) => sameTheme(item, theme))) names.push(theme);
+      };
+      currentSignals.forEach((signal) => addName(themeName(signal)));
+      (Array.isArray(themeHistoryData?.themes) ? themeHistoryData.themes : []).forEach((item) => addName(item.theme));
+      compareThemes.forEach(addName);
+      names.sort((left, right) => left.localeCompare(right));
+      return names;
+    }
+
     function numberScore(signal) {
       const value = Number(signal.score);
       return Number.isFinite(value) ? value : null;
@@ -496,6 +571,26 @@ def render_console_html() -> str:
         }
       }
       return values.slice(0, 5).join(", ") || "No external triggers provided.";
+    }
+
+    function uniqueValues(values, limit = 5) {
+      const output = [];
+      for (const value of values) {
+        const label = value == null || value === "" ? "" : String(value);
+        if (!label) continue;
+        if (!output.includes(label)) output.push(label);
+        if (output.length >= limit) break;
+      }
+      return output;
+    }
+
+    function countSignalsBy(signals, getter) {
+      const counts = {};
+      for (const signal of signals) {
+        const value = getter(signal) || "unknown";
+        counts[value] = (counts[value] || 0) + 1;
+      }
+      return counts;
     }
 
     async function fetchJson(url) {
@@ -722,7 +817,7 @@ def render_console_html() -> str:
       table.className = "history-table";
       const thead = document.createElement("thead");
       const header = document.createElement("tr");
-      ["Theme", "Signals", "Runs seen", "Max score", "Avg score", "Main risk", "Main status", "Last seen", "Recent dates"].forEach((label) => header.appendChild(text("th", label)));
+      ["Theme", "Signals", "Runs seen", "Max score", "Avg score", "Main risk", "Main status", "Last seen", "Recent dates", "Compare"].forEach((label) => header.appendChild(text("th", label)));
       thead.appendChild(header);
       table.appendChild(thead);
       const tbody = document.createElement("tbody");
@@ -732,6 +827,9 @@ def render_console_html() -> str:
         themeCell.appendChild(createThemeButton(item.theme));
         tr.appendChild(themeCell);
         [item.signal_count, item.runs_seen, item.max_score ?? "unknown", item.avg_score ?? "unknown", topCounterValue(item.risk_counts), topCounterValue(item.intraday_status_counts), item.last_seen || "unknown", (item.recent_dates || []).join(", ")].forEach((value) => tr.appendChild(text("td", value)));
+        const compareCell = document.createElement("td");
+        compareCell.appendChild(createCompareButton(item.theme, "Compare"));
+        tr.appendChild(compareCell);
         tbody.appendChild(tr);
       });
       table.appendChild(tbody);
@@ -1015,6 +1113,7 @@ def render_console_html() -> str:
       const stocks = candidateHistoryForTheme(candidateHistoryData?.stock_candidates, theme);
 
       panel.appendChild(text("h3", theme));
+      panel.appendChild(createCompareButton(theme, "Add to Compare"));
       [
         `today signals: ${currentSignalsForTheme.length}`,
         `visible signals: ${visibleSignalsForTheme.length}`,
@@ -1028,7 +1127,7 @@ def render_console_html() -> str:
         `max score: ${history?.max_score ?? "unknown"}`,
         `last seen: ${history?.last_seen || "unknown"}`,
       ].forEach((value) => panel.appendChild(badge(value)));
-      panel.appendChild(text("p", "Theme drilldown is a research view over existing observations. It does not imply a trade, price target, or future outcome.", "muted"));
+      panel.appendChild(text("p", "Theme drilldown is a research view over existing observations. It does not imply an action, pricing claim, or future outcome.", "muted"));
 
       if (!history && currentSignalsForTheme.length === 0) {
         panel.appendChild(text("p", "No current or historical observations found for this theme.", "muted"));
@@ -1046,12 +1145,232 @@ def render_console_html() -> str:
       return panel;
     }
 
+    function renderMorningBrief(visibleSignals) {
+      const section = document.createElement("article");
+      section.className = "morning-brief";
+      section.appendChild(text("h2", "Morning Brief"));
+      section.appendChild(text("p", "Today's overseas-to-A-share watch themes. This is a rule-based research summary from existing report data and local history.", "muted"));
+      const run = currentDashboardData?.run || {};
+      const statusCounts = countSignalsBy(currentSignals, (signal) => signal.intraday_status || signal.status || "not_checked");
+      const dataCounts = countSignalsBy(currentSignals, (signal) => signal.data_status || "unknown");
+      const groups = groupedSignals(currentSignals);
+      const strongThemes = groups.slice(0, 3).map((group) => `${group.theme} (${topScore(group.signals)})`);
+      const highRiskThemes = groups.filter((group) => normalized(maxRisk(group.signals)) === "high").slice(0, 3).map((group) => group.theme);
+      const recurringThemes = (Array.isArray(themeHistoryData?.themes) ? [...themeHistoryData.themes] : [])
+        .sort((left, right) => Number(right.runs_seen || 0) - Number(left.runs_seen || 0) || Number(right.signal_count || 0) - Number(left.signal_count || 0))
+        .slice(0, 3)
+        .map((item) => `${item.theme || "Unknown Theme"} (${item.runs_seen || 0} runs)`);
+      const topEtfs = (Array.isArray(candidateHistoryData?.etf_candidates) ? [...candidateHistoryData.etf_candidates] : [])
+        .sort((left, right) => Number(right.appearances || 0) - Number(left.appearances || 0))
+        .slice(0, 3)
+        .map((item) => `${item.name || "unknown"} (${item.appearances || 0})`);
+      const topStocks = (Array.isArray(candidateHistoryData?.stock_candidates) ? [...candidateHistoryData.stock_candidates] : [])
+        .sort((left, right) => Number(right.appearances || 0) - Number(left.appearances || 0))
+        .slice(0, 3)
+        .map((item) => `${item.name || "unknown"} (${item.appearances || 0})`);
+      const qualityNotes = Object.entries(dataCounts)
+        .filter(([status]) => ["missing", "missing_data", "partial", "stale", "unknown"].includes(normalized(status)))
+        .map(([status, count]) => `${status}: ${count}`);
+      const briefGrid = document.createElement("div");
+      briefGrid.className = "theme-summary";
+      [
+        ["Run date", run.date || runSelectEl.value || "unknown"],
+        ["Signals", currentSignals.length],
+        ["Visible signals", visibleSignals.length],
+        ["Status overview", Object.entries(statusCounts).map(([key, count]) => `${key}: ${count}`).join(", ") || "unknown"],
+        ["Data quality notes", qualityNotes.join(", ") || "No missing, partial, stale, or unknown data labels in current signals."],
+        ["Requires confirmation", highRiskThemes.length ? `High risk themes: ${highRiskThemes.join(", ")}` : "No high risk themes in current signals."],
+      ].forEach(([label, value]) => briefGrid.appendChild(metric(label, value)));
+      section.appendChild(briefGrid);
+      section.appendChild(renderValueList("Strongest themes", strongThemes));
+      section.appendChild(renderValueList("Recurring themes", recurringThemes));
+      section.appendChild(renderValueList("Recurring ETF observation candidates", topEtfs));
+      section.appendChild(renderValueList("Recurring stock observation candidates", topStocks));
+      return section;
+    }
+
+    function renderCompareSelector() {
+      const wrap = document.createElement("div");
+      wrap.className = "compare-actions";
+      const field = document.createElement("div");
+      const label = document.createElement("label");
+      label.setAttribute("for", "compare-theme-select");
+      label.textContent = "Theme selector";
+      const select = document.createElement("select");
+      select.id = "compare-theme-select";
+      const themes = availableThemeNames();
+      if (!themes.length) {
+        const option = document.createElement("option");
+        option.value = "";
+        option.textContent = "No themes available";
+        select.appendChild(option);
+        select.disabled = true;
+      } else {
+        themes.forEach((theme) => {
+          const option = document.createElement("option");
+          option.value = theme;
+          option.textContent = theme;
+          select.appendChild(option);
+        });
+      }
+      field.appendChild(label);
+      field.appendChild(select);
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "inline-action";
+      button.textContent = "Add to Compare";
+      button.disabled = !themes.length;
+      button.addEventListener("click", () => addCompareTheme(select.value));
+      wrap.appendChild(field);
+      wrap.appendChild(button);
+      return wrap;
+    }
+
+    function renderCompareEvidence(theme, currentSignalsForTheme, etfs, stocks) {
+      const section = document.createElement("div");
+      section.className = "detail-section";
+      section.appendChild(text("h3", "Evidence Chain"));
+      const history = themeHistoryItem(theme);
+      const triggers = uniqueValues(currentSignalsForTheme.flatMap((signal) => arrayValue(signal.external_triggers)).concat(arrayValue(history?.external_triggers)), 5);
+      const mappings = uniqueValues(currentSignalsForTheme.map((signal) => signal.a_share_mapping_reason), 3);
+      const risks = uniqueValues(currentSignalsForTheme.flatMap((signal) => arrayValue(signal.risks)), 5);
+      const chain = document.createElement("ol");
+      chain.className = "evidence-chain";
+      [
+        ["External Move", triggers.join(", ") || "unknown"],
+        ["A-share Theme Mapping", mappings.join(" | ") || "unknown"],
+        ["Candidate Pools", `${etfs.length} ETF observation candidates, ${stocks.length} stock observation candidates`],
+        ["Risk Notes", risks.join(", ") || "No risk notes provided."],
+        ["Data Quality", distribution(currentSignalsForTheme, "data_status", "unknown")],
+      ].forEach(([label, value]) => {
+        const item = document.createElement("li");
+        item.appendChild(text("strong", label));
+        item.appendChild(text("div", value, "muted"));
+        chain.appendChild(item);
+      });
+      section.appendChild(chain);
+      return section;
+    }
+
+    function renderCompareCard(theme, visibleSignals) {
+      const card = document.createElement("article");
+      card.className = "compare-card";
+      const heading = document.createElement("h3");
+      heading.appendChild(createThemeButton(theme));
+      card.appendChild(heading);
+      const remove = document.createElement("button");
+      remove.type = "button";
+      remove.className = "inline-action";
+      remove.textContent = "Remove";
+      remove.addEventListener("click", () => removeCompareTheme(theme));
+      card.appendChild(remove);
+      const currentSignalsForTheme = currentSignals.filter((signal) => sameTheme(themeName(signal), theme));
+      const visibleSignalsForTheme = visibleSignals.filter((signal) => sameTheme(themeName(signal), theme));
+      const history = themeHistoryItem(theme);
+      const etfs = candidateHistoryForTheme(candidateHistoryData?.etf_candidates, theme);
+      const stocks = candidateHistoryForTheme(candidateHistoryData?.stock_candidates, theme);
+      [
+        `today signals: ${currentSignalsForTheme.length}`,
+        `visible signals: ${visibleSignalsForTheme.length}`,
+        `highest score: ${topScore(currentSignalsForTheme)}`,
+        `strongest: ${strongestStrength(currentSignalsForTheme)}`,
+        `main status: ${mainStatus(currentSignalsForTheme)}`,
+        `main risk: ${maxRisk(currentSignalsForTheme)}`,
+        `data status: ${distribution(currentSignalsForTheme, "data_status", "unknown")}`,
+        `historical signals: ${history?.signal_count ?? "unknown"}`,
+        `runs seen: ${history?.runs_seen ?? "unknown"}`,
+        `avg score: ${history?.avg_score ?? "unknown"}`,
+        `max score: ${history?.max_score ?? "unknown"}`,
+        `last seen: ${history?.last_seen || "unknown"}`,
+        `ETF pool: ${etfs.length}`,
+        `stock pool: ${stocks.length}`,
+      ].forEach((value) => card.appendChild(badge(value)));
+      if (currentSignalsForTheme.length === 0 && !history) {
+        card.appendChild(text("p", "No current or historical observations found for this theme.", "muted"));
+      } else if (visibleSignalsForTheme.length === 0) {
+        card.appendChild(text("p", "No visible signal for this theme under the current filters. Historical context is still shown when available.", "muted"));
+      }
+      card.appendChild(renderCountBadges("Historical Risk Distribution", history?.risk_counts));
+      card.appendChild(renderCountBadges("Historical Intraday Status Distribution", history?.intraday_status_counts));
+      card.appendChild(renderCountBadges("Historical Data Status Distribution", history?.data_status_counts));
+      card.appendChild(renderValueList("Recent Dates", history?.recent_dates || []));
+      card.appendChild(renderValueList("Top external triggers", uniqueValues(currentSignalsForTheme.flatMap((signal) => arrayValue(signal.external_triggers)).concat(arrayValue(history?.external_triggers)), 5)));
+      card.appendChild(renderCompareEvidence(theme, currentSignalsForTheme, etfs, stocks));
+      return card;
+    }
+
+    function appearsInComparedThemes(candidate) {
+      const themes = Array.isArray(candidate.themes) ? candidate.themes : [];
+      return compareThemes.filter((theme) => themes.some((item) => sameTheme(item, theme))).length;
+    }
+
+    function renderCandidateOverlapTable(title, candidates) {
+      const section = document.createElement("div");
+      section.className = "detail-section";
+      section.appendChild(text("h3", title));
+      if (!compareThemes.length) {
+        section.appendChild(text("p", "Select themes to compare observation pool overlap.", "muted"));
+        return section;
+      }
+      const rows = (Array.isArray(candidates) ? candidates : [])
+        .map((candidate) => ({ ...candidate, compared_count: appearsInComparedThemes(candidate) }))
+        .filter((candidate) => candidate.compared_count > 0)
+        .sort((left, right) => right.compared_count - left.compared_count || Number(right.appearances || 0) - Number(left.appearances || 0))
+        .slice(0, 12);
+      if (!rows.length) {
+        section.appendChild(text("p", "No observation candidate overlap found for selected themes.", "muted"));
+        return section;
+      }
+      const table = document.createElement("table");
+      table.className = "candidate-table";
+      const thead = document.createElement("thead");
+      const header = document.createElement("tr");
+      ["Name", "Code / ticker", "Themes", "Appearances", "Last seen", "Compared themes"].forEach((label) => header.appendChild(text("th", label)));
+      thead.appendChild(header);
+      table.appendChild(thead);
+      const tbody = document.createElement("tbody");
+      rows.forEach((candidate) => {
+        const tr = document.createElement("tr");
+        [candidate.name, candidate.code || "unknown", (candidate.themes || []).join(", "), candidate.appearances ?? "unknown", candidate.last_seen || "unknown", candidate.compared_count].forEach((value) => tr.appendChild(text("td", value)));
+        tbody.appendChild(tr);
+      });
+      table.appendChild(tbody);
+      section.appendChild(table);
+      return section;
+    }
+
+    function renderThemeCompare(visibleSignals) {
+      const section = document.createElement("article");
+      section.className = "compare-workspace";
+      section.appendChild(text("h2", "Theme Compare"));
+      section.appendChild(text("p", "Compare up to 3 themes across current signals, local history, evidence chains, data quality, and observation pools.", "muted"));
+      section.appendChild(renderCompareSelector());
+      if (compareNotice) section.appendChild(text("p", compareNotice, "notice"));
+      if (!compareThemes.length) {
+        section.appendChild(text("p", "No themes selected for comparison.", "muted"));
+      } else {
+        const grid = document.createElement("div");
+        grid.className = "compare-grid";
+        compareThemes.forEach((theme) => grid.appendChild(renderCompareCard(theme, visibleSignals)));
+        section.appendChild(grid);
+      }
+      const overlap = document.createElement("div");
+      overlap.className = "detail-section";
+      overlap.appendChild(text("h3", "Candidate Pool Comparison"));
+      overlap.appendChild(text("p", "Observation pool overlap highlights repeated candidates across selected themes. It is not a ranking or instruction.", "muted"));
+      overlap.appendChild(renderCandidateOverlapTable("ETF observation candidates", candidateHistoryData?.etf_candidates));
+      overlap.appendChild(renderCandidateOverlapTable("Stock observation candidates", candidateHistoryData?.stock_candidates));
+      section.appendChild(overlap);
+      return section;
+    }
+
     function createThemeSummaryCard(group) {
       const node = document.createElement("article");
       node.className = "theme-card";
       const heading = document.createElement("h3");
       heading.appendChild(createThemeButton(group.theme));
       node.appendChild(heading);
+      node.appendChild(createCompareButton(group.theme, "Compare"));
       node.appendChild(badge(`${group.signals.length} signals`));
       node.appendChild(badge(`top score: ${topScore(group.signals)}`));
       node.appendChild(badge(`max risk: ${maxRisk(group.signals)}`));
@@ -1121,8 +1440,9 @@ def render_console_html() -> str:
       }
       const selectedSignal = visibleSignals.find((signal) => signal.__index === selectedSignalIndex) || null;
       signalCountEl.textContent = `${visibleSignals.length} of ${currentSignals.length} signals visible`;
+      signalsAreaEl.appendChild(renderMorningBrief(visibleSignals));
       signalsAreaEl.appendChild(renderThemeHotlist(visibleSignals));
-      signalsAreaEl.appendChild(renderThemeDetail(visibleSignals));
+      signalsAreaEl.appendChild(renderThemeCompare(visibleSignals));
       const layout = document.createElement("div");
       layout.className = "analysis-layout";
       const listPane = document.createElement("div");
@@ -1133,6 +1453,7 @@ def render_console_html() -> str:
         layout.appendChild(listPane);
         layout.appendChild(renderSignalDetail(null));
         signalsAreaEl.appendChild(layout);
+        signalsAreaEl.appendChild(renderThemeDetail(visibleSignals));
         renderStatusStrip();
         return;
       }
@@ -1140,6 +1461,7 @@ def render_console_html() -> str:
       layout.appendChild(listPane);
       layout.appendChild(renderSignalDetail(selectedSignal));
       signalsAreaEl.appendChild(layout);
+      signalsAreaEl.appendChild(renderThemeDetail(visibleSignals));
       renderStatusStrip();
     }
 
@@ -1156,13 +1478,14 @@ def render_console_html() -> str:
       metrics.className = "metrics";
       [["Date", run.date], ["Status", run.status], ["Schema", data.schema_version], ["Strong", summary.strong_signals], ["Confirmed", summary.confirmed], ["Missing data", summary.missing_data]].forEach(([label, value]) => metrics.appendChild(metric(label, value)));
       dashboardEl.appendChild(metrics);
-      dashboardEl.appendChild(renderArtifacts(artifacts));
-      dashboardEl.appendChild(renderHistoricalReview());
 
       signalsAreaEl = document.createElement("div");
       signalsAreaEl.id = "signals-area";
       dashboardEl.appendChild(signalsAreaEl);
       renderSignalSections();
+
+      dashboardEl.appendChild(renderHistoricalReview());
+      dashboardEl.appendChild(renderArtifacts(artifacts));
 
       const details = document.createElement("details");
       details.appendChild(text("summary", "Raw dashboard_data.json"));

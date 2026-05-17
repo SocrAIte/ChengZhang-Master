@@ -23,7 +23,7 @@ The root path `/` serves the same console shell.
 The console also supports shareable query state, for example:
 
 ```text
-http://127.0.0.1:8000/console?date=2026-05-15&search=nvidia&risk=high&status=confirmed&sort=score_desc&view=grouped
+http://127.0.0.1:8000/console?date=2026-05-15&search=nvidia&risk=high&status=confirmed&sort=score_desc&view=grouped&compare=存储芯片,光模块
 ```
 
 Run a real browser smoke check for the console with:
@@ -48,7 +48,10 @@ It uses the existing API endpoints to:
 - group signals by theme and switch back to a flat signal list
 - sort signals by default order, score, risk, intraday status, or theme name
 - preserve console state in the URL for `date`, `search`, `risk`, `status`, `sort`, and `view`
+- show a Morning Brief with current run counts, strongest visible themes, risk notes, data quality notes, recurring themes, and recurring observation candidates
 - show a Theme Hotlist based on the currently visible signals
+- compare up to 3 themes side by side in Theme Compare
+- show Candidate Pool Comparison for repeated ETF and stock observation candidates across compared themes
 - show a Signal Detail Panel for the selected visible signal
 - explain the Evidence Chain from external triggers to A-share mapping, candidate pools, risk notes, and data quality
 - show Data Quality / Freshness labels from existing `data_status`, `sources`, `fetched_at`, and fallback metadata
@@ -58,6 +61,7 @@ It uses the existing API endpoints to:
 - show Historical Review for recurring themes, observation candidates, and data quality trend from existing daily runs
 - support Theme Detail Drilldown from Theme Hotlist, Historical Theme Trends, signal cards, and grouped theme headers
 - preserve selected theme state with the `theme` query parameter for shareable theme views
+- preserve compared theme state with the `compare` query parameter for shareable compare views
 - show run status, summary fields, signals, candidates, risks, and raw `dashboard_data.json`
 - show Dashboard, Knowledge Review, Run Diagnostics, and raw JSON artifact availability
 
@@ -74,10 +78,13 @@ Supported query parameters:
 - `sort`: `default`, `score_desc`, `risk_level`, `intraday_status`, or `theme`.
 - `view`: `grouped` or `flat`.
 - `theme`: selected theme for Theme Detail Drilldown.
+- `compare`: comma-separated themes for Theme Compare, capped at 3 themes.
 
 Unknown query values fall back to safe defaults. Empty/default values are omitted from the URL when controls change.
 
 Theme Detail Drilldown combines the selected run's visible signals with historical theme and candidate summaries. It shows current signals, historical observation counts, risk/status/data quality distributions, recent dates, external trigger summaries, and ETF / stock observation pools. It remains a research view and does not show return, profit, win-rate, alpha, entry, exit, or target-price metrics.
+
+Insight Workspace v2 adds Morning Brief, Theme Compare, and Candidate Pool Comparison. These views are rule-based summaries over existing local JSON outputs and read-only history APIs. They show signal counts, status distributions, risk distributions, data quality labels, external trigger summaries, and observation pool overlap. They do not call external models, trigger `run-daily`, fetch live market data, or change mappings.
 
 ## Endpoints
 

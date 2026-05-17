@@ -183,6 +183,8 @@ def run_console_browser_smoke(
         ("sort", "?sort=score_desc", {"#sort-select": "score_desc"}),
         ("filters", "?risk=high&status=confirmed", {"#risk-filter": "high", "#status-filter": "confirmed"}),
         ("theme", "?theme=Unknown%20Theme", {}),
+        ("compare", "?compare=Unknown%20Theme", {}),
+        ("theme_compare", "?theme=Unknown%20Theme&compare=Unknown%20Theme&view=grouped", {"#view-mode": "grouped"}),
     )
     checked_pages = 0
     try:
@@ -310,6 +312,9 @@ def _assert_console_text(body_text: str, title: str, date: str) -> None:
         "Grouped by theme",
         "Flat signal list",
         "Theme Hotlist",
+        "Morning Brief",
+        "Theme Compare",
+        "Candidate Pool Comparison",
         "Theme Detail",
         "Signal Detail Panel",
         "Evidence Chain",
@@ -341,6 +346,7 @@ def _assert_console_controls(browser_page: Any) -> None:
         "#status-filter",
         "#sort-select",
         "#view-mode",
+        "#compare-theme-select",
     ):
         try:
             count = browser_page.locator(selector).count()
