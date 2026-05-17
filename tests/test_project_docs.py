@@ -17,6 +17,8 @@ class ProjectDocsTest(unittest.TestCase):
             ROOT / "docs" / "CHECKLIST.md",
             ROOT / "docs" / "CHECKPOINT_DAILY_REPORT_BUNDLE.md",
             ROOT / "docs" / "PR_DAILY_REPORT_BUNDLE.md",
+            ROOT / "docs" / "CHECKPOINT_READONLY_WEB_API.md",
+            ROOT / "docs" / "PR_READONLY_WEB_API.md",
         ):
             self.assertTrue(path.exists(), f"{path} should exist")
 
@@ -24,6 +26,12 @@ class ProjectDocsTest(unittest.TestCase):
         text = (ROOT / "docs" / "RUN_DAILY.md").read_text(encoding="utf-8")
 
         for term in ("run-daily", "dashboard_data.json", "schema_version", "run_summary.json"):
+            self.assertIn(term, text)
+
+    def test_readonly_api_checkpoint_has_core_terms(self) -> None:
+        text = (ROOT / "docs" / "CHECKPOINT_READONLY_WEB_API.md").read_text(encoding="utf-8")
+
+        for term in ("serve-api", "/api/runs", "/console", "console-smoke-check", "read-only"):
             self.assertIn(term, text)
 
 
