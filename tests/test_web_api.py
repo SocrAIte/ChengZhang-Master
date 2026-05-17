@@ -236,6 +236,19 @@ class WebApiTest(unittest.TestCase):
         self.assertIn("--reports-dir", completed.stdout)
         self.assertIn("--port", completed.stdout)
 
+    def test_cli_exposes_console_smoke_help(self) -> None:
+        completed = subprocess.run(
+            [sys.executable, "-m", "market_impact_radar", "console-smoke-check", "--help"],
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+        self.assertIn("--reports-dir", completed.stdout)
+        self.assertIn("--date", completed.stdout)
+
     def test_http_api_smoke_serves_runs_route(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             _write_run(Path(tmpdir))

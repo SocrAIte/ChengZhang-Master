@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from http.server import ThreadingHTTPServer
 from pathlib import Path
+from threading import Thread
 from typing import Any, Callable
 
 
@@ -151,6 +153,70 @@ def run_dashboard_browser_smoke(
     )
 
 
+def run_console_browser_smoke(
+    reports_dir: str | Path,
+    date: str = "2026-05-15",
+    playwright_factory: Callable[[], Any] | None = None,
+) -> BrowserSmokeResult:
+    root = Path(reports_dir)
+    run_dir = root / date
+    if not run_dir.exists():
+        raise BrowserSmokeError(f"console smoke run directory does not exist: {run_dir}")
+    if not (run_dir / "dashboard_data.json").exists():
+        raise BrowserSmokeError(f"console smoke missing dashboard_data.json: {run_dir / 'dashboard_data.json'}")
+
+    factory = playwright_factory or _load_playwright()
+    console_errors: list[str] = []
+    page_errors: list[str] = []
+
+    from .web_api import make_handler
+
+    server = ThreadingHTTPServer(("127.0.0.1", 0), make_handler(root))
+    thread = Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    url = f"http://127.0.0.1:{server.server_port}/console"
+    try:
+        try:
+            with factory() as playwright:
+                browser = playwright.chromium.launch(headless=True)
+                try:
+                    page = browser.new_page()
+                    page.on("console", lambda message: _record_console_error(message, console_errors, "console"))
+                    page.on("pageerror", lambda error: page_errors.append(f"console: {error}"))
+                    page.goto(url, wait_until="networkidle")
+                    body_text = page.locator("body").inner_text(timeout=5000).strip()
+                    title = page.title()
+                finally:
+                    browser.close()
+        except BrowserSmokeError:
+            raise
+        except Exception as exc:
+            raise BrowserSmokeError(f"console browser smoke failed: {exc}. {PLAYWRIGHT_INSTALL_HINT}") from exc
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=5)
+
+    _assert_console_text(body_text, title, date)
+    if console_errors:
+        raise BrowserSmokeError(f"console browser console errors: {'; '.join(console_errors)}")
+    if page_errors:
+        raise BrowserSmokeError(f"console browser page errors: {'; '.join(page_errors)}")
+
+    return BrowserSmokeResult(
+        status="passed",
+        url=url,
+        checks=(
+            "console_loaded",
+            "runs_visible",
+            "dashboard_data_visible",
+            "artifacts_visible",
+            "no_console_errors",
+        ),
+        pages_checked=1,
+    )
+
+
 def _load_playwright() -> Callable[[], Any]:
     try:
         from playwright.sync_api import sync_playwright
@@ -200,3 +266,22 @@ def _assert_selectors(page: _PageCheck, browser_page: Any) -> None:
 def _record_console_error(message: Any, errors: list[str], label: str = "page") -> None:
     if getattr(message, "type", "") == "error":
         errors.append(f"{label}: {getattr(message, 'text', '')}")
+
+
+def _assert_console_text(body_text: str, title: str, date: str) -> None:
+    if not body_text:
+        raise BrowserSmokeError("console body is empty")
+    visible_text = f"{body_text}\n{title}"
+    required = (
+        "Market Impact Radar Console",
+        "Daily Runs",
+        "Dashboard Data",
+        date,
+        "Artifacts",
+        "Dashboard",
+        "Knowledge Review",
+        "Run Diagnostics",
+    )
+    for text in required:
+        if text not in visible_text:
+            raise BrowserSmokeError(f"console missing required text: {text}")

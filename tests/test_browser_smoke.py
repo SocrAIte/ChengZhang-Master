@@ -4,7 +4,12 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from market_impact_radar.browser_smoke import BrowserSmokeError, run_daily_bundle_browser_smoke, run_dashboard_browser_smoke
+from market_impact_radar.browser_smoke import (
+    BrowserSmokeError,
+    run_console_browser_smoke,
+    run_daily_bundle_browser_smoke,
+    run_dashboard_browser_smoke,
+)
 
 
 class _FakeMessage:
@@ -109,6 +114,16 @@ def _write_bundle(root: Path) -> None:
     (run_dir / "run_diagnostics.html").write_text("<html>Run Diagnostics Dashboard Knowledge Review Pipeline Steps Outputs Warnings / Errors</html>", encoding="utf-8")
 
 
+def _write_console_run(root: Path) -> None:
+    run_dir = root / "2026-05-15"
+    run_dir.mkdir(parents=True, exist_ok=True)
+    (run_dir / "dashboard_data.json").write_text('{"schema_version": "1.0", "run": {"date": "2026-05-15"}, "summary": {}, "signals": []}', encoding="utf-8")
+    (run_dir / "run_summary.json").write_text('{"status": "ok", "outputs": {}}', encoding="utf-8")
+    (run_dir / "dashboard.html").write_text("<html>Dashboard</html>", encoding="utf-8")
+    (run_dir / "knowledge_review.html").write_text("<html>Knowledge Graph Review</html>", encoding="utf-8")
+    (run_dir / "run_diagnostics.html").write_text("<html>Run Diagnostics</html>", encoding="utf-8")
+
+
 class BrowserSmokeTest(unittest.TestCase):
     def test_browser_smoke_happy_path_with_fake_browser(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -193,6 +208,31 @@ class BrowserSmokeTest(unittest.TestCase):
 
             with self.assertRaisesRegex(BrowserSmokeError, "run_diagnostics.html does not exist"):
                 run_daily_bundle_browser_smoke(root, playwright_factory=_bundle_factory())
+
+    def test_console_browser_smoke_happy_path_with_fake_browser(self) -> None:
+        body = "Market Impact Radar Console Daily Runs Dashboard Data 2026-05-15 Artifacts Dashboard Knowledge Review Run Diagnostics"
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            _write_console_run(root)
+
+            result = run_console_browser_smoke(root, playwright_factory=_factory(body))
+
+        self.assertEqual(result.status, "passed")
+        self.assertEqual(result.pages_checked, 1)
+        self.assertIn("artifacts_visible", result.checks)
+
+    def test_console_browser_smoke_missing_run_fails(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            with self.assertRaisesRegex(BrowserSmokeError, "run directory does not exist"):
+                run_console_browser_smoke(Path(tmpdir), playwright_factory=_factory(""))
+
+    def test_console_browser_smoke_missing_required_text_fails(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            _write_console_run(root)
+
+            with self.assertRaisesRegex(BrowserSmokeError, "Artifacts"):
+                run_console_browser_smoke(root, playwright_factory=_factory("Market Impact Radar Console Daily Runs Dashboard Data 2026-05-15"))
 
 
 if __name__ == "__main__":

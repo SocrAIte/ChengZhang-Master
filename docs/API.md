@@ -20,6 +20,14 @@ http://127.0.0.1:8000/console
 
 The root path `/` serves the same console shell.
 
+Run a real browser smoke check for the console with:
+
+```powershell
+python -m market_impact_radar console-smoke-check --reports-dir reports/daily/pre-release-check --date 2026-05-15
+```
+
+This starts a temporary local API server, opens `/console` with Playwright, and checks that runs, dashboard data, and artifacts render. It is optional and not part of the default pre-release check.
+
 ## Read-only Console
 
 The console is a static HTML page served by the same process.

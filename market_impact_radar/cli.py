@@ -12,6 +12,7 @@ from .backtest import (
     write_historical_edges_json,
 )
 from .a_share_sources import fetch_a_share_snapshot
+from .browser_smoke import BrowserSmokeError, run_console_browser_smoke
 from .dashboard import render_dashboard_html
 from .daily_runner import DailyRunOptions, run_daily
 from .history_index import write_daily_history_index
@@ -129,6 +130,10 @@ def main() -> int:
     serve_api_parser.add_argument("--reports-dir", default="reports/daily", help="Daily reports root")
     serve_api_parser.add_argument("--host", default="127.0.0.1", help="API bind host")
     serve_api_parser.add_argument("--port", type=int, default=8000, help="API bind port")
+
+    console_smoke_parser = subparsers.add_parser("console-smoke-check", help="Run optional browser smoke check for the read-only API console")
+    console_smoke_parser.add_argument("--reports-dir", default=DEFAULT_OUTPUT_DIR, help="Daily reports root for the console API")
+    console_smoke_parser.add_argument("--date", default=DEFAULT_CHECK_DATE, help="Run date to verify in the console")
 
     backtest_parser = subparsers.add_parser("backtest", help="计算单个隔夜传导统计")
     backtest_parser.add_argument("--history", required=True, help="历史 CSV")
@@ -301,6 +306,19 @@ def main() -> int:
 
     if args.command == "serve-api":
         serve_api(host=args.host, port=args.port, reports_dir=args.reports_dir)
+        return 0
+
+    if args.command == "console-smoke-check":
+        try:
+            result = run_console_browser_smoke(args.reports_dir, date=args.date)
+        except BrowserSmokeError as exc:
+            print(f"Console smoke check failed\n- {exc}")
+            return 1
+        print("Console smoke check passed")
+        print(f"- url: {result.url}")
+        print(f"- pages checked: {result.pages_checked}")
+        for check in result.checks:
+            print(f"- {check}: passed")
         return 0
 
     if args.command == "report":
