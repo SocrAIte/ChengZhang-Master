@@ -31,6 +31,9 @@ def render_console_html() -> str:
     .signal-card { cursor: pointer; }
     .signal-card.selected { border-color: #1f6feb; box-shadow: 0 0 0 2px rgba(31, 111, 235, 0.12); }
     .signal-detail { position: sticky; top: 12px; }
+    .theme-detail { margin-bottom: 14px; }
+    .theme-button { background: transparent; border: 0; color: #1f6feb; cursor: pointer; display: inline; font: inherit; margin: 0; padding: 0; text-align: left; width: auto; }
+    .theme-button.active { font-weight: 700; text-decoration: underline; }
     .detail-section { border-top: 1px solid #eef1f6; margin-top: 12px; padding-top: 12px; }
     .detail-section h3 { font-size: 14px; margin: 0 0 8px; }
     .evidence-chain { display: grid; gap: 8px; margin: 0; padding-left: 20px; }
@@ -143,6 +146,7 @@ def render_console_html() -> str:
     let currentArtifacts = null;
     let currentDashboardData = null;
     let selectedSignalIndex = null;
+    let selectedTheme = "";
     let visibleSignalCount = 0;
     let apiHealthData = null;
     let apiVersionData = null;
@@ -174,6 +178,7 @@ def render_console_html() -> str:
         status: normalizeChoice(state.status, VALID_STATUSES, ""),
         sort: normalizeSort(state.sort),
         view: normalizeChoice(state.view || "grouped", VALID_VIEWS, "grouped"),
+        theme: String(state.theme || "").trim(),
       };
     }
 
@@ -186,6 +191,7 @@ def render_console_html() -> str:
         status: params.get("status"),
         sort: params.get("sort"),
         view: params.get("view"),
+        theme: params.get("theme"),
       });
     }
 
@@ -204,6 +210,7 @@ def render_console_html() -> str:
       setSelectValue(statusFilterEl, normalizedState.status, "");
       setSelectValue(sortSelectEl, normalizedState.sort, "default");
       setSelectValue(viewModeEl, normalizedState.view, "grouped");
+      selectedTheme = normalizedState.theme;
       if (normalizedState.date && selectHasValue(runSelectEl, normalizedState.date)) {
         runSelectEl.value = normalizedState.date;
       }
@@ -217,6 +224,7 @@ def render_console_html() -> str:
         status: statusFilterEl.value,
         sort: sortSelectEl.value,
         view: viewModeEl.value,
+        theme: selectedTheme,
       });
     }
 
@@ -229,6 +237,7 @@ def render_console_html() -> str:
       if (state.status) params.set("status", state.status);
       if (state.sort !== "default") params.set("sort", state.sort);
       if (state.view !== "grouped") params.set("view", state.view);
+      if (state.theme) params.set("theme", state.theme);
       const query = params.toString();
       const nextUrl = `${window.location.pathname}${query ? `?${query}` : ""}${window.location.hash || ""}`;
       window.history.replaceState(null, "", nextUrl);
@@ -353,6 +362,44 @@ def render_console_html() -> str:
 
     function themeName(signal) {
       return signal.theme ? String(signal.theme) : "Unknown Theme";
+    }
+
+    function themeKey(value) {
+      return String(value || "Unknown Theme").trim().toLowerCase();
+    }
+
+    function sameTheme(left, right) {
+      return themeKey(left) === themeKey(right);
+    }
+
+    function themeHistoryItem(theme) {
+      const themes = Array.isArray(themeHistoryData?.themes) ? themeHistoryData.themes : [];
+      return themes.find((item) => sameTheme(item.theme, theme)) || null;
+    }
+
+    function candidateHistoryForTheme(candidates, theme) {
+      return (Array.isArray(candidates) ? candidates : []).filter((candidate) => {
+        const themes = Array.isArray(candidate.themes) ? candidate.themes : [];
+        return themes.some((item) => sameTheme(item, theme));
+      });
+    }
+
+    function selectTheme(theme, signalIndex = null) {
+      selectedTheme = String(theme || "Unknown Theme").trim() || "Unknown Theme";
+      if (signalIndex != null) selectedSignalIndex = signalIndex;
+      updateQueryState({ theme: selectedTheme });
+      renderSignalSections();
+    }
+
+    function createThemeButton(theme, label = null) {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "theme-button";
+      if (selectedTheme && sameTheme(selectedTheme, theme)) button.className += " active";
+      button.dataset.theme = String(theme || "Unknown Theme");
+      button.textContent = label || theme || "Unknown Theme";
+      button.addEventListener("click", () => selectTheme(theme));
+      return button;
     }
 
     function numberScore(signal) {
@@ -662,6 +709,36 @@ def render_console_html() -> str:
       return section;
     }
 
+    function renderHistoricalThemeTrends(themes) {
+      const section = document.createElement("div");
+      section.className = "detail-section";
+      section.appendChild(text("h3", "Historical Theme Trends"));
+      const rows = themes.slice(0, 10);
+      if (!rows.length) {
+        section.appendChild(text("p", "No historical observations available.", "muted"));
+        return section;
+      }
+      const table = document.createElement("table");
+      table.className = "history-table";
+      const thead = document.createElement("thead");
+      const header = document.createElement("tr");
+      ["Theme", "Signals", "Runs seen", "Max score", "Avg score", "Main risk", "Main status", "Last seen", "Recent dates"].forEach((label) => header.appendChild(text("th", label)));
+      thead.appendChild(header);
+      table.appendChild(thead);
+      const tbody = document.createElement("tbody");
+      rows.forEach((item) => {
+        const tr = document.createElement("tr");
+        const themeCell = document.createElement("td");
+        themeCell.appendChild(createThemeButton(item.theme));
+        tr.appendChild(themeCell);
+        [item.signal_count, item.runs_seen, item.max_score ?? "unknown", item.avg_score ?? "unknown", topCounterValue(item.risk_counts), topCounterValue(item.intraday_status_counts), item.last_seen || "unknown", (item.recent_dates || []).join(", ")].forEach((value) => tr.appendChild(text("td", value)));
+        tbody.appendChild(tr);
+      });
+      table.appendChild(tbody);
+      section.appendChild(table);
+      return section;
+    }
+
     function renderHistoricalReview() {
       const section = document.createElement("article");
       section.appendChild(text("h2", "Historical Review"));
@@ -677,18 +754,7 @@ def render_console_html() -> str:
       summary.appendChild(metric("Observation candidates", etfs.length + stocks.length));
       section.appendChild(summary);
 
-      const topThemes = themes.slice(0, 10).map((item) => [
-        item.theme,
-        item.signal_count,
-        item.runs_seen,
-        item.max_score ?? "unknown",
-        item.avg_score ?? "unknown",
-        topCounterValue(item.risk_counts),
-        topCounterValue(item.intraday_status_counts),
-        item.last_seen || "unknown",
-        (item.recent_dates || []).join(", "),
-      ]);
-      section.appendChild(renderHistoryTable("Historical Theme Trends", ["Theme", "Signals", "Runs seen", "Max score", "Avg score", "Main risk", "Main status", "Last seen", "Recent dates"], topThemes));
+      section.appendChild(renderHistoricalThemeTrends(themes));
 
       const candidateRows = etfs.slice(0, 10).map((item) => ["ETF", item.name, item.code || "unknown", item.appearances, (item.themes || []).join(", "), item.last_seen || "unknown"])
         .concat(stocks.slice(0, 10).map((item) => ["Stock", item.name, item.code || "unknown", item.appearances, (item.themes || []).join(", "), item.last_seen || "unknown"]));
@@ -720,16 +786,22 @@ def render_console_html() -> str:
       card.dataset.status = normalized(signal.intraday_status || signal.status || "not_checked");
       card.addEventListener("click", () => {
         selectedSignalIndex = signal.__index;
+        selectedTheme = themeName(signal);
+        updateQueryState({ theme: selectedTheme });
         renderSignalSections();
       });
       card.addEventListener("keydown", (event) => {
         if (event.key === "Enter" || event.key === " ") {
           event.preventDefault();
           selectedSignalIndex = signal.__index;
+          selectedTheme = themeName(signal);
+          updateQueryState({ theme: selectedTheme });
           renderSignalSections();
         }
       });
-      card.appendChild(text("h3", themeName(signal)));
+      const heading = document.createElement("h3");
+      heading.appendChild(createThemeButton(themeName(signal)));
+      card.appendChild(heading);
       [`strength: ${signal.strength || "unknown"}`, `score: ${signal.score ?? "unknown"}`, `intraday: ${signal.intraday_status || "not_checked"}`, `risk: ${signal.risk_level || "unknown"}`, `data: ${signal.data_status || "unknown"}`].forEach((value) => card.appendChild(badge(value)));
       dataQualityItems(signal).forEach((value) => card.appendChild(badge(value)));
       card.appendChild(text("p", signal.a_share_mapping_reason || "No mapping reason provided.", "muted"));
@@ -857,10 +929,129 @@ def render_console_html() -> str:
       return panel;
     }
 
+    function renderCountBadges(title, counts) {
+      const section = document.createElement("div");
+      section.className = "detail-section";
+      section.appendChild(text("h3", title));
+      const entries = counts && typeof counts === "object" ? Object.entries(counts) : [];
+      if (entries.length === 0) {
+        section.appendChild(text("p", "No historical distribution available.", "muted"));
+        return section;
+      }
+      entries.sort((left, right) => Number(right[1]) - Number(left[1]) || left[0].localeCompare(right[0]));
+      entries.forEach(([key, count]) => section.appendChild(badge(`${key}: ${count}`)));
+      return section;
+    }
+
+    function renderThemeSignalList(theme, visibleSignals) {
+      const section = document.createElement("div");
+      section.className = "detail-section";
+      section.appendChild(text("h3", "Current Theme Signals"));
+      const signals = visibleSignals.filter((signal) => sameTheme(themeName(signal), theme));
+      if (signals.length === 0) {
+        section.appendChild(text("p", "No signal for the selected run under current filters.", "muted"));
+        return section;
+      }
+      signals.forEach((signal) => {
+        const item = document.createElement("article");
+        item.className = "theme-card";
+        item.appendChild(text("h3", themeName(signal)));
+        [`strength: ${signal.strength || "unknown"}`, `score: ${signal.score ?? "unknown"}`, `intraday: ${signal.intraday_status || "not_checked"}`, `risk: ${signal.risk_level || "unknown"}`, `data: ${signal.data_status || "unknown"}`].forEach((value) => item.appendChild(badge(value)));
+        item.appendChild(renderValueList("External Triggers", signal.external_triggers));
+        item.appendChild(renderValueList("A-share Mapping Reason", signal.a_share_mapping_reason));
+        item.appendChild(renderValueList("Risks", signal.risks));
+        item.appendChild(renderValueList("Fetched At", fetchedValues(signal)));
+        item.appendChild(renderValueList("Sources", sourceValues(signal)));
+        item.addEventListener("click", () => {
+          selectedSignalIndex = signal.__index;
+          selectedTheme = themeName(signal);
+          updateQueryState({ theme: selectedTheme });
+          renderSignalSections();
+        });
+        section.appendChild(item);
+      });
+      return section;
+    }
+
+    function renderThemeCandidateHistory(title, candidates) {
+      const section = document.createElement("div");
+      section.className = "detail-section";
+      section.appendChild(text("h3", title));
+      if (!candidates.length) {
+        section.appendChild(text("p", "No recurring candidates found for this theme.", "muted"));
+        return section;
+      }
+      const table = document.createElement("table");
+      table.className = "candidate-table";
+      const thead = document.createElement("thead");
+      const header = document.createElement("tr");
+      ["Name", "Code / ticker", "Appearances", "Recent dates", "Last seen"].forEach((label) => header.appendChild(text("th", label)));
+      thead.appendChild(header);
+      table.appendChild(thead);
+      const tbody = document.createElement("tbody");
+      candidates.forEach((candidate) => {
+        const tr = document.createElement("tr");
+        [candidate.name, candidate.code || "unknown", candidate.appearances ?? "unknown", (candidate.recent_dates || []).join(", "), candidate.last_seen || "unknown"].forEach((value) => tr.appendChild(text("td", value)));
+        tbody.appendChild(tr);
+      });
+      table.appendChild(tbody);
+      section.appendChild(table);
+      return section;
+    }
+
+    function renderThemeDetail(visibleSignals) {
+      const panel = document.createElement("article");
+      panel.className = "theme-detail";
+      panel.appendChild(text("h2", "Theme Detail"));
+      const theme = selectedTheme || (visibleSignals[0] ? themeName(visibleSignals[0]) : "");
+      if (!theme) {
+        panel.appendChild(text("p", "Select a theme from Theme Hotlist, Historical Theme Trends, a signal card, or grouped theme header.", "muted"));
+        return panel;
+      }
+      const currentSignalsForTheme = currentSignals.filter((signal) => sameTheme(themeName(signal), theme));
+      const visibleSignalsForTheme = visibleSignals.filter((signal) => sameTheme(themeName(signal), theme));
+      const history = themeHistoryItem(theme);
+      const etfs = candidateHistoryForTheme(candidateHistoryData?.etf_candidates, theme);
+      const stocks = candidateHistoryForTheme(candidateHistoryData?.stock_candidates, theme);
+
+      panel.appendChild(text("h3", theme));
+      [
+        `today signals: ${currentSignalsForTheme.length}`,
+        `visible signals: ${visibleSignalsForTheme.length}`,
+        `today highest score: ${topScore(currentSignalsForTheme)}`,
+        `today strongest: ${strongestStrength(currentSignalsForTheme)}`,
+        `today main status: ${mainStatus(currentSignalsForTheme)}`,
+        `today main risk: ${maxRisk(currentSignalsForTheme)}`,
+        `historical signals: ${history?.signal_count ?? "unknown"}`,
+        `runs seen: ${history?.runs_seen ?? "unknown"}`,
+        `avg score: ${history?.avg_score ?? "unknown"}`,
+        `max score: ${history?.max_score ?? "unknown"}`,
+        `last seen: ${history?.last_seen || "unknown"}`,
+      ].forEach((value) => panel.appendChild(badge(value)));
+      panel.appendChild(text("p", "Theme drilldown is a research view over existing observations. It does not imply a trade, price target, or future outcome.", "muted"));
+
+      if (!history && currentSignalsForTheme.length === 0) {
+        panel.appendChild(text("p", "No current or historical observations found for this theme.", "muted"));
+      }
+      panel.appendChild(renderThemeSignalList(theme, visibleSignals));
+      panel.appendChild(renderCountBadges("Historical Risk Distribution", history?.risk_counts));
+      panel.appendChild(renderCountBadges("Historical Intraday Status Distribution", history?.intraday_status_counts));
+      panel.appendChild(renderCountBadges("Historical Data Status Distribution", history?.data_status_counts));
+      panel.appendChild(renderValueList("Recent Dates", history?.recent_dates || []));
+      panel.appendChild(renderValueList("External Trigger Summary", history?.external_triggers || currentSignalsForTheme.flatMap((signal) => arrayValue(signal.external_triggers))));
+      panel.appendChild(renderValueList("Risk Summary", currentSignalsForTheme.flatMap((signal) => arrayValue(signal.risks))));
+      panel.appendChild(renderValueList("Data Quality Summary", currentSignalsForTheme.flatMap((signal) => dataQualityItems(signal))));
+      panel.appendChild(renderThemeCandidateHistory("ETF observation pool", etfs));
+      panel.appendChild(renderThemeCandidateHistory("Stock observation pool", stocks));
+      return panel;
+    }
+
     function createThemeSummaryCard(group) {
       const node = document.createElement("article");
       node.className = "theme-card";
-      node.appendChild(text("h3", group.theme));
+      const heading = document.createElement("h3");
+      heading.appendChild(createThemeButton(group.theme));
+      node.appendChild(heading);
       node.appendChild(badge(`${group.signals.length} signals`));
       node.appendChild(badge(`top score: ${topScore(group.signals)}`));
       node.appendChild(badge(`max risk: ${maxRisk(group.signals)}`));
@@ -894,7 +1085,9 @@ def render_console_html() -> str:
       for (const group of groupedSignals(signals)) {
         const section = document.createElement("article");
         section.className = "theme-group";
-        section.appendChild(text("h2", group.theme));
+        const heading = document.createElement("h2");
+        heading.appendChild(createThemeButton(group.theme));
+        section.appendChild(heading);
         section.appendChild(badge(`${group.signals.length} signals`));
         section.appendChild(badge(`highest score: ${topScore(group.signals)}`));
         section.appendChild(badge(`strongest: ${strongestStrength(group.signals)}`));
@@ -929,6 +1122,7 @@ def render_console_html() -> str:
       const selectedSignal = visibleSignals.find((signal) => signal.__index === selectedSignalIndex) || null;
       signalCountEl.textContent = `${visibleSignals.length} of ${currentSignals.length} signals visible`;
       signalsAreaEl.appendChild(renderThemeHotlist(visibleSignals));
+      signalsAreaEl.appendChild(renderThemeDetail(visibleSignals));
       const layout = document.createElement("div");
       layout.className = "analysis-layout";
       const listPane = document.createElement("div");

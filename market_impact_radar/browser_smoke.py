@@ -182,6 +182,7 @@ def run_console_browser_smoke(
         ("flat", "?view=flat", {"#view-mode": "flat"}),
         ("sort", "?sort=score_desc", {"#sort-select": "score_desc"}),
         ("filters", "?risk=high&status=confirmed", {"#risk-filter": "high", "#status-filter": "confirmed"}),
+        ("theme", "?theme=Unknown%20Theme", {}),
     )
     checked_pages = 0
     try:
@@ -309,6 +310,7 @@ def _assert_console_text(body_text: str, title: str, date: str) -> None:
         "Grouped by theme",
         "Flat signal list",
         "Theme Hotlist",
+        "Theme Detail",
         "Signal Detail Panel",
         "Evidence Chain",
         "Data Quality / Freshness",

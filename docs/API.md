@@ -56,6 +56,8 @@ It uses the existing API endpoints to:
 - show an API status strip with health, API version, dashboard schema version, selected run, signal counts, and generated time
 - show Artifact Links for available report outputs
 - show Historical Review for recurring themes, observation candidates, and data quality trend from existing daily runs
+- support Theme Detail Drilldown from Theme Hotlist, Historical Theme Trends, signal cards, and grouped theme headers
+- preserve selected theme state with the `theme` query parameter for shareable theme views
 - show run status, summary fields, signals, candidates, risks, and raw `dashboard_data.json`
 - show Dashboard, Knowledge Review, Run Diagnostics, and raw JSON artifact availability
 
@@ -71,8 +73,11 @@ Supported query parameters:
 - `status`: `confirmed`, `downgraded`, `missing_data`, `failed`, `not_checked`, or `unknown`; `all` is treated as the default empty filter.
 - `sort`: `default`, `score_desc`, `risk_level`, `intraday_status`, or `theme`.
 - `view`: `grouped` or `flat`.
+- `theme`: selected theme for Theme Detail Drilldown.
 
 Unknown query values fall back to safe defaults. Empty/default values are omitted from the URL when controls change.
+
+Theme Detail Drilldown combines the selected run's visible signals with historical theme and candidate summaries. It shows current signals, historical observation counts, risk/status/data quality distributions, recent dates, external trigger summaries, and ETF / stock observation pools. It remains a research view and does not show return, profit, win-rate, alpha, entry, exit, or target-price metrics.
 
 ## Endpoints
 
