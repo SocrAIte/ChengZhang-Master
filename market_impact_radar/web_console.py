@@ -50,6 +50,7 @@ def render_console_html() -> str:
     .theme-card h3, .theme-group h3 { margin: 0 0 8px; }
     .morning-brief, .compare-workspace { margin-bottom: 14px; }
     .source-reliability { margin-bottom: 14px; }
+    .source-detail { margin-top: 14px; }
     .compare-grid { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
     .compare-card { background: #fff; border: 1px solid #d9dee7; border-radius: 8px; padding: 12px; }
     .compare-actions { align-items: end; display: grid; gap: 10px; grid-template-columns: minmax(180px, 1fr) auto; margin: 10px 0; }
@@ -155,6 +156,7 @@ def render_console_html() -> str:
     let currentDashboardData = null;
     let selectedSignalIndex = null;
     let selectedTheme = "";
+    let selectedSource = "";
     let compareThemes = [];
     let compareNotice = "";
     let visibleSignalCount = 0;
@@ -163,6 +165,7 @@ def render_console_html() -> str:
     let themeHistoryData = null;
     let candidateHistoryData = null;
     let dataQualityHistoryData = null;
+    let sourceHistoryData = null;
     const VALID_RISKS = new Set(["", "low", "medium", "high", "unknown"]);
     const VALID_STATUSES = new Set(["", "confirmed", "downgraded", "missing_data", "failed", "not_checked", "unknown"]);
     const VALID_SORTS = new Set(["default", "score_desc", "risk_level", "intraday_status", "theme"]);
@@ -191,6 +194,7 @@ def render_console_html() -> str:
         sort: normalizeSort(state.sort),
         view: normalizeChoice(state.view || "grouped", VALID_VIEWS, "grouped"),
         theme: String(state.theme || "").trim(),
+        source: String(state.source || "").trim(),
         compare: normalizeCompareThemes(state.compare),
       };
     }
@@ -217,6 +221,7 @@ def render_console_html() -> str:
         sort: params.get("sort"),
         view: params.get("view"),
         theme: params.get("theme"),
+        source: params.get("source"),
         compare: params.get("compare"),
       });
     }
@@ -237,6 +242,7 @@ def render_console_html() -> str:
       setSelectValue(sortSelectEl, normalizedState.sort, "default");
       setSelectValue(viewModeEl, normalizedState.view, "grouped");
       selectedTheme = normalizedState.theme;
+      selectedSource = normalizedState.source;
       compareThemes = normalizedState.compare;
       if (normalizedState.date && selectHasValue(runSelectEl, normalizedState.date)) {
         runSelectEl.value = normalizedState.date;
@@ -252,6 +258,7 @@ def render_console_html() -> str:
         sort: sortSelectEl.value,
         view: viewModeEl.value,
         theme: selectedTheme,
+        source: selectedSource,
         compare: compareThemes,
       });
     }
@@ -266,6 +273,7 @@ def render_console_html() -> str:
       if (state.sort !== "default") params.set("sort", state.sort);
       if (state.view !== "grouped") params.set("view", state.view);
       if (state.theme) params.set("theme", state.theme);
+      if (state.source) params.set("source", state.source);
       if (state.compare.length) params.set("compare", state.compare.join(","));
       const query = params.toString();
       const nextUrl = `${window.location.pathname}${query ? `?${query}` : ""}${window.location.hash || ""}`;
@@ -401,6 +409,18 @@ def render_console_html() -> str:
       return themeKey(left) === themeKey(right);
     }
 
+    function sourceName(value) {
+      return String(value || "Unknown Source").trim() || "Unknown Source";
+    }
+
+    function sourceKey(value) {
+      return sourceName(value).toLowerCase();
+    }
+
+    function sameSource(left, right) {
+      return sourceKey(left) === sourceKey(right);
+    }
+
     function themeHistoryItem(theme) {
       const themes = Array.isArray(themeHistoryData?.themes) ? themeHistoryData.themes : [];
       return themes.find((item) => sameTheme(item.theme, theme)) || null;
@@ -418,6 +438,23 @@ def render_console_html() -> str:
       if (signalIndex != null) selectedSignalIndex = signalIndex;
       updateQueryState({ theme: selectedTheme });
       renderSignalSections();
+    }
+
+    function selectSource(source) {
+      selectedSource = sourceName(source);
+      updateQueryState({ source: selectedSource });
+      renderSignalSections();
+    }
+
+    function createSourceButton(source, label = null) {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "theme-button source-button";
+      if (selectedSource && sameSource(selectedSource, source)) button.className += " active";
+      button.dataset.source = sourceName(source);
+      button.textContent = label || sourceName(source);
+      button.addEventListener("click", () => selectSource(source));
+      return button;
     }
 
     function createThemeButton(theme, label = null) {
@@ -622,7 +659,7 @@ def render_console_html() -> str:
         const sources = sourceValues(signal);
         const sourceList = sources.length ? sources : ["Unknown Source"];
         for (const source of sourceList) {
-          const item = rows.get(source) || { source, signal_count: 0, themes: [], data_status_counts: {}, latest_fetched_at: null, weak_count: 0, fallback_count: 0 };
+          const item = rows.get(source) || { source, signal_count: 0, themes: [], data_status_counts: {}, latest_fetched_at: null, weak_count: 0, fallback_count: 0, missing_fetched_at_count: 0 };
           item.signal_count += 1;
           const theme = themeName(signal);
           if (!item.themes.some((value) => sameTheme(value, theme))) item.themes.push(theme);
@@ -633,10 +670,22 @@ def render_console_html() -> str:
           });
           if (isWeakDataStatus(status)) item.weak_count += 1;
           if (hasFallback(signal)) item.fallback_count += 1;
+          if (!fetchedValues(signal).length) item.missing_fetched_at_count += 1;
           rows.set(source, item);
         }
       }
       return Array.from(rows.values()).sort((left, right) => right.signal_count - left.signal_count || left.source.localeCompare(right.source));
+    }
+
+    function sourceHistoryItem(source) {
+      const sources = Array.isArray(sourceHistoryData?.sources) ? sourceHistoryData.sources : [];
+      return sources.find((item) => sameSource(item.source, source)) || null;
+    }
+
+    function signalHasSource(signal, source) {
+      const sources = sourceValues(signal);
+      if (!sources.length) return sameSource("Unknown Source", source);
+      return sources.some((item) => sameSource(item, source));
     }
 
     async function fetchJson(url) {
@@ -677,15 +726,17 @@ def render_console_html() -> str:
 
     async function loadHistoryReview() {
       try {
-        [themeHistoryData, candidateHistoryData, dataQualityHistoryData] = await Promise.all([
+        [themeHistoryData, candidateHistoryData, dataQualityHistoryData, sourceHistoryData] = await Promise.all([
           fetchJson("/api/history/themes"),
           fetchJson("/api/history/candidates"),
           fetchJson("/api/history/data-quality"),
+          fetchJson("/api/history/sources"),
         ]);
       } catch (error) {
         themeHistoryData = { runs_count: "unknown", date_range: {}, themes: [] };
         candidateHistoryData = { etf_candidates: [], stock_candidates: [] };
         dataQualityHistoryData = { runs_count: "unknown", date_range: {}, data_status_counts: {}, source_counts: {}, themes_with_weak_data: [] };
+        sourceHistoryData = { runs_count: "unknown", date_range: {}, sources: [] };
       }
     }
 
@@ -1058,6 +1109,9 @@ def render_console_html() -> str:
       panel.appendChild(text("h3", themeName(signal)));
       [`strength: ${signal.strength || "unknown"}`, `score: ${signal.score ?? "unknown"}`, `intraday: ${signal.intraday_status || "not_checked"}`, `risk: ${signal.risk_level || "unknown"}`, `data: ${signal.data_status || "unknown"}`].forEach((value) => panel.appendChild(badge(value)));
       panel.appendChild(renderDataQualitySection(signal));
+      panel.appendChild(renderValueList("Sources", sourceValues(signal)));
+      sourceValues(signal).forEach((source) => panel.appendChild(createSourceButton(source, `Open source: ${source}`)));
+      if (!sourceValues(signal).length) panel.appendChild(createSourceButton("Unknown Source", "Open source: Unknown Source"));
       panel.appendChild(renderValueList("External Triggers", signal.external_triggers));
       panel.appendChild(renderValueList("A-share Mapping Reason", signal.a_share_mapping_reason));
       panel.appendChild(renderEvidenceChain(signal));
@@ -1404,20 +1458,23 @@ def render_console_html() -> str:
       table.className = "history-table";
       const thead = document.createElement("thead");
       const header = document.createElement("tr");
-      ["Source", "Signals", "Themes", "Data status counts", "Latest fetched_at", "Weak data count", "Fallback count"].forEach((label) => header.appendChild(text("th", label)));
+      ["Source", "Signals", "Themes count", "Latest fetched_at", "Data status counts", "Weak signals", "Fallback count", "Missing fetched_at"].forEach((label) => header.appendChild(text("th", label)));
       thead.appendChild(header);
       table.appendChild(thead);
       const tbody = document.createElement("tbody");
       rows.forEach((row) => {
         const tr = document.createElement("tr");
+        const sourceCell = document.createElement("td");
+        sourceCell.appendChild(createSourceButton(row.source));
+        tr.appendChild(sourceCell);
         [
-          row.source,
           row.signal_count,
-          row.themes.join(", "),
-          Object.entries(row.data_status_counts).map(([key, count]) => `${key}: ${count}`).join(", "),
+          row.themes.length,
           row.latest_fetched_at || "unknown",
+          Object.entries(row.data_status_counts).map(([key, count]) => `${key}: ${count}`).join(", "),
           row.weak_count,
           row.fallback_count,
+          row.missing_fetched_at_count,
         ].forEach((value) => tr.appendChild(text("td", value)));
         tbody.appendChild(tr);
       });
@@ -1447,17 +1504,19 @@ def render_console_html() -> str:
       const tbody = document.createElement("tbody");
       rows.forEach(({ signal, reasons }) => {
         const tr = document.createElement("tr");
-        [
-          themeName(signal),
-          signal.strength || "unknown",
-          signal.score ?? "unknown",
-          signal.risk_level || "unknown",
-          signal.intraday_status || signal.status || "not_checked",
-          signal.data_status || "unknown",
-          sourceValues(signal).join(", ") || "Unknown source",
-          fetchedValues(signal).join(", ") || "unknown",
-          reasons.join(", "),
-        ].forEach((value) => tr.appendChild(text("td", value)));
+        [themeName(signal), signal.strength || "unknown", signal.score ?? "unknown", signal.risk_level || "unknown", signal.intraday_status || signal.status || "not_checked", signal.data_status || "unknown"].forEach((value) => tr.appendChild(text("td", value)));
+        const sourceCell = document.createElement("td");
+        const sources = sourceValues(signal);
+        if (sources.length) {
+          sources.forEach((source, index) => {
+            if (index) sourceCell.appendChild(text("span", ", "));
+            sourceCell.appendChild(createSourceButton(source));
+          });
+        } else {
+          sourceCell.appendChild(createSourceButton("Unknown Source"));
+        }
+        tr.appendChild(sourceCell);
+        [fetchedValues(signal).join(", ") || "unknown", reasons.join(", ")].forEach((value) => tr.appendChild(text("td", value)));
         tbody.appendChild(tr);
       });
       table.appendChild(tbody);
@@ -1489,6 +1548,84 @@ def render_console_html() -> str:
       return section;
     }
 
+    function sourceReliabilityNotes(source, item, currentSignalsForSource) {
+      const notes = [];
+      if (!item && currentSignalsForSource.length === 0) notes.push("Source not found in the selected run or available history.");
+      if ((item?.missing_fetched_at_count || 0) > 0 || currentSignalsForSource.some((signal) => !fetchedValues(signal).length)) notes.push("Some signals are missing fetched_at.");
+      const weakCount = item?.weak_signal_count || currentSignalsForSource.filter((signal) => weakEvidenceReasons(signal).length).length;
+      if (weakCount > 0) notes.push("Some signals have partial, stale, missing, failed, or unknown data status.");
+      if ((item?.fallback_count || 0) > 0 || currentSignalsForSource.some(hasFallback)) notes.push("Fallback source was used in some signals.");
+      if ((item?.themes || []).length > 1) notes.push("This source appears in multiple themes.");
+      if ((item?.signal_count || currentSignalsForSource.length) <= 1) notes.push("Source coverage is limited in the available history.");
+      return notes;
+    }
+
+    function renderSourceExampleSignals(item) {
+      const section = document.createElement("div");
+      section.className = "detail-section";
+      section.appendChild(text("h3", "Example Signals"));
+      const examples = Array.isArray(item?.example_signals) ? item.example_signals : [];
+      if (!examples.length) {
+        section.appendChild(text("p", "No historical signal examples available for this source.", "muted"));
+        return section;
+      }
+      const table = document.createElement("table");
+      table.className = "history-table";
+      const thead = document.createElement("thead");
+      const header = document.createElement("tr");
+      ["Date", "Theme", "Strength", "Score", "Risk", "Intraday", "Data status", "Fetched at", "Fallback"].forEach((label) => header.appendChild(text("th", label)));
+      thead.appendChild(header);
+      table.appendChild(thead);
+      const tbody = document.createElement("tbody");
+      examples.forEach((signal) => {
+        const tr = document.createElement("tr");
+        [signal.date, signal.theme, signal.strength, signal.score ?? "unknown", signal.risk_level, signal.intraday_status, signal.data_status, signal.fetched_at || "unknown", signal.fallback_used ?? "unknown"].forEach((value) => tr.appendChild(text("td", value)));
+        tbody.appendChild(tr);
+      });
+      table.appendChild(tbody);
+      section.appendChild(table);
+      return section;
+    }
+
+    function renderSourceDetail(currentSignalsInput, visibleSignals) {
+      const panel = document.createElement("article");
+      panel.className = "source-detail";
+      panel.appendChild(text("h2", "Source Detail Panel"));
+      const source = selectedSource || (sourceBreakdown(currentSignalsInput)[0]?.source || "");
+      if (!source) {
+        panel.appendChild(text("p", "Select a source from Source Breakdown, Weak Evidence Signals, or Signal Detail Panel.", "muted"));
+        return panel;
+      }
+      const history = sourceHistoryItem(source);
+      const currentSignalsForSource = currentSignalsInput.filter((signal) => signalHasSource(signal, source));
+      const visibleSignalsForSource = visibleSignals.filter((signal) => signalHasSource(signal, source));
+      panel.appendChild(text("h3", sourceName(source)));
+      [
+        `current signals: ${currentSignalsForSource.length}`,
+        `visible signals: ${visibleSignalsForSource.length}`,
+        `historical signals: ${history?.signal_count ?? "unknown"}`,
+        `themes: ${(history?.themes || uniqueValues(currentSignalsForSource.map(themeName), 20)).length}`,
+        `last seen: ${history?.last_seen || "unknown"}`,
+        `latest fetched_at: ${history?.latest_fetched_at || "unknown"}`,
+        `fallback count: ${history?.fallback_count ?? currentSignalsForSource.filter(hasFallback).length}`,
+        `missing fetched_at: ${history?.missing_fetched_at_count ?? currentSignalsForSource.filter((signal) => !fetchedValues(signal).length).length}`,
+        `weak signals: ${history?.weak_signal_count ?? currentSignalsForSource.filter((signal) => weakEvidenceReasons(signal).length).length}`,
+      ].forEach((value) => panel.appendChild(badge(value)));
+      panel.appendChild(text("p", "Source detail is an evidence quality view. It does not rank sources as absolute truth or produce trading instructions.", "muted"));
+      if (!history && currentSignalsForSource.length === 0) {
+        panel.appendChild(text("p", "No current or historical observations found for this source.", "muted"));
+      }
+      panel.appendChild(renderValueList("Source reliability notes", sourceReliabilityNotes(source, history, currentSignalsForSource)));
+      panel.appendChild(renderValueList("Covered themes", history?.themes || uniqueValues(currentSignalsForSource.map(themeName), 20)));
+      panel.appendChild(renderValueList("Recent dates", history?.recent_dates || []));
+      panel.appendChild(renderCountBadges("Historical data_status distribution", history?.data_status_counts));
+      panel.appendChild(renderCountBadges("Historical risk distribution", history?.risk_counts));
+      panel.appendChild(renderCountBadges("Historical intraday status distribution", history?.intraday_status_counts));
+      panel.appendChild(renderWeakEvidenceSignals(currentSignalsForSource));
+      panel.appendChild(renderSourceExampleSignals(history));
+      return panel;
+    }
+
     function renderSourceReliability() {
       const section = document.createElement("article");
       section.className = "source-reliability";
@@ -1500,6 +1637,7 @@ def render_console_html() -> str:
       const fallbackCount = currentSignals.filter(hasFallback).length;
       const weakSignals = currentSignals.filter((signal) => weakEvidenceReasons(signal).length > 0);
       const highRiskWeakThemes = uniqueValues(weakSignals.filter((signal) => normalized(signal.risk_level) === "high").map(themeName), 20);
+      const weakSourceCount = sourceBreakdown(currentSignals).filter((row) => row.weak_count > 0).length;
       const metrics = document.createElement("div");
       metrics.className = "metrics";
       [
@@ -1510,12 +1648,14 @@ def render_console_html() -> str:
         ["Signals without fetched_at", currentSignals.length - withFetched],
         ["Fallback used", fallbackCount],
         ["Needs verification", weakSignals.length],
+        ["Sources with weak evidence", weakSourceCount],
         ["High risk + weak data themes", highRiskWeakThemes.length],
       ].forEach(([label, value]) => metrics.appendChild(metric(label, value)));
       section.appendChild(metrics);
       section.appendChild(renderHistoryTable("Current data_status distribution", ["Data status", "Signals"], Object.entries(dataCounts).map(([key, count]) => [key, count])));
       section.appendChild(renderSourceBreakdown(currentSignals));
       section.appendChild(renderWeakEvidenceSignals(currentSignals));
+      section.appendChild(renderSourceDetail(currentSignals, filteredSignals()));
       section.appendChild(renderHistoricalDataQualityTrend());
       return section;
     }

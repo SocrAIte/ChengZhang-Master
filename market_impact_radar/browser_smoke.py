@@ -185,6 +185,8 @@ def run_console_browser_smoke(
         ("theme", "?theme=Unknown%20Theme", {}),
         ("compare", "?compare=Unknown%20Theme", {}),
         ("theme_compare", "?theme=Unknown%20Theme&compare=Unknown%20Theme&view=grouped", {"#view-mode": "grouped"}),
+        ("source", "?source=Unknown%20Source", {}),
+        ("source_theme_compare", "?source=Unknown%20Source&theme=Unknown%20Theme&compare=Unknown%20Theme", {}),
     )
     checked_pages = 0
     try:
@@ -314,6 +316,7 @@ def _assert_console_text(body_text: str, title: str, date: str) -> None:
         "Theme Hotlist",
         "Morning Brief",
         "Source Reliability",
+        "Source Detail Panel",
         "Source Breakdown",
         "Weak Evidence Signals",
         "Historical Data Quality Trend",

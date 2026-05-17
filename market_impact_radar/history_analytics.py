@@ -116,6 +116,43 @@ def build_data_quality_history(reports_dir: str | Path) -> dict[str, Any]:
     }
 
 
+def build_source_history(reports_dir: str | Path) -> dict[str, Any]:
+    runs = _load_dashboard_runs(Path(reports_dir))
+    sources: dict[str, dict[str, Any]] = {}
+    for run_date, dashboard_data in runs:
+        for signal in _signals(dashboard_data):
+            source_values = _source_values(signal) or ["Unknown Source"]
+            for source in source_values:
+                bucket = sources.setdefault(source, _source_bucket(source))
+                bucket["signal_count"] += 1
+                _extend_unique(bucket["themes"], [_theme_name(signal)])
+                _extend_unique(bucket["dates"], [run_date])
+                _count(bucket["data_status_counts"], _data_status(signal))
+                _count(bucket["risk_counts"], signal.get("risk_level"))
+                _count(bucket["intraday_status_counts"], signal.get("intraday_status") or signal.get("status") or "not_checked")
+                fetched_values = _fetched_values(signal)
+                for fetched_at in fetched_values:
+                    if not bucket["latest_fetched_at"] or fetched_at > bucket["latest_fetched_at"]:
+                        bucket["latest_fetched_at"] = fetched_at
+                if not _source_values(signal):
+                    bucket["missing_source_count"] += 1
+                if not fetched_values:
+                    bucket["missing_fetched_at_count"] += 1
+                if _fallback_used(signal):
+                    bucket["fallback_count"] += 1
+                if _is_weak_data_status(_data_status(signal)) or not _source_values(signal) or not fetched_values or _fallback_used(signal):
+                    bucket["weak_signal_count"] += 1
+                bucket["example_signals"].append(_source_example_signal(run_date, signal))
+
+    return {
+        "schema_version": HISTORY_SCHEMA_VERSION,
+        "generated_at": _now_iso(),
+        "runs_count": len(runs),
+        "date_range": _date_range([date for date, _ in runs]),
+        "sources": _finalize_sources(sources),
+    }
+
+
 def normalize_candidate(candidate: Any) -> dict[str, Any]:
     if isinstance(candidate, dict):
         name = _first_existing(candidate, ("name", "label", "title", "symbol", "ticker", "code")) or "unknown"
@@ -180,6 +217,24 @@ def _weak_theme_bucket(theme: str) -> dict[str, Any]:
     }
 
 
+def _source_bucket(source: str) -> dict[str, Any]:
+    return {
+        "source": source,
+        "signal_count": 0,
+        "themes": [],
+        "dates": [],
+        "latest_fetched_at": None,
+        "data_status_counts": Counter(),
+        "risk_counts": Counter(),
+        "intraday_status_counts": Counter(),
+        "fallback_count": 0,
+        "missing_source_count": 0,
+        "missing_fetched_at_count": 0,
+        "weak_signal_count": 0,
+        "example_signals": [],
+    }
+
+
 def _finalize_theme_bucket(bucket: dict[str, Any]) -> dict[str, Any]:
     scores = bucket.pop("scores")
     recent_dates = sorted(bucket["recent_dates"], reverse=True)
@@ -216,6 +271,50 @@ def _finalize_weak_themes(themes: dict[str, dict[str, Any]]) -> list[dict[str, A
         )
     rows.sort(key=lambda row: (-row["weak_signal_count"], row["theme"]))
     return rows
+
+
+def _finalize_sources(sources: dict[str, dict[str, Any]]) -> list[dict[str, Any]]:
+    rows = []
+    for bucket in sources.values():
+        dates = sorted(bucket["dates"])
+        recent_dates = sorted(bucket["dates"], reverse=True)
+        examples = sorted(bucket["example_signals"], key=lambda item: item["date"], reverse=True)[:5]
+        rows.append(
+            {
+                "source": bucket["source"],
+                "signal_count": bucket["signal_count"],
+                "themes": sorted(bucket["themes"]),
+                "dates": dates,
+                "recent_dates": recent_dates[:5],
+                "last_seen": recent_dates[0] if recent_dates else None,
+                "latest_fetched_at": bucket["latest_fetched_at"],
+                "data_status_counts": dict(bucket["data_status_counts"]),
+                "risk_counts": dict(bucket["risk_counts"]),
+                "intraday_status_counts": dict(bucket["intraday_status_counts"]),
+                "fallback_count": bucket["fallback_count"],
+                "missing_source_count": bucket["missing_source_count"],
+                "missing_fetched_at_count": bucket["missing_fetched_at_count"],
+                "weak_signal_count": bucket["weak_signal_count"],
+                "example_signals": examples,
+            }
+        )
+    rows.sort(key=lambda row: (-row["signal_count"], row["source"]))
+    return rows
+
+
+def _source_example_signal(run_date: str, signal: dict[str, Any]) -> dict[str, Any]:
+    fetched_values = _fetched_values(signal)
+    return {
+        "date": run_date,
+        "theme": _theme_name(signal),
+        "strength": signal.get("strength") or "unknown",
+        "score": signal.get("score"),
+        "risk_level": signal.get("risk_level") or "unknown",
+        "intraday_status": signal.get("intraday_status") or signal.get("status") or "not_checked",
+        "data_status": _data_status(signal),
+        "fetched_at": fetched_values[0] if fetched_values else None,
+        "fallback_used": signal.get("fallback_used"),
+    }
 
 
 def _add_candidate(store: dict[tuple[str, str | None], dict[str, Any]], candidate: Any, theme: str, run_date: str) -> None:

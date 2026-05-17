@@ -68,6 +68,7 @@ class WebApiTest(unittest.TestCase):
         self.assertIn("/api/history/themes", paths)
         self.assertIn("/api/history/candidates", paths)
         self.assertIn("/api/history/data-quality", paths)
+        self.assertIn("/api/history/sources", paths)
         self.assertIn("/api/runs/{date}/artifacts", paths)
         self.assertIn("/api/runs/{date}/dashboard-data", paths)
 
@@ -98,6 +99,7 @@ class WebApiTest(unittest.TestCase):
         self.assertIn("Theme Hotlist", response.payload)
         self.assertIn("Morning Brief", response.payload)
         self.assertIn("Source Reliability", response.payload)
+        self.assertIn("Source Detail Panel", response.payload)
         self.assertIn("Source Breakdown", response.payload)
         self.assertIn("Weak Evidence Signals", response.payload)
         self.assertIn("Historical Data Quality Trend", response.payload)
@@ -130,8 +132,11 @@ class WebApiTest(unittest.TestCase):
         self.assertIn('params.get("sort")', response.payload)
         self.assertIn('params.get("view")', response.payload)
         self.assertIn('params.get("theme")', response.payload)
+        self.assertIn('params.get("source")', response.payload)
         self.assertIn('params.get("compare")', response.payload)
         self.assertIn("selectedTheme", response.payload)
+        self.assertIn("selectedSource", response.payload)
+        self.assertIn("source-button", response.payload)
         self.assertIn("compareThemes", response.payload)
         self.assertNotIn("POST /api/run-daily", response.payload)
         self.assertNotIn("buy list", response.payload.lower())
@@ -165,6 +170,7 @@ class WebApiTest(unittest.TestCase):
         self.assertIn("/api/history/themes", paths)
         self.assertIn("/api/history/candidates", paths)
         self.assertIn("/api/history/data-quality", paths)
+        self.assertIn("/api/history/sources", paths)
         self.assertIn("/api/runs/{date}/artifacts", paths)
         self.assertIn("/api/runs/{date}/diagnostics", paths)
 
@@ -330,6 +336,59 @@ class WebApiTest(unittest.TestCase):
         self.assertEqual(response.payload["fallback_count"], 1)
         weak = {item["theme"]: item for item in response.payload["themes_with_weak_data"]}
         self.assertEqual(weak["storage chips"]["weak_signal_count"], 2)
+
+    def test_history_sources_summarizes_source_detail(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            _write_run(
+                Path(tmpdir),
+                "2026-05-14",
+                [
+                    {
+                        "theme": "AI hardware",
+                        "strength": "strong",
+                        "score": 88,
+                        "risk_level": "medium",
+                        "intraday_status": "confirmed",
+                        "data_status": "ok",
+                        "sources": ["yahoo"],
+                        "fetched_at": "2026-05-14T01:00:00+00:00",
+                    },
+                    {
+                        "theme": "storage chips",
+                        "risk_level": "high",
+                        "data_status": "partial",
+                        "fallback_used": True,
+                    },
+                ],
+            )
+            _write_run(
+                Path(tmpdir),
+                "2026-05-15",
+                [
+                    {
+                        "theme": "AI hardware",
+                        "data_status": "stale",
+                        "source": "yahoo",
+                    }
+                ],
+            )
+            (Path(tmpdir) / "2026-05-16").mkdir()
+            (Path(tmpdir) / "2026-05-17").mkdir()
+            (Path(tmpdir) / "2026-05-17" / "dashboard_data.json").write_text("{bad json", encoding="utf-8")
+
+            response = DailyReportApi(tmpdir).handle_get("/api/history/sources")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.payload["schema_version"], "1.0")
+        self.assertEqual(response.payload["runs_count"], 2)
+        sources = {item["source"]: item for item in response.payload["sources"]}
+        self.assertEqual(sources["yahoo"]["signal_count"], 2)
+        self.assertEqual(sources["yahoo"]["themes"], ["AI hardware"])
+        self.assertEqual(sources["yahoo"]["missing_fetched_at_count"], 1)
+        self.assertEqual(sources["yahoo"]["data_status_counts"]["stale"], 1)
+        self.assertEqual(sources["Unknown Source"]["missing_source_count"], 1)
+        self.assertEqual(sources["Unknown Source"]["fallback_count"], 1)
+        self.assertLessEqual(len(sources["yahoo"]["example_signals"]), 5)
 
     def test_artifacts_endpoint_returns_output_file_index(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
