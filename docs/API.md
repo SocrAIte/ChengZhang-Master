@@ -14,6 +14,30 @@ The API reads from `reports/daily/` by default.
 
 ## Endpoints
 
+### GET /api
+
+Returns a lightweight endpoint index for the read-only API:
+
+```json
+{
+  "service": "market_impact_radar",
+  "api": "readonly",
+  "api_version": "v1",
+  "dashboard_schema_version": "1.0",
+  "readonly_api": true,
+  "endpoints": [
+    {
+      "method": "GET",
+      "path": "/api/runs",
+      "description": "Available daily report runs."
+    }
+  ],
+  "openapi": "/api/openapi.json"
+}
+```
+
+This endpoint is for service discovery. It does not inspect market data, run the daily pipeline, or mutate files.
+
 ### GET /api/health
 
 Returns a lightweight service health response:
@@ -44,6 +68,12 @@ Returns API and dashboard contract metadata:
 ```
 
 If the installed package version is unavailable, `package_version` is returned as `"unknown"` instead of failing the request.
+
+### GET /api/openapi.json
+
+Returns a minimal OpenAPI 3.1 document for the read-only endpoints.
+
+This is intended as a lightweight contract for a future frontend console. It is not a generated client SDK and does not add any write capability.
 
 ### GET /api/runs
 

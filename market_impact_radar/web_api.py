@@ -40,8 +40,12 @@ class DailyReportApi:
         path = urlparse(raw_path).path
         parts = [unquote(part) for part in path.strip("/").split("/") if part]
         try:
+            if parts == ["api"]:
+                return ApiResponse(200, self.index())
             if parts == ["api", "health"]:
                 return ApiResponse(200, self.health())
+            if parts == ["api", "openapi.json"]:
+                return ApiResponse(200, self.openapi_spec())
             if parts == ["api", "version"]:
                 return ApiResponse(200, self.version())
             if parts == ["api", "runs"]:
@@ -67,6 +71,65 @@ class DailyReportApi:
             "service": SERVICE_NAME,
             "api": "readonly",
             "version": READONLY_API_VERSION,
+        }
+
+    def index(self) -> dict[str, Any]:
+        return {
+            "service": SERVICE_NAME,
+            "api": "readonly",
+            "api_version": READONLY_API_VERSION,
+            "dashboard_schema_version": DASHBOARD_SCHEMA_VERSION,
+            "readonly_api": True,
+            "endpoints": _endpoint_catalog(),
+            "openapi": "/api/openapi.json",
+        }
+
+    def openapi_spec(self) -> dict[str, Any]:
+        date_parameter = {
+            "name": "date",
+            "in": "path",
+            "required": True,
+            "schema": {"type": "string", "pattern": r"^\d{4}-\d{2}-\d{2}$"},
+            "description": "Daily run date in YYYY-MM-DD format.",
+        }
+        return {
+            "openapi": "3.1.0",
+            "info": {
+                "title": "Market Impact Radar Read-only API",
+                "version": READONLY_API_VERSION,
+            },
+            "x-readonly": True,
+            "paths": {
+                "/api": {"get": {"summary": "List read-only API endpoints."}},
+                "/api/health": {"get": {"summary": "Check API process health."}},
+                "/api/version": {"get": {"summary": "Return API and dashboard contract versions."}},
+                "/api/openapi.json": {"get": {"summary": "Return this lightweight OpenAPI document."}},
+                "/api/runs": {"get": {"summary": "List available daily report runs."}},
+                "/api/runs/{date}/dashboard-data": {
+                    "get": {
+                        "summary": "Return normalized dashboard_data.json for a run.",
+                        "parameters": [date_parameter],
+                    }
+                },
+                "/api/runs/{date}/run-summary": {
+                    "get": {
+                        "summary": "Return run_summary.json for a run.",
+                        "parameters": [date_parameter],
+                    }
+                },
+                "/api/runs/{date}/knowledge-review": {
+                    "get": {
+                        "summary": "Return knowledge_review.html metadata and HTML content.",
+                        "parameters": [date_parameter],
+                    }
+                },
+                "/api/runs/{date}/diagnostics": {
+                    "get": {
+                        "summary": "Return run_diagnostics.html metadata and HTML content.",
+                        "parameters": [date_parameter],
+                    }
+                },
+            },
         }
 
     def version(self) -> dict[str, Any]:
@@ -192,3 +255,17 @@ def _package_version() -> str:
         return metadata.version(PACKAGE_NAME)
     except metadata.PackageNotFoundError:
         return "unknown"
+
+
+def _endpoint_catalog() -> list[dict[str, str]]:
+    return [
+        {"method": "GET", "path": "/api", "description": "Read-only API endpoint index."},
+        {"method": "GET", "path": "/api/health", "description": "Lightweight API health check."},
+        {"method": "GET", "path": "/api/version", "description": "API and dashboard contract versions."},
+        {"method": "GET", "path": "/api/openapi.json", "description": "Lightweight OpenAPI description."},
+        {"method": "GET", "path": "/api/runs", "description": "Available daily report runs."},
+        {"method": "GET", "path": "/api/runs/{date}/dashboard-data", "description": "Dashboard data JSON."},
+        {"method": "GET", "path": "/api/runs/{date}/run-summary", "description": "Run summary JSON."},
+        {"method": "GET", "path": "/api/runs/{date}/knowledge-review", "description": "Knowledge review HTML payload."},
+        {"method": "GET", "path": "/api/runs/{date}/diagnostics", "description": "Run diagnostics HTML payload."},
+    ]

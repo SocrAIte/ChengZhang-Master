@@ -52,6 +52,32 @@ def _write_run(root: Path, run_date: str = "2026-05-15") -> Path:
 
 
 class WebApiTest(unittest.TestCase):
+    def test_api_index_lists_readonly_endpoints_without_file_access(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            api = DailyReportApi(Path(tmpdir) / "missing-reports")
+            response = api.handle_get("/api")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.payload["service"], "market_impact_radar")
+        self.assertTrue(response.payload["readonly_api"])
+        self.assertEqual(response.payload["openapi"], "/api/openapi.json")
+        paths = {endpoint["path"] for endpoint in response.payload["endpoints"]}
+        self.assertIn("/api/runs", paths)
+        self.assertIn("/api/runs/{date}/dashboard-data", paths)
+
+    def test_openapi_json_describes_public_readonly_paths_without_file_access(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            api = DailyReportApi(Path(tmpdir) / "missing-reports")
+            response = api.handle_get("/api/openapi.json")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.payload["openapi"], "3.1.0")
+        self.assertTrue(response.payload["x-readonly"])
+        self.assertEqual(response.payload["info"]["version"], "v1")
+        paths = response.payload["paths"]
+        self.assertIn("/api/health", paths)
+        self.assertIn("/api/runs/{date}/diagnostics", paths)
+
     def test_health_endpoint_returns_ok_without_file_access(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             api = DailyReportApi(Path(tmpdir) / "missing-reports")
