@@ -90,9 +90,9 @@ def render_console_html() -> str:
           <label for="sort-select">Sort Signals</label>
           <select id="sort-select">
             <option value="default">Default order</option>
-            <option value="score-desc">Score descending</option>
-            <option value="risk">Risk level</option>
-            <option value="status">Intraday status</option>
+            <option value="score_desc">Score descending</option>
+            <option value="risk_level">Risk level</option>
+            <option value="intraday_status">Intraday status</option>
             <option value="theme">Theme name</option>
           </select>
         </div>
@@ -123,6 +123,91 @@ def render_console_html() -> str:
     const signalCountEl = document.querySelector("#signal-count");
     let currentSignals = [];
     let signalsAreaEl = null;
+    const VALID_RISKS = new Set(["", "low", "medium", "high", "unknown"]);
+    const VALID_STATUSES = new Set(["", "confirmed", "downgraded", "missing_data", "failed", "not_checked", "unknown"]);
+    const VALID_SORTS = new Set(["default", "score_desc", "risk_level", "intraday_status", "theme"]);
+    const VALID_VIEWS = new Set(["grouped", "flat"]);
+
+    function normalizeChoice(value, allowed, fallback) {
+      const textValue = String(value == null ? "" : value).trim().toLowerCase();
+      const normalizedValue = textValue === "all" ? "" : textValue;
+      return allowed.has(normalizedValue) ? normalizedValue : fallback;
+    }
+
+    function normalizeSort(value) {
+      const textValue = String(value == null ? "" : value).trim().toLowerCase();
+      const aliases = { "score-desc": "score_desc", risk: "risk_level", status: "intraday_status" };
+      const normalizedValue = aliases[textValue] || textValue || "default";
+      return VALID_SORTS.has(normalizedValue) ? normalizedValue : "default";
+    }
+
+    function normalizeConsoleState(state) {
+      return {
+        date: String(state.date || "").trim(),
+        search: String(state.search || "").trim(),
+        risk: normalizeChoice(state.risk, VALID_RISKS, ""),
+        status: normalizeChoice(state.status, VALID_STATUSES, ""),
+        sort: normalizeSort(state.sort),
+        view: normalizeChoice(state.view || "grouped", VALID_VIEWS, "grouped"),
+      };
+    }
+
+    function readConsoleStateFromUrl() {
+      const params = new URLSearchParams(window.location.search);
+      return normalizeConsoleState({
+        date: params.get("date"),
+        search: params.get("search"),
+        risk: params.get("risk"),
+        status: params.get("status"),
+        sort: params.get("sort"),
+        view: params.get("view"),
+      });
+    }
+
+    function selectHasValue(select, value) {
+      return Array.from(select.options).some((option) => option.value === value);
+    }
+
+    function setSelectValue(select, value, fallback) {
+      select.value = selectHasValue(select, value) ? value : fallback;
+    }
+
+    function syncControlsFromState(state) {
+      const normalizedState = normalizeConsoleState(state);
+      signalSearchEl.value = normalizedState.search;
+      setSelectValue(riskFilterEl, normalizedState.risk, "");
+      setSelectValue(statusFilterEl, normalizedState.status, "");
+      setSelectValue(sortSelectEl, normalizedState.sort, "default");
+      setSelectValue(viewModeEl, normalizedState.view, "grouped");
+      if (normalizedState.date && selectHasValue(runSelectEl, normalizedState.date)) {
+        runSelectEl.value = normalizedState.date;
+      }
+    }
+
+    function currentConsoleState() {
+      return normalizeConsoleState({
+        date: runSelectEl.value,
+        search: signalSearchEl.value,
+        risk: riskFilterEl.value,
+        status: statusFilterEl.value,
+        sort: sortSelectEl.value,
+        view: viewModeEl.value,
+      });
+    }
+
+    function updateQueryState(patch = {}) {
+      const state = normalizeConsoleState({ ...currentConsoleState(), ...patch });
+      const params = new URLSearchParams();
+      if (state.date) params.set("date", state.date);
+      if (state.search) params.set("search", state.search);
+      if (state.risk) params.set("risk", state.risk);
+      if (state.status) params.set("status", state.status);
+      if (state.sort !== "default") params.set("sort", state.sort);
+      if (state.view !== "grouped") params.set("view", state.view);
+      const query = params.toString();
+      const nextUrl = `${window.location.pathname}${query ? `?${query}` : ""}${window.location.hash || ""}`;
+      window.history.replaceState(null, "", nextUrl);
+    }
 
     function clear(node) {
       while (node.firstChild) node.removeChild(node.firstChild);
@@ -292,14 +377,20 @@ def render_console_html() -> str:
       clear(runsEl);
       clear(runSelectEl);
       const runs = Array.isArray(payload.runs) ? payload.runs : [];
+      const state = readConsoleStateFromUrl();
+      syncControlsFromState(state);
       setStatus(runsStatusEl, `${runs.length} runs found`);
       if (runs.length === 0) {
         runSelectEl.disabled = true;
         runsEl.appendChild(text("p", "No daily runs found.", "muted"));
+        updateQueryState({ date: "" });
         return;
       }
       runSelectEl.disabled = false;
-      runs.forEach((run, index) => {
+      const availableDates = runs.map((run) => run.date).filter(Boolean);
+      const targetDate = availableDates.includes(state.date) ? state.date : availableDates[0];
+      let targetButton = null;
+      runs.forEach((run) => {
         const option = document.createElement("option");
         option.value = run.date || "";
         option.textContent = `${run.date || "unknown"} (${run.status || "unknown"})`;
@@ -312,8 +403,9 @@ def render_console_html() -> str:
         button.appendChild(text("span", `status: ${run.status || "unknown"}`, "muted"));
         button.addEventListener("click", () => loadDashboard(run.date, button));
         runsEl.appendChild(button);
-        if (index === 0 && run.date) loadDashboard(run.date, button);
+        if (run.date === targetDate) targetButton = button;
       });
+      if (targetDate) loadDashboard(targetDate, targetButton);
     }
 
     function metric(label, value) {
@@ -355,9 +447,9 @@ def render_console_html() -> str:
       const mode = sortSelectEl.value || "default";
       const sorted = [...signals];
       sorted.sort((left, right) => {
-        if (mode === "score-desc") return (numberScore(right) ?? -Infinity) - (numberScore(left) ?? -Infinity);
-        if (mode === "risk") return riskRank(right.risk_level) - riskRank(left.risk_level) || left.__index - right.__index;
-        if (mode === "status") return statusRank(right.intraday_status || right.status) - statusRank(left.intraday_status || left.status) || left.__index - right.__index;
+        if (mode === "score_desc" || mode === "score-desc") return (numberScore(right) ?? -Infinity) - (numberScore(left) ?? -Infinity);
+        if (mode === "risk_level" || mode === "risk") return riskRank(right.risk_level) - riskRank(left.risk_level) || left.__index - right.__index;
+        if (mode === "intraday_status" || mode === "status") return statusRank(right.intraday_status || right.status) - statusRank(left.intraday_status || left.status) || left.__index - right.__index;
         if (mode === "theme") return themeName(left).localeCompare(themeName(right)) || left.__index - right.__index;
         return left.__index - right.__index;
       });
@@ -377,6 +469,7 @@ def render_console_html() -> str:
     }
 
     function applySignalFilters() {
+      updateQueryState();
       renderSignalSections();
     }
 
@@ -530,6 +623,7 @@ def render_console_html() -> str:
       for (const item of document.querySelectorAll("#runs button")) item.classList.remove("active");
       if (button) button.classList.add("active");
       runSelectEl.value = date;
+      updateQueryState({ date });
       setStatus(dashboardStatusEl, `Loading ${date}...`);
       try {
         const [data, artifacts] = await Promise.all([
@@ -570,6 +664,7 @@ def render_console_html() -> str:
     statusFilterEl.addEventListener("change", applySignalFilters);
     sortSelectEl.addEventListener("change", applySignalFilters);
     viewModeEl.addEventListener("change", applySignalFilters);
+    syncControlsFromState(readConsoleStateFromUrl());
     loadRuns();
   </script>
 </body>

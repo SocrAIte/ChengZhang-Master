@@ -20,6 +20,12 @@ http://127.0.0.1:8000/console
 
 The root path `/` serves the same console shell.
 
+The console also supports shareable query state, for example:
+
+```text
+http://127.0.0.1:8000/console?date=2026-05-15&search=nvidia&risk=high&status=confirmed&sort=score_desc&view=grouped
+```
+
 Run a real browser smoke check for the console with:
 
 ```powershell
@@ -41,11 +47,23 @@ It uses the existing API endpoints to:
 - search signals and filter them by risk or intraday status
 - group signals by theme and switch back to a flat signal list
 - sort signals by default order, score, risk, intraday status, or theme name
+- preserve console state in the URL for `date`, `search`, `risk`, `status`, `sort`, and `view`
 - show a Theme Hotlist based on the currently visible signals
 - show run status, summary fields, signals, candidates, risks, and raw `dashboard_data.json`
 - show Dashboard, Knowledge Review, Run Diagnostics, and raw JSON artifact availability
 
-The console does not call `run-daily`, write files, fetch live market data, edit the knowledge graph, compute new financial signals, or provide trading instructions.
+The URL state is only a browser-side view preference. It makes a filtered observation view easier to share, but it does not call `run-daily`, write files, fetch live market data, edit the knowledge graph, compute new financial signals, or provide trading instructions.
+
+Supported query parameters:
+
+- `date`: selected daily run date.
+- `search`: signal search text.
+- `risk`: `low`, `medium`, `high`, or `unknown`; `all` is treated as the default empty filter.
+- `status`: `confirmed`, `downgraded`, `missing_data`, `failed`, `not_checked`, or `unknown`; `all` is treated as the default empty filter.
+- `sort`: `default`, `score_desc`, `risk_level`, `intraday_status`, or `theme`.
+- `view`: `grouped` or `flat`.
+
+Unknown query values fall back to safe defaults. Empty/default values are omitted from the URL when controls change.
 
 ## Endpoints
 

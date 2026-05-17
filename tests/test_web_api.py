@@ -94,6 +94,16 @@ class WebApiTest(unittest.TestCase):
         self.assertIn("Theme Hotlist", response.payload)
         self.assertIn("No signals match the current filters.", response.payload)
         self.assertIn("signal-count", response.payload)
+        self.assertIn("readConsoleStateFromUrl", response.payload)
+        self.assertIn("normalizeConsoleState", response.payload)
+        self.assertIn("updateQueryState", response.payload)
+        self.assertIn('params.get("date")', response.payload)
+        self.assertIn('params.get("search")', response.payload)
+        self.assertIn('params.get("risk")', response.payload)
+        self.assertIn('params.get("status")', response.payload)
+        self.assertIn('params.get("sort")', response.payload)
+        self.assertIn('params.get("view")', response.payload)
+        self.assertNotIn("POST /api/run-daily", response.payload)
 
     def test_root_endpoint_returns_console_shell(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
