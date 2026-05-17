@@ -37,6 +37,10 @@ def render_console_html() -> str:
     .candidate-table { border-collapse: collapse; font-size: 13px; width: 100%; }
     .candidate-table th, .candidate-table td { border-bottom: 1px solid #eef1f6; padding: 7px; text-align: left; vertical-align: top; }
     .candidate-table th { color: #667085; font-weight: 600; }
+    .history-grid { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); margin-bottom: 14px; }
+    .history-table { border-collapse: collapse; font-size: 13px; width: 100%; }
+    .history-table th, .history-table td { border-bottom: 1px solid #eef1f6; padding: 7px; text-align: left; vertical-align: top; }
+    .history-table th { color: #667085; font-weight: 600; }
     .theme-hotlist, .theme-group { margin-bottom: 14px; }
     .theme-summary { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); }
     .theme-card { background: #fff; border: 1px solid #d9dee7; border-radius: 8px; padding: 12px; }
@@ -142,6 +146,8 @@ def render_console_html() -> str:
     let visibleSignalCount = 0;
     let apiHealthData = null;
     let apiVersionData = null;
+    let themeHistoryData = null;
+    let candidateHistoryData = null;
     const VALID_RISKS = new Set(["", "low", "medium", "high", "unknown"]);
     const VALID_STATUSES = new Set(["", "confirmed", "downgraded", "missing_data", "failed", "not_checked", "unknown"]);
     const VALID_SORTS = new Set(["default", "score_desc", "risk_level", "intraday_status", "theme"]);
@@ -481,6 +487,18 @@ def render_console_html() -> str:
       renderStatusStrip();
     }
 
+    async function loadHistoryReview() {
+      try {
+        [themeHistoryData, candidateHistoryData] = await Promise.all([
+          fetchJson("/api/history/themes"),
+          fetchJson("/api/history/candidates"),
+        ]);
+      } catch (error) {
+        themeHistoryData = { runs_count: "unknown", date_range: {}, themes: [] };
+        candidateHistoryData = { etf_candidates: [], stock_candidates: [] };
+      }
+    }
+
     function renderRuns(payload) {
       clear(runsEl);
       clear(runSelectEl);
@@ -608,6 +626,81 @@ def render_console_html() -> str:
       indexItem.appendChild(text("span", "Daily Runs Index: unavailable", "error"));
       ul.appendChild(indexItem);
       section.appendChild(ul);
+      return section;
+    }
+
+    function topCounterValue(counts) {
+      const entries = counts && typeof counts === "object" ? Object.entries(counts) : [];
+      if (entries.length === 0) return "unknown";
+      entries.sort((left, right) => Number(right[1]) - Number(left[1]) || left[0].localeCompare(right[0]));
+      return entries[0][0];
+    }
+
+    function renderHistoryTable(title, headers, rows) {
+      const section = document.createElement("div");
+      section.className = "detail-section";
+      section.appendChild(text("h3", title));
+      if (!rows.length) {
+        section.appendChild(text("p", "No historical observations available.", "muted"));
+        return section;
+      }
+      const table = document.createElement("table");
+      table.className = "history-table";
+      const thead = document.createElement("thead");
+      const header = document.createElement("tr");
+      headers.forEach((label) => header.appendChild(text("th", label)));
+      thead.appendChild(header);
+      table.appendChild(thead);
+      const tbody = document.createElement("tbody");
+      rows.forEach((row) => {
+        const tr = document.createElement("tr");
+        row.forEach((value) => tr.appendChild(text("td", value == null || value === "" ? "unknown" : value)));
+        tbody.appendChild(tr);
+      });
+      table.appendChild(tbody);
+      section.appendChild(table);
+      return section;
+    }
+
+    function renderHistoricalReview() {
+      const section = document.createElement("article");
+      section.appendChild(text("h2", "Historical Review"));
+      section.appendChild(text("p", "Historical signals are observation clues from existing daily reports, not a trading backtest or recommendation.", "muted"));
+      const themes = Array.isArray(themeHistoryData?.themes) ? themeHistoryData.themes : [];
+      const etfs = Array.isArray(candidateHistoryData?.etf_candidates) ? candidateHistoryData.etf_candidates : [];
+      const stocks = Array.isArray(candidateHistoryData?.stock_candidates) ? candidateHistoryData.stock_candidates : [];
+      const summary = document.createElement("div");
+      summary.className = "history-grid";
+      summary.appendChild(metric("History runs", themeHistoryData?.runs_count ?? "unknown"));
+      summary.appendChild(metric("Date range", `${themeHistoryData?.date_range?.start || "unknown"} to ${themeHistoryData?.date_range?.end || "unknown"}`));
+      summary.appendChild(metric("Themes observed", themes.length));
+      summary.appendChild(metric("Observation candidates", etfs.length + stocks.length));
+      section.appendChild(summary);
+
+      const topThemes = themes.slice(0, 10).map((item) => [
+        item.theme,
+        item.signal_count,
+        item.runs_seen,
+        item.max_score ?? "unknown",
+        item.avg_score ?? "unknown",
+        topCounterValue(item.risk_counts),
+        topCounterValue(item.intraday_status_counts),
+        item.last_seen || "unknown",
+        (item.recent_dates || []).join(", "),
+      ]);
+      section.appendChild(renderHistoryTable("Historical Theme Trends", ["Theme", "Signals", "Runs seen", "Max score", "Avg score", "Main risk", "Main status", "Last seen", "Recent dates"], topThemes));
+
+      const candidateRows = etfs.slice(0, 10).map((item) => ["ETF", item.name, item.code || "unknown", item.appearances, (item.themes || []).join(", "), item.last_seen || "unknown"])
+        .concat(stocks.slice(0, 10).map((item) => ["Stock", item.name, item.code || "unknown", item.appearances, (item.themes || []).join(", "), item.last_seen || "unknown"]));
+      section.appendChild(renderHistoryTable("Recurring Observation Candidates", ["Type", "Name", "Code", "Appearances", "Themes", "Last seen"], candidateRows));
+
+      const dataCounts = {};
+      for (const theme of themes) {
+        const counts = theme.data_status_counts && typeof theme.data_status_counts === "object" ? theme.data_status_counts : {};
+        for (const [key, count] of Object.entries(counts)) dataCounts[key] = (dataCounts[key] || 0) + Number(count || 0);
+      }
+      const qualityRows = Object.entries(dataCounts).sort((left, right) => Number(right[1]) - Number(left[1])).map(([status, count]) => [status, count]);
+      section.appendChild(renderHistoryTable("Data Quality Trend", ["Data status", "Observations"], qualityRows));
       return section;
     }
 
@@ -870,6 +963,7 @@ def render_console_html() -> str:
       [["Date", run.date], ["Status", run.status], ["Schema", data.schema_version], ["Strong", summary.strong_signals], ["Confirmed", summary.confirmed], ["Missing data", summary.missing_data]].forEach(([label, value]) => metrics.appendChild(metric(label, value)));
       dashboardEl.appendChild(metrics);
       dashboardEl.appendChild(renderArtifacts(artifacts));
+      dashboardEl.appendChild(renderHistoricalReview());
 
       signalsAreaEl = document.createElement("div");
       signalsAreaEl.id = "signals-area";
@@ -943,7 +1037,7 @@ def render_console_html() -> str:
     syncControlsFromState(readConsoleStateFromUrl());
     renderStatusStrip();
     loadApiStatus();
-    loadRuns();
+    loadHistoryReview().finally(loadRuns);
   </script>
 </body>
 </html>

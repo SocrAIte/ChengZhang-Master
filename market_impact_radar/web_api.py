@@ -10,6 +10,7 @@ from typing import Any
 from urllib.parse import unquote, urlparse
 
 from .dashboard_contract import DASHBOARD_SCHEMA_VERSION, normalize_dashboard_data
+from .history_analytics import build_candidate_history, build_theme_history
 from .history_index import build_daily_history_index
 from .web_console import render_console_html
 
@@ -54,6 +55,10 @@ class DailyReportApi:
                 return ApiResponse(200, self.version())
             if parts == ["api", "runs"]:
                 return ApiResponse(200, self.list_runs())
+            if parts == ["api", "history", "themes"]:
+                return ApiResponse(200, self.theme_history())
+            if parts == ["api", "history", "candidates"]:
+                return ApiResponse(200, self.candidate_history())
             if len(parts) == 4 and parts[:2] == ["api", "runs"]:
                 date = self._validate_date(parts[2])
                 endpoint = parts[3]
@@ -112,6 +117,8 @@ class DailyReportApi:
                 "/api/version": {"get": {"summary": "Return API and dashboard contract versions."}},
                 "/api/openapi.json": {"get": {"summary": "Return this lightweight OpenAPI document."}},
                 "/api/runs": {"get": {"summary": "List available daily report runs."}},
+                "/api/history/themes": {"get": {"summary": "Summarize historical theme signal observations."}},
+                "/api/history/candidates": {"get": {"summary": "Summarize recurring ETF and stock observation candidates."}},
                 "/api/runs/{date}/dashboard-data": {
                     "get": {
                         "summary": "Return normalized dashboard_data.json for a run.",
@@ -177,6 +184,12 @@ class DailyReportApi:
             "reports_dir": str(self.reports_dir),
             "runs": runs,
         }
+
+    def theme_history(self) -> dict[str, Any]:
+        return build_theme_history(self.reports_dir)
+
+    def candidate_history(self) -> dict[str, Any]:
+        return build_candidate_history(self.reports_dir)
 
     def dashboard_data(self, date: str) -> dict[str, Any]:
         return normalize_dashboard_data(self._load_json(date, "dashboard_data.json"))
@@ -299,6 +312,8 @@ def _endpoint_catalog() -> list[dict[str, str]]:
         {"method": "GET", "path": "/api/version", "description": "API and dashboard contract versions."},
         {"method": "GET", "path": "/api/openapi.json", "description": "Lightweight OpenAPI description."},
         {"method": "GET", "path": "/api/runs", "description": "Available daily report runs."},
+        {"method": "GET", "path": "/api/history/themes", "description": "Historical theme signal summary."},
+        {"method": "GET", "path": "/api/history/candidates", "description": "Historical observation candidate summary."},
         {"method": "GET", "path": "/api/runs/{date}/artifacts", "description": "Daily run output file index."},
         {"method": "GET", "path": "/api/runs/{date}/dashboard-data", "description": "Dashboard data JSON."},
         {"method": "GET", "path": "/api/runs/{date}/run-summary", "description": "Run summary JSON."},

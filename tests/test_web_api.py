@@ -16,16 +16,17 @@ from market_impact_radar.web_api import DailyReportApi, make_handler
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def _write_run(root: Path, run_date: str = "2026-05-15") -> Path:
+def _write_run(root: Path, run_date: str = "2026-05-15", signals: list[dict] | None = None) -> Path:
     run_dir = root / run_date
     run_dir.mkdir(parents=True, exist_ok=True)
+    signal_payload = signals if signals is not None else [{"theme": "storage chips"}]
     (run_dir / "dashboard_data.json").write_text(
         json.dumps(
             {
                 "schema_version": "1.0",
                 "run": {"date": run_date, "status": "ok", "generated_at": "2026-05-15T01:00:00+00:00"},
                 "summary": {"strong_signals": 1},
-                "signals": [{"theme": "storage chips"}],
+                "signals": signal_payload,
                 "knowledge": {"status": "skipped"},
                 "outputs": {},
             },
@@ -64,6 +65,8 @@ class WebApiTest(unittest.TestCase):
         self.assertEqual(response.payload["console"], "/console")
         paths = {endpoint["path"] for endpoint in response.payload["endpoints"]}
         self.assertIn("/api/runs", paths)
+        self.assertIn("/api/history/themes", paths)
+        self.assertIn("/api/history/candidates", paths)
         self.assertIn("/api/runs/{date}/artifacts", paths)
         self.assertIn("/api/runs/{date}/dashboard-data", paths)
 
@@ -97,6 +100,10 @@ class WebApiTest(unittest.TestCase):
         self.assertIn("Data Quality / Freshness", response.payload)
         self.assertIn("ETF observation pool", response.payload)
         self.assertIn("Stock observation pool", response.payload)
+        self.assertIn("Historical Review", response.payload)
+        self.assertIn("Historical Theme Trends", response.payload)
+        self.assertIn("Recurring Observation Candidates", response.payload)
+        self.assertIn("Data Quality Trend", response.payload)
         self.assertIn("API status and version", response.payload)
         self.assertIn("Artifact Links", response.payload)
         self.assertIn("No signals match the current filters.", response.payload)
@@ -115,6 +122,9 @@ class WebApiTest(unittest.TestCase):
         self.assertNotIn("must buy", response.payload.lower())
         self.assertNotIn("target price", response.payload.lower())
         self.assertNotIn("guaranteed winner", response.payload.lower())
+        self.assertNotIn("win rate", response.payload.lower())
+        self.assertNotIn("profit", response.payload.lower())
+        self.assertNotIn("alpha", response.payload.lower())
 
     def test_root_endpoint_returns_console_shell(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -135,6 +145,8 @@ class WebApiTest(unittest.TestCase):
         self.assertEqual(response.payload["info"]["version"], "v1")
         paths = response.payload["paths"]
         self.assertIn("/api/health", paths)
+        self.assertIn("/api/history/themes", paths)
+        self.assertIn("/api/history/candidates", paths)
         self.assertIn("/api/runs/{date}/artifacts", paths)
         self.assertIn("/api/runs/{date}/diagnostics", paths)
 
@@ -171,6 +183,88 @@ class WebApiTest(unittest.TestCase):
         self.assertEqual(response.payload["runs"][0]["date"], "2026-05-15")
         self.assertEqual(response.payload["runs"][0]["links"]["artifacts"], "/api/runs/2026-05-15/artifacts")
         self.assertEqual(response.payload["runs"][0]["links"]["dashboard_data"], "/api/runs/2026-05-15/dashboard-data")
+
+    def test_history_themes_returns_theme_summary(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            _write_run(
+                Path(tmpdir),
+                "2026-05-14",
+                [
+                    {
+                        "theme": "AI hardware",
+                        "score": 80,
+                        "strength": "strong",
+                        "risk_level": "watch",
+                        "intraday_status": "confirmed",
+                        "data_status": "ok",
+                        "external_triggers": ["NVDA"],
+                        "etf_candidates": ["AI ETF"],
+                        "stock_candidates": ["ServerCo"],
+                    }
+                ],
+            )
+            _write_run(
+                Path(tmpdir),
+                "2026-05-15",
+                [
+                    {
+                        "theme": "AI hardware",
+                        "score": 60,
+                        "risk_level": "missing",
+                        "intraday_status": "missing_data",
+                        "data_status": "partial",
+                    }
+                ],
+            )
+            (Path(tmpdir) / "2026-05-16").mkdir()
+
+            response = DailyReportApi(tmpdir).handle_get("/api/history/themes")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.payload["schema_version"], "1.0")
+        self.assertEqual(response.payload["runs_count"], 2)
+        self.assertEqual(response.payload["date_range"], {"start": "2026-05-14", "end": "2026-05-15"})
+        theme = response.payload["themes"][0]
+        self.assertEqual(theme["theme"], "AI hardware")
+        self.assertEqual(theme["signal_count"], 2)
+        self.assertEqual(theme["runs_seen"], 2)
+        self.assertEqual(theme["avg_score"], 70.0)
+        self.assertEqual(theme["max_score"], 80.0)
+        self.assertEqual(theme["intraday_status_counts"]["confirmed"], 1)
+        self.assertEqual(theme["data_status_counts"]["partial"], 1)
+
+    def test_history_themes_uses_unknown_theme_for_missing_theme(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            _write_run(Path(tmpdir), signals=[{"score": 10, "intraday_status": "downgraded"}])
+
+            response = DailyReportApi(tmpdir).handle_get("/api/history/themes")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.payload["themes"][0]["theme"], "Unknown Theme")
+
+    def test_history_candidates_counts_string_and_dict_candidates(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            _write_run(
+                Path(tmpdir),
+                signals=[
+                    {
+                        "theme": "CPO",
+                        "etf_candidates": ["通信ETF", {"name": "AI ETF", "code": "159000"}],
+                        "stock_candidates": ["OpticsCo", {"name": "BoardCo", "ticker": "600001"}],
+                    }
+                ],
+            )
+
+            response = DailyReportApi(tmpdir).handle_get("/api/history/candidates")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.payload["schema_version"], "1.0")
+        etfs = {item["name"]: item for item in response.payload["etf_candidates"]}
+        stocks = {item["name"]: item for item in response.payload["stock_candidates"]}
+        self.assertEqual(etfs["通信ETF"]["appearances"], 1)
+        self.assertEqual(etfs["AI ETF"]["code"], "159000")
+        self.assertEqual(stocks["OpticsCo"]["themes"], ["CPO"])
+        self.assertEqual(stocks["BoardCo"]["code"], "600001")
 
     def test_artifacts_endpoint_returns_output_file_index(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:

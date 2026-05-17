@@ -55,10 +55,13 @@ It uses the existing API endpoints to:
 - render ETF observation pool and Stock observation pool tables from the existing candidate fields
 - show an API status strip with health, API version, dashboard schema version, selected run, signal counts, and generated time
 - show Artifact Links for available report outputs
+- show Historical Review for recurring themes, observation candidates, and data quality trend from existing daily runs
 - show run status, summary fields, signals, candidates, risks, and raw `dashboard_data.json`
 - show Dashboard, Knowledge Review, Run Diagnostics, and raw JSON artifact availability
 
 The URL state is only a browser-side view preference. It makes a filtered observation view easier to share, but it does not call `run-daily`, write files, fetch live market data, edit the knowledge graph, compute new financial signals, or provide trading instructions.
+
+Historical Review is a research view over existing daily report files. It does not calculate returns, profit, win rate, alpha, entry points, exits, or target prices.
 
 Supported query parameters:
 
@@ -141,6 +144,20 @@ Returns the available daily runs discovered under `reports/daily/YYYY-MM-DD/`.
 
 Each run includes status, generated time, summary, warnings, output metadata, and API links.
 
+### GET /api/history/themes
+
+Returns a read-only summary of themes observed across local `reports/daily/YYYY-MM-DD/dashboard_data.json` files.
+
+It reports observation counts such as `signal_count`, `runs_seen`, `avg_score`, `max_score`, risk counts, intraday status counts, data status counts, external triggers, candidate counts, and recent dates. Missing themes are grouped under `Unknown Theme`.
+
+This endpoint skips missing or invalid `dashboard_data.json` files. It does not fetch live data, run `run-daily`, recompute financial signals, or report trading performance.
+
+### GET /api/history/candidates
+
+Returns read-only frequency summaries for ETF and stock observation candidates seen in local daily runs.
+
+It supports candidates represented as strings or objects, and reports `appearances`, related `themes`, recent dates, and last seen date. It is an observation-pool summary, not a recommendation list.
+
 ### GET /api/runs/{date}/dashboard-data
 
 Returns normalized `dashboard_data.json` for the given date.
@@ -202,3 +219,4 @@ Invalid dates and path traversal attempts return a JSON 404 response.
 - No frontend framework.
 - No live market data requests.
 - No financial signal recomputation in the API layer.
+- No return, profit, win-rate, alpha, entry, exit, or target-price reporting.
