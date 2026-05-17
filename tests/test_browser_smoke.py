@@ -3,6 +3,7 @@ from __future__ import annotations
 import tempfile
 import unittest
 from pathlib import Path
+from urllib.parse import parse_qs, urlparse
 
 from market_impact_radar.browser_smoke import (
     BrowserSmokeError,
@@ -18,9 +19,10 @@ class _FakeMessage:
 
 
 class _FakeLocator:
-    def __init__(self, text: str, count: int = 1) -> None:
+    def __init__(self, text: str, count: int = 1, value: str = "") -> None:
         self._text = text
         self._count = count
+        self._value = value
 
     def inner_text(self, timeout: int = 0) -> str:
         return self._text
@@ -28,12 +30,16 @@ class _FakeLocator:
     def count(self) -> int:
         return self._count
 
+    def input_value(self, timeout: int = 0) -> str:
+        return self._value
+
 
 class _FakePage:
     def __init__(self, body_text: str, title: str = "Daily Market Radar", selector_counts: dict[str, int] | None = None) -> None:
         self._body_text = body_text
         self._title = title
         self._selector_counts = selector_counts or {}
+        self._selector_values: dict[str, str] = {}
         self.url = ""
 
     def on(self, event: str, callback) -> None:
@@ -42,11 +48,19 @@ class _FakePage:
 
     def goto(self, url: str, wait_until: str = "") -> None:
         self.url = url
+        params = parse_qs(urlparse(url).query)
+        self._selector_values = {
+            "#signal-search": params.get("search", [""])[0],
+            "#risk-filter": params.get("risk", [""])[0],
+            "#status-filter": params.get("status", [""])[0],
+            "#sort-select": params.get("sort", ["default"])[0],
+            "#view-mode": params.get("view", ["grouped"])[0],
+        }
 
     def locator(self, selector: str) -> _FakeLocator:
         if selector == "body":
             return _FakeLocator(self._body_text)
-        return _FakeLocator("", self._selector_counts.get(selector, 0))
+        return _FakeLocator("", self._selector_counts.get(selector, 0), self._selector_values.get(selector, ""))
 
     def title(self) -> str:
         return self._title
@@ -233,8 +247,9 @@ class BrowserSmokeTest(unittest.TestCase):
             result = run_console_browser_smoke(root, playwright_factory=_console_factory(body))
 
         self.assertEqual(result.status, "passed")
-        self.assertEqual(result.pages_checked, 1)
+        self.assertEqual(result.pages_checked, 6)
         self.assertIn("artifacts_visible", result.checks)
+        self.assertIn("url_query_state_visible", result.checks)
 
     def test_console_browser_smoke_missing_run_fails(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:

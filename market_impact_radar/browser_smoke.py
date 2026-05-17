@@ -175,18 +175,36 @@ def run_console_browser_smoke(
     thread = Thread(target=server.serve_forever, daemon=True)
     thread.start()
     url = f"http://127.0.0.1:{server.server_port}/console"
+    query_checks = (
+        ("default", "", {}),
+        ("search", "?search=nvidia", {"#signal-search": "nvidia"}),
+        ("grouped", "?view=grouped", {"#view-mode": "grouped"}),
+        ("flat", "?view=flat", {"#view-mode": "flat"}),
+        ("sort", "?sort=score_desc", {"#sort-select": "score_desc"}),
+        ("filters", "?risk=high&status=confirmed", {"#risk-filter": "high", "#status-filter": "confirmed"}),
+    )
+    checked_pages = 0
     try:
         try:
             with factory() as playwright:
                 browser = playwright.chromium.launch(headless=True)
                 try:
-                    page = browser.new_page()
-                    page.on("console", lambda message: _record_console_error(message, console_errors, "console"))
-                    page.on("pageerror", lambda error: page_errors.append(f"console: {error}"))
-                    page.goto(url, wait_until="networkidle")
-                    body_text = page.locator("body").inner_text(timeout=5000).strip()
-                    title = page.title()
-                    _assert_console_controls(page)
+                    body_text = ""
+                    title = ""
+                    for label, query, expected_values in query_checks:
+                        page = browser.new_page()
+                        page.on("console", lambda message, label=label: _record_console_error(message, console_errors, f"console {label}"))
+                        page.on("pageerror", lambda error, label=label: page_errors.append(f"console {label}: {error}"))
+                        page.goto(f"{url}{query}", wait_until="networkidle")
+                        page_body = page.locator("body").inner_text(timeout=5000).strip()
+                        page_title = page.title()
+                        _assert_console_controls(page)
+                        _assert_console_query_state(page, expected_values)
+                        _assert_console_text(page_body, page_title, date)
+                        checked_pages += 1
+                        if label == "default":
+                            body_text = page_body
+                            title = page_title
                 finally:
                     browser.close()
         except BrowserSmokeError:
@@ -212,9 +230,10 @@ def run_console_browser_smoke(
             "runs_visible",
             "dashboard_data_visible",
             "artifacts_visible",
+            "url_query_state_visible",
             "no_console_errors",
         ),
-        pages_checked=1,
+        pages_checked=checked_pages,
     )
 
 
@@ -313,3 +332,15 @@ def _assert_console_controls(browser_page: Any) -> None:
             raise BrowserSmokeError(f"console selector check failed for {selector}: {exc}") from exc
         if count < 1:
             raise BrowserSmokeError(f"console missing selector: {selector}")
+
+
+def _assert_console_query_state(browser_page: Any, expected_values: dict[str, str]) -> None:
+    for selector, expected in expected_values.items():
+        try:
+            actual = browser_page.locator(selector).input_value(timeout=5000)
+        except TypeError:
+            actual = browser_page.locator(selector).input_value()
+        except Exception as exc:
+            raise BrowserSmokeError(f"console query state check failed for {selector}: {exc}") from exc
+        if actual != expected:
+            raise BrowserSmokeError(f"console query state mismatch for {selector}: expected {expected}, got {actual}")
