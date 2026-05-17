@@ -69,6 +69,7 @@ class WebApiTest(unittest.TestCase):
         self.assertIn("/api/history/candidates", paths)
         self.assertIn("/api/history/data-quality", paths)
         self.assertIn("/api/history/sources", paths)
+        self.assertIn("/api/history/theme-source-matrix", paths)
         self.assertIn("/api/runs/{date}/artifacts", paths)
         self.assertIn("/api/runs/{date}/dashboard-data", paths)
 
@@ -103,6 +104,10 @@ class WebApiTest(unittest.TestCase):
         self.assertIn("Source Breakdown", response.payload)
         self.assertIn("Weak Evidence Signals", response.payload)
         self.assertIn("Historical Data Quality Trend", response.payload)
+        self.assertIn("Theme × Source Matrix", response.payload)
+        self.assertIn("Matrix Summary", response.payload)
+        self.assertIn("Cell Detail", response.payload)
+        self.assertIn("Weak Evidence Cells", response.payload)
         self.assertIn("Theme Compare", response.payload)
         self.assertIn("Candidate Pool Comparison", response.payload)
         self.assertIn("compare-theme-select", response.payload)
@@ -171,6 +176,7 @@ class WebApiTest(unittest.TestCase):
         self.assertIn("/api/history/candidates", paths)
         self.assertIn("/api/history/data-quality", paths)
         self.assertIn("/api/history/sources", paths)
+        self.assertIn("/api/history/theme-source-matrix", paths)
         self.assertIn("/api/runs/{date}/artifacts", paths)
         self.assertIn("/api/runs/{date}/diagnostics", paths)
 
@@ -389,6 +395,64 @@ class WebApiTest(unittest.TestCase):
         self.assertEqual(sources["Unknown Source"]["missing_source_count"], 1)
         self.assertEqual(sources["Unknown Source"]["fallback_count"], 1)
         self.assertLessEqual(len(sources["yahoo"]["example_signals"]), 5)
+
+    def test_history_theme_source_matrix_summarizes_evidence_cells(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            _write_run(
+                Path(tmpdir),
+                "2026-05-14",
+                [
+                    {
+                        "theme": "AI hardware",
+                        "strength": "strong",
+                        "score": 88,
+                        "risk_level": "medium",
+                        "intraday_status": "confirmed",
+                        "data_status": "ok",
+                        "sources": ["yahoo"],
+                        "fetched_at": "2026-05-14T01:00:00+00:00",
+                    },
+                    {
+                        "risk_level": "high",
+                        "data_status": "partial",
+                        "fallback_used": True,
+                    },
+                ],
+            )
+            _write_run(
+                Path(tmpdir),
+                "2026-05-15",
+                [
+                    {
+                        "theme": "AI hardware",
+                        "data_status": "stale",
+                        "source": "yahoo",
+                    }
+                ],
+            )
+            (Path(tmpdir) / "2026-05-16").mkdir()
+            (Path(tmpdir) / "2026-05-17").mkdir()
+            (Path(tmpdir) / "2026-05-17" / "dashboard_data.json").write_text("{bad json", encoding="utf-8")
+
+            response = DailyReportApi(tmpdir).handle_get("/api/history/theme-source-matrix")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.payload["schema_version"], "1.0")
+        self.assertEqual(response.payload["runs_count"], 2)
+        self.assertIn("themes", response.payload)
+        self.assertIn("sources", response.payload)
+        self.assertIn("matrix", response.payload)
+        self.assertIn("weak_cells", response.payload)
+        themes = {item["theme"]: item for item in response.payload["themes"]}
+        sources = {item["source"]: item for item in response.payload["sources"]}
+        cells = {(item["theme"], item["source"]): item for item in response.payload["matrix"]}
+        self.assertIn("Unknown Theme", themes)
+        self.assertIn("Unknown Source", sources)
+        self.assertEqual(themes["Unknown Theme"]["missing_source_count"], 1)
+        self.assertEqual(cells[("Unknown Theme", "Unknown Source")]["missing_fetched_at_count"], 1)
+        self.assertEqual(cells[("Unknown Theme", "Unknown Source")]["data_status_counts"]["partial"], 1)
+        self.assertLessEqual(len(cells[("AI hardware", "yahoo")]["example_signals"]), 3)
+        self.assertTrue(any(item["theme"] == "Unknown Theme" and item["source"] == "Unknown Source" for item in response.payload["weak_cells"]))
 
     def test_artifacts_endpoint_returns_output_file_index(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:

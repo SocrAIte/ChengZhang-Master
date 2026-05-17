@@ -51,6 +51,11 @@ def render_console_html() -> str:
     .morning-brief, .compare-workspace { margin-bottom: 14px; }
     .source-reliability { margin-bottom: 14px; }
     .source-detail { margin-top: 14px; }
+    .theme-source-matrix { margin-bottom: 14px; }
+    .matrix-table-wrap { overflow-x: auto; }
+    .matrix-cell { min-width: 150px; }
+    .matrix-cell button { margin: 0; padding: 8px; }
+    .matrix-cell.weak { background: #fff7ed; }
     .compare-grid { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
     .compare-card { background: #fff; border: 1px solid #d9dee7; border-radius: 8px; padding: 12px; }
     .compare-actions { align-items: end; display: grid; gap: 10px; grid-template-columns: minmax(180px, 1fr) auto; margin: 10px 0; }
@@ -157,6 +162,8 @@ def render_console_html() -> str:
     let selectedSignalIndex = null;
     let selectedTheme = "";
     let selectedSource = "";
+    let selectedMatrixTheme = "";
+    let selectedMatrixSource = "";
     let compareThemes = [];
     let compareNotice = "";
     let visibleSignalCount = 0;
@@ -166,6 +173,7 @@ def render_console_html() -> str:
     let candidateHistoryData = null;
     let dataQualityHistoryData = null;
     let sourceHistoryData = null;
+    let themeSourceMatrixData = null;
     const VALID_RISKS = new Set(["", "low", "medium", "high", "unknown"]);
     const VALID_STATUSES = new Set(["", "confirmed", "downgraded", "missing_data", "failed", "not_checked", "unknown"]);
     const VALID_SORTS = new Set(["default", "score_desc", "risk_level", "intraday_status", "theme"]);
@@ -195,6 +203,8 @@ def render_console_html() -> str:
         view: normalizeChoice(state.view || "grouped", VALID_VIEWS, "grouped"),
         theme: String(state.theme || "").trim(),
         source: String(state.source || "").trim(),
+        matrixTheme: String(state.matrixTheme || "").trim(),
+        matrixSource: String(state.matrixSource || "").trim(),
         compare: normalizeCompareThemes(state.compare),
       };
     }
@@ -222,6 +232,8 @@ def render_console_html() -> str:
         view: params.get("view"),
         theme: params.get("theme"),
         source: params.get("source"),
+        matrixTheme: params.get("matrixTheme"),
+        matrixSource: params.get("matrixSource"),
         compare: params.get("compare"),
       });
     }
@@ -243,6 +255,8 @@ def render_console_html() -> str:
       setSelectValue(viewModeEl, normalizedState.view, "grouped");
       selectedTheme = normalizedState.theme;
       selectedSource = normalizedState.source;
+      selectedMatrixTheme = normalizedState.matrixTheme;
+      selectedMatrixSource = normalizedState.matrixSource;
       compareThemes = normalizedState.compare;
       if (normalizedState.date && selectHasValue(runSelectEl, normalizedState.date)) {
         runSelectEl.value = normalizedState.date;
@@ -259,6 +273,8 @@ def render_console_html() -> str:
         view: viewModeEl.value,
         theme: selectedTheme,
         source: selectedSource,
+        matrixTheme: selectedMatrixTheme,
+        matrixSource: selectedMatrixSource,
         compare: compareThemes,
       });
     }
@@ -274,6 +290,8 @@ def render_console_html() -> str:
       if (state.view !== "grouped") params.set("view", state.view);
       if (state.theme) params.set("theme", state.theme);
       if (state.source) params.set("source", state.source);
+      if (state.matrixTheme) params.set("matrixTheme", state.matrixTheme);
+      if (state.matrixSource) params.set("matrixSource", state.matrixSource);
       if (state.compare.length) params.set("compare", state.compare.join(","));
       const query = params.toString();
       const nextUrl = `${window.location.pathname}${query ? `?${query}` : ""}${window.location.hash || ""}`;
@@ -455,6 +473,20 @@ def render_console_html() -> str:
       button.textContent = label || sourceName(source);
       button.addEventListener("click", () => selectSource(source));
       return button;
+    }
+
+    function selectMatrixCell(theme, source) {
+      selectedMatrixTheme = String(theme || "Unknown Theme").trim() || "Unknown Theme";
+      selectedMatrixSource = sourceName(source);
+      selectedTheme = selectedMatrixTheme;
+      selectedSource = selectedMatrixSource;
+      updateQueryState({ matrixTheme: selectedMatrixTheme, matrixSource: selectedMatrixSource, theme: selectedTheme, source: selectedSource });
+      renderSignalSections();
+    }
+
+    function matrixCellItem(theme, source) {
+      const rows = Array.isArray(themeSourceMatrixData?.matrix) ? themeSourceMatrixData.matrix : [];
+      return rows.find((item) => sameTheme(item.theme, theme) && sameSource(item.source, source)) || null;
     }
 
     function createThemeButton(theme, label = null) {
@@ -726,17 +758,19 @@ def render_console_html() -> str:
 
     async function loadHistoryReview() {
       try {
-        [themeHistoryData, candidateHistoryData, dataQualityHistoryData, sourceHistoryData] = await Promise.all([
+        [themeHistoryData, candidateHistoryData, dataQualityHistoryData, sourceHistoryData, themeSourceMatrixData] = await Promise.all([
           fetchJson("/api/history/themes"),
           fetchJson("/api/history/candidates"),
           fetchJson("/api/history/data-quality"),
           fetchJson("/api/history/sources"),
+          fetchJson("/api/history/theme-source-matrix"),
         ]);
       } catch (error) {
         themeHistoryData = { runs_count: "unknown", date_range: {}, themes: [] };
         candidateHistoryData = { etf_candidates: [], stock_candidates: [] };
         dataQualityHistoryData = { runs_count: "unknown", date_range: {}, data_status_counts: {}, source_counts: {}, themes_with_weak_data: [] };
         sourceHistoryData = { runs_count: "unknown", date_range: {}, sources: [] };
+        themeSourceMatrixData = { runs_count: "unknown", date_range: {}, themes: [], sources: [], matrix: [], weak_cells: [] };
       }
     }
 
@@ -1257,6 +1291,7 @@ def render_console_html() -> str:
       const statusCounts = countSignalsBy(currentSignals, (signal) => signal.intraday_status || signal.status || "not_checked");
       const dataCounts = countSignalsBy(currentSignals, (signal) => signal.data_status || "unknown");
       const weakSignals = currentSignals.filter((signal) => weakEvidenceReasons(signal).length > 0);
+      const weakMatrixCells = Array.isArray(themeSourceMatrixData?.weak_cells) ? themeSourceMatrixData.weak_cells : [];
       const groups = groupedSignals(currentSignals);
       const strongThemes = groups.slice(0, 3).map((group) => `${group.theme} (${topScore(group.signals)})`);
       const highRiskThemes = groups.filter((group) => normalized(maxRisk(group.signals)) === "high").slice(0, 3).map((group) => group.theme);
@@ -1284,6 +1319,7 @@ def render_console_html() -> str:
         ["Status overview", Object.entries(statusCounts).map(([key, count]) => `${key}: ${count}`).join(", ") || "unknown"],
         ["Data quality notes", qualityNotes.join(", ") || "No missing, partial, stale, or unknown data labels in current signals."],
         ["Needs verification", `${weakSignals.length} signals need data verification.`],
+        ["Matrix review", `${weakMatrixCells.length} theme-source pairs need evidence review.`],
         ["Requires confirmation", highRiskThemes.length ? `High risk themes: ${highRiskThemes.join(", ")}` : "No high risk themes in current signals."],
       ].forEach(([label, value]) => briefGrid.appendChild(metric(label, value)));
       section.appendChild(briefGrid);
@@ -1626,6 +1662,173 @@ def render_console_html() -> str:
       return panel;
     }
 
+    function renderMatrixSummary() {
+      const section = document.createElement("div");
+      section.className = "metrics";
+      const themes = Array.isArray(themeSourceMatrixData?.themes) ? themeSourceMatrixData.themes : [];
+      const sources = Array.isArray(themeSourceMatrixData?.sources) ? themeSourceMatrixData.sources : [];
+      const cells = Array.isArray(themeSourceMatrixData?.matrix) ? themeSourceMatrixData.matrix : [];
+      const weakCells = Array.isArray(themeSourceMatrixData?.weak_cells) ? themeSourceMatrixData.weak_cells : [];
+      const missingSource = themes.reduce((total, item) => total + Number(item.missing_source_count || 0), 0);
+      const missingFetched = cells.reduce((total, item) => total + Number(item.missing_fetched_at_count || 0), 0);
+      const fallback = cells.reduce((total, item) => total + Number(item.fallback_count || 0), 0);
+      const weakStatusCount = cells.reduce((total, item) => {
+        const counts = item.data_status_counts || {};
+        return total + Object.entries(counts).filter(([status]) => isWeakDataStatus(status)).reduce((sum, [, count]) => sum + Number(count || 0), 0);
+      }, 0);
+      [
+        ["Themes", themes.length],
+        ["Sources", sources.length],
+        ["Matrix cells", cells.length],
+        ["Weak cells", weakCells.length],
+        ["Missing source", missingSource],
+        ["Missing fetched_at", missingFetched],
+        ["Fallback used", fallback],
+        ["Weak data status", weakStatusCount],
+      ].forEach(([label, value]) => section.appendChild(metric(label, value)));
+      return section;
+    }
+
+    function renderMatrixTable() {
+      const section = document.createElement("div");
+      section.className = "detail-section";
+      section.appendChild(text("h3", "Matrix Table"));
+      const themes = (Array.isArray(themeSourceMatrixData?.themes) ? themeSourceMatrixData.themes : []).slice(0, 12);
+      const sources = (Array.isArray(themeSourceMatrixData?.sources) ? [...themeSourceMatrixData.sources] : []).sort((left, right) => Number(right.signal_count || 0) - Number(left.signal_count || 0)).slice(0, 8);
+      if (!themes.length || !sources.length) {
+        section.appendChild(text("p", "No theme-source matrix data available.", "muted"));
+        return section;
+      }
+      const wrap = document.createElement("div");
+      wrap.className = "matrix-table-wrap";
+      const table = document.createElement("table");
+      table.className = "history-table";
+      const thead = document.createElement("thead");
+      const header = document.createElement("tr");
+      header.appendChild(text("th", "Theme / Source"));
+      sources.forEach((source) => {
+        const th = document.createElement("th");
+        th.appendChild(createSourceButton(source.source));
+        table.dataset.sourceColumns = "top";
+        header.appendChild(th);
+      });
+      thead.appendChild(header);
+      table.appendChild(thead);
+      const tbody = document.createElement("tbody");
+      themes.forEach((theme) => {
+        const tr = document.createElement("tr");
+        const themeCell = document.createElement("td");
+        themeCell.appendChild(createThemeButton(theme.theme));
+        tr.appendChild(themeCell);
+        sources.forEach((source) => {
+          const td = document.createElement("td");
+          td.className = "matrix-cell";
+          const cell = matrixCellItem(theme.theme, source.source);
+          if (!cell) {
+            td.appendChild(text("span", "empty", "muted"));
+          } else {
+            if (cell.weak_signal_count || cell.missing_fetched_at_count || cell.fallback_count || Object.keys(cell.data_status_counts || {}).some(isWeakDataStatus)) td.className += " weak";
+            const button = document.createElement("button");
+            button.type = "button";
+            button.className = "inline-action";
+            button.textContent = `${cell.signal_count} signals`;
+            button.addEventListener("click", () => selectMatrixCell(theme.theme, source.source));
+            td.appendChild(button);
+            td.appendChild(badge(`weak: ${cell.weak_signal_count || 0}`));
+            td.appendChild(badge(`missing fetched: ${cell.missing_fetched_at_count || 0}`));
+            td.appendChild(badge(`fallback: ${cell.fallback_count || 0}`));
+            td.appendChild(text("div", Object.entries(cell.data_status_counts || {}).map(([key, count]) => `${key}: ${count}`).join(", ") || "unknown", "muted"));
+            td.appendChild(text("div", `latest: ${cell.latest_fetched_at || "unknown"}`, "muted"));
+          }
+          tr.appendChild(td);
+        });
+        tbody.appendChild(tr);
+      });
+      table.appendChild(tbody);
+      wrap.appendChild(table);
+      section.appendChild(wrap);
+      return section;
+    }
+
+    function renderMatrixCellDetail() {
+      const section = document.createElement("div");
+      section.className = "detail-section";
+      section.appendChild(text("h3", "Cell Detail"));
+      const fallbackCell = (Array.isArray(themeSourceMatrixData?.matrix) ? themeSourceMatrixData.matrix : [])[0];
+      const theme = selectedMatrixTheme || fallbackCell?.theme || "";
+      const source = selectedMatrixSource || fallbackCell?.source || "";
+      if (!theme || !source) {
+        section.appendChild(text("p", "Select a matrix cell to inspect theme-source evidence.", "muted"));
+        return section;
+      }
+      const cell = matrixCellItem(theme, source);
+      section.appendChild(text("h3", `${theme} / ${source}`));
+      if (!cell) {
+        section.appendChild(text("p", "No signals for this theme-source pair.", "muted"));
+        return section;
+      }
+      [
+        `signals: ${cell.signal_count}`,
+        `weak signals: ${cell.weak_signal_count || 0}`,
+        `missing fetched_at: ${cell.missing_fetched_at_count || 0}`,
+        `fallback: ${cell.fallback_count || 0}`,
+        `last seen: ${cell.last_seen || "unknown"}`,
+        `latest fetched_at: ${cell.latest_fetched_at || "unknown"}`,
+      ].forEach((value) => section.appendChild(badge(value)));
+      section.appendChild(renderCountBadges("Cell data_status distribution", cell.data_status_counts));
+      section.appendChild(renderValueList("Recent Dates", cell.recent_dates || []));
+      const examples = Array.isArray(cell.example_signals) ? cell.example_signals : [];
+      section.appendChild(renderHistoryTable("Example signals", ["Date", "Strength", "Score", "Risk", "Intraday", "Data status", "Fetched at", "Fallback"], examples.map((signal) => [signal.date, signal.strength, signal.score ?? "unknown", signal.risk_level, signal.intraday_status, signal.data_status, signal.fetched_at || "unknown", signal.fallback_used ?? "unknown"])));
+      return section;
+    }
+
+    function renderWeakEvidenceCells() {
+      const section = document.createElement("div");
+      section.className = "detail-section";
+      section.appendChild(text("h3", "Weak Evidence Cells"));
+      const rows = Array.isArray(themeSourceMatrixData?.weak_cells) ? themeSourceMatrixData.weak_cells : [];
+      if (!rows.length) {
+        section.appendChild(text("p", "No theme-source evidence gaps found in available history.", "muted"));
+        return section;
+      }
+      const table = document.createElement("table");
+      table.className = "history-table";
+      const thead = document.createElement("thead");
+      const header = document.createElement("tr");
+      ["Theme", "Source", "Reason", "Weak signals", "Missing fetched_at", "Fallback", "Data status counts", "Recent dates"].forEach((label) => header.appendChild(text("th", label)));
+      thead.appendChild(header);
+      table.appendChild(thead);
+      const tbody = document.createElement("tbody");
+      rows.slice(0, 12).forEach((row) => {
+        const tr = document.createElement("tr");
+        const themeCell = document.createElement("td");
+        themeCell.appendChild(createThemeButton(row.theme));
+        tr.appendChild(themeCell);
+        const sourceCell = document.createElement("td");
+        sourceCell.appendChild(createSourceButton(row.source));
+        tr.appendChild(sourceCell);
+        [row.reason, row.weak_signal_count, row.missing_fetched_at_count, row.fallback_count, Object.entries(row.data_status_counts || {}).map(([key, count]) => `${key}: ${count}`).join(", "), (row.recent_dates || []).join(", ")].forEach((value) => tr.appendChild(text("td", value)));
+        tr.addEventListener("click", () => selectMatrixCell(row.theme, row.source));
+        tbody.appendChild(tr);
+      });
+      table.appendChild(tbody);
+      section.appendChild(table);
+      return section;
+    }
+
+    function renderThemeSourceMatrix() {
+      const section = document.createElement("article");
+      section.className = "theme-source-matrix";
+      section.appendChild(text("h2", "Theme × Source Matrix"));
+      section.appendChild(text("p", "Theme-source evidence review across existing local daily reports. Matrix cells highlight source coverage and evidence gaps, not trading signals.", "muted"));
+      section.appendChild(text("h3", "Matrix Summary"));
+      section.appendChild(renderMatrixSummary());
+      section.appendChild(renderMatrixTable());
+      section.appendChild(renderMatrixCellDetail());
+      section.appendChild(renderWeakEvidenceCells());
+      return section;
+    }
+
     function renderSourceReliability() {
       const section = document.createElement("article");
       section.className = "source-reliability";
@@ -1763,6 +1966,7 @@ def render_console_html() -> str:
       signalCountEl.textContent = `${visibleSignals.length} of ${currentSignals.length} signals visible`;
       signalsAreaEl.appendChild(renderMorningBrief(visibleSignals));
       signalsAreaEl.appendChild(renderSourceReliability());
+      signalsAreaEl.appendChild(renderThemeSourceMatrix());
       signalsAreaEl.appendChild(renderThemeHotlist(visibleSignals));
       signalsAreaEl.appendChild(renderThemeCompare(visibleSignals));
       const layout = document.createElement("div");

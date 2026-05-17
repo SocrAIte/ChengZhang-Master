@@ -187,6 +187,7 @@ def run_console_browser_smoke(
         ("theme_compare", "?theme=Unknown%20Theme&compare=Unknown%20Theme&view=grouped", {"#view-mode": "grouped"}),
         ("source", "?source=Unknown%20Source", {}),
         ("source_theme_compare", "?source=Unknown%20Source&theme=Unknown%20Theme&compare=Unknown%20Theme", {}),
+        ("matrix", "?matrixTheme=Unknown%20Theme&matrixSource=Unknown%20Source", {}),
     )
     checked_pages = 0
     try:
@@ -320,6 +321,10 @@ def _assert_console_text(body_text: str, title: str, date: str) -> None:
         "Source Breakdown",
         "Weak Evidence Signals",
         "Historical Data Quality Trend",
+        "Theme × Source Matrix",
+        "Matrix Summary",
+        "Cell Detail",
+        "Weak Evidence Cells",
         "Theme Compare",
         "Candidate Pool Comparison",
         "Theme Detail",

@@ -10,7 +10,7 @@ from typing import Any
 from urllib.parse import unquote, urlparse
 
 from .dashboard_contract import DASHBOARD_SCHEMA_VERSION, normalize_dashboard_data
-from .history_analytics import build_candidate_history, build_data_quality_history, build_source_history, build_theme_history
+from .history_analytics import build_candidate_history, build_data_quality_history, build_source_history, build_theme_history, build_theme_source_matrix
 from .history_index import build_daily_history_index
 from .web_console import render_console_html
 
@@ -63,6 +63,8 @@ class DailyReportApi:
                 return ApiResponse(200, self.data_quality_history())
             if parts == ["api", "history", "sources"]:
                 return ApiResponse(200, self.source_history())
+            if parts == ["api", "history", "theme-source-matrix"]:
+                return ApiResponse(200, self.theme_source_matrix())
             if len(parts) == 4 and parts[:2] == ["api", "runs"]:
                 date = self._validate_date(parts[2])
                 endpoint = parts[3]
@@ -125,6 +127,7 @@ class DailyReportApi:
                 "/api/history/candidates": {"get": {"summary": "Summarize recurring ETF and stock observation candidates."}},
                 "/api/history/data-quality": {"get": {"summary": "Summarize historical data quality observations."}},
                 "/api/history/sources": {"get": {"summary": "Summarize historical source coverage and reliability observations."}},
+                "/api/history/theme-source-matrix": {"get": {"summary": "Summarize historical theme-source evidence matrix."}},
                 "/api/runs/{date}/dashboard-data": {
                     "get": {
                         "summary": "Return normalized dashboard_data.json for a run.",
@@ -202,6 +205,9 @@ class DailyReportApi:
 
     def source_history(self) -> dict[str, Any]:
         return build_source_history(self.reports_dir)
+
+    def theme_source_matrix(self) -> dict[str, Any]:
+        return build_theme_source_matrix(self.reports_dir)
 
     def dashboard_data(self, date: str) -> dict[str, Any]:
         return normalize_dashboard_data(self._load_json(date, "dashboard_data.json"))
@@ -328,6 +334,7 @@ def _endpoint_catalog() -> list[dict[str, str]]:
         {"method": "GET", "path": "/api/history/candidates", "description": "Historical observation candidate summary."},
         {"method": "GET", "path": "/api/history/data-quality", "description": "Historical data quality summary."},
         {"method": "GET", "path": "/api/history/sources", "description": "Historical source detail summary."},
+        {"method": "GET", "path": "/api/history/theme-source-matrix", "description": "Historical theme-source evidence matrix."},
         {"method": "GET", "path": "/api/runs/{date}/artifacts", "description": "Daily run output file index."},
         {"method": "GET", "path": "/api/runs/{date}/dashboard-data", "description": "Dashboard data JSON."},
         {"method": "GET", "path": "/api/runs/{date}/run-summary", "description": "Run summary JSON."},

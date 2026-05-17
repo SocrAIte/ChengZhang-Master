@@ -51,6 +51,7 @@ It uses the existing API endpoints to:
 - show a Morning Brief with current run counts, strongest visible themes, risk notes, data quality notes, recurring themes, and recurring observation candidates
 - show Source Reliability for current run source coverage, evidence freshness, fallback use, weak evidence signals, and historical data quality trend
 - support Source Detail from Source Breakdown, Weak Evidence Signals, and Signal Detail Panel
+- show Theme x Source Matrix, Matrix Summary, Cell Detail, and Weak Evidence Cells for theme-source evidence review
 - show Source Breakdown grouped by current run `source` / `sources`
 - show Weak Evidence Signals that need verification because source, fetched time, fallback, or data status metadata is incomplete
 - show a Theme Hotlist based on the currently visible signals
@@ -66,6 +67,7 @@ It uses the existing API endpoints to:
 - support Theme Detail Drilldown from Theme Hotlist, Historical Theme Trends, signal cards, and grouped theme headers
 - preserve selected theme state with the `theme` query parameter for shareable theme views
 - preserve selected source state with the `source` query parameter for shareable source detail views
+- preserve selected matrix cell with `matrixTheme` and `matrixSource` query parameters
 - preserve compared theme state with the `compare` query parameter for shareable compare views
 - show run status, summary fields, signals, candidates, risks, and raw `dashboard_data.json`
 - show Dashboard, Knowledge Review, Run Diagnostics, and raw JSON artifact availability
@@ -84,6 +86,8 @@ Supported query parameters:
 - `view`: `grouped` or `flat`.
 - `theme`: selected theme for Theme Detail Drilldown.
 - `source`: selected source for Source Detail.
+- `matrixTheme`: selected theme for Theme x Source Matrix Cell Detail.
+- `matrixSource`: selected source for Theme x Source Matrix Cell Detail.
 - `compare`: comma-separated themes for Theme Compare, capped at 3 themes.
 
 Unknown query values fall back to safe defaults. Empty/default values are omitted from the URL when controls change.
@@ -93,6 +97,8 @@ Theme Detail Drilldown combines the selected run's visible signals with historic
 Insight Workspace v2 adds Morning Brief, Theme Compare, and Candidate Pool Comparison. These views are rule-based summaries over existing local JSON outputs and read-only history APIs. They show signal counts, status distributions, risk distributions, data quality labels, external trigger summaries, and observation pool overlap. They do not call external models, trigger `run-daily`, fetch live market data, or change mappings.
 
 Source Reliability adds a dedicated data quality review. It summarizes current run `data_status`, `source` / `sources`, `fetched_at`, fallback metadata, weak evidence signals, and historical data quality observations from `GET /api/history/data-quality`. Source Detail uses `GET /api/history/sources` to show source coverage, dates, example signals, source-level distributions, and conservative reliability notes. These are evidence quality hints only, not trading signals.
+
+Theme x Source Matrix uses `GET /api/history/theme-source-matrix` to show which sources support which themes, where evidence metadata is missing, and which theme-source cells need review. Matrix cells expose source coverage, data status counts, missing `fetched_at`, fallback counts, recent dates, and example signals. The matrix is an evidence review view and does not decide whether a theme is investable.
 
 ## Endpoints
 
@@ -193,6 +199,14 @@ Returns read-only source detail summaries from local daily report files.
 Each source row includes signal count, covered themes, covered dates, recent dates, last seen date, latest `fetched_at`, data status counts, risk counts, intraday status counts, fallback count, missing source count, missing `fetched_at` count, weak signal count, and a small set of recent example signals. Missing source metadata is grouped under `Unknown Source`.
 
 This endpoint is for source coverage and evidence quality review. It does not fetch live data, trigger `run-daily`, edit mappings, or provide trading guidance.
+
+### GET /api/history/theme-source-matrix
+
+Returns a read-only theme-source evidence matrix from local daily report files.
+
+The response includes theme summaries, source summaries, matrix cells, and weak evidence cells. Each cell reports signal count, data status counts, missing `fetched_at`, fallback count, weak signal count, recent dates, last seen date, latest `fetched_at`, and up to 3 recent example signals.
+
+Missing themes are grouped under `Unknown Theme`, and missing sources are grouped under `Unknown Source`. Weak cells mean the evidence metadata needs review; they do not represent trading signals or performance metrics.
 
 ### GET /api/runs/{date}/dashboard-data
 
