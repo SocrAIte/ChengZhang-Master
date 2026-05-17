@@ -14,6 +14,37 @@ The API reads from `reports/daily/` by default.
 
 ## Endpoints
 
+### GET /api/health
+
+Returns a lightweight service health response:
+
+```json
+{
+  "status": "ok",
+  "service": "market_impact_radar",
+  "api": "readonly",
+  "version": "v1"
+}
+```
+
+This endpoint only confirms that the API process can respond. It does not run `run-daily`, read live market data, or contact external quote sources.
+
+### GET /api/version
+
+Returns API and dashboard contract metadata:
+
+```json
+{
+  "service": "market_impact_radar",
+  "api_version": "v1",
+  "dashboard_schema_version": "1.0",
+  "readonly_api": true,
+  "package_version": "0.1.0"
+}
+```
+
+If the installed package version is unavailable, `package_version` is returned as `"unknown"` instead of failing the request.
+
 ### GET /api/runs
 
 Returns the available daily runs discovered under `reports/daily/YYYY-MM-DD/`.

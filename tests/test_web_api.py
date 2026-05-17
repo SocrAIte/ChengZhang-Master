@@ -52,6 +52,29 @@ def _write_run(root: Path, run_date: str = "2026-05-15") -> Path:
 
 
 class WebApiTest(unittest.TestCase):
+    def test_health_endpoint_returns_ok_without_file_access(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            api = DailyReportApi(Path(tmpdir) / "missing-reports")
+            response = api.handle_get("/api/health")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.payload["status"], "ok")
+        self.assertEqual(response.payload["service"], "market_impact_radar")
+        self.assertEqual(response.payload["api"], "readonly")
+        self.assertEqual(response.payload["version"], "v1")
+
+    def test_version_endpoint_returns_contract_metadata_without_file_access(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            api = DailyReportApi(Path(tmpdir) / "missing-reports")
+            response = api.handle_get("/api/version")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.payload["service"], "market_impact_radar")
+        self.assertEqual(response.payload["api_version"], "v1")
+        self.assertEqual(response.payload["dashboard_schema_version"], "1.0")
+        self.assertTrue(response.payload["readonly_api"])
+        self.assertIn("package_version", response.payload)
+
     def test_list_runs_returns_history_entries_with_api_links(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             _write_run(Path(tmpdir))
@@ -154,6 +177,25 @@ class WebApiTest(unittest.TestCase):
         self.assertEqual(response.status, 200)
         self.assertEqual(payload["runs"][0]["date"], "2026-05-15")
         self.assertEqual(payload["runs"][0]["links"]["run_summary"], "/api/runs/2026-05-15/run-summary")
+
+    def test_http_api_smoke_serves_health_route(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            server = ThreadingHTTPServer(("127.0.0.1", 0), make_handler(tmpdir))
+            thread = Thread(target=server.serve_forever, daemon=True)
+            thread.start()
+            try:
+                connection = HTTPConnection("127.0.0.1", server.server_port, timeout=5)
+                connection.request("GET", "/api/health")
+                response = connection.getresponse()
+                payload = json.loads(response.read().decode("utf-8"))
+            finally:
+                server.shutdown()
+                server.server_close()
+                thread.join(timeout=5)
+
+        self.assertEqual(response.status, 200)
+        self.assertEqual(payload["status"], "ok")
+        self.assertEqual(payload["version"], "v1")
 
 
 if __name__ == "__main__":

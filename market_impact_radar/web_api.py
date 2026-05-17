@@ -4,14 +4,18 @@ import json
 import re
 from dataclasses import dataclass
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from importlib import metadata
 from pathlib import Path
 from typing import Any
 from urllib.parse import unquote, urlparse
 
-from .dashboard_contract import normalize_dashboard_data
+from .dashboard_contract import DASHBOARD_SCHEMA_VERSION, normalize_dashboard_data
 from .history_index import build_daily_history_index
 
 
+SERVICE_NAME = "market_impact_radar"
+READONLY_API_VERSION = "v1"
+PACKAGE_NAME = "market-impact-radar"
 _DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
 
@@ -36,6 +40,10 @@ class DailyReportApi:
         path = urlparse(raw_path).path
         parts = [unquote(part) for part in path.strip("/").split("/") if part]
         try:
+            if parts == ["api", "health"]:
+                return ApiResponse(200, self.health())
+            if parts == ["api", "version"]:
+                return ApiResponse(200, self.version())
             if parts == ["api", "runs"]:
                 return ApiResponse(200, self.list_runs())
             if len(parts) == 4 and parts[:2] == ["api", "runs"]:
@@ -52,6 +60,23 @@ class DailyReportApi:
             raise WebApiError(404, "API route not found")
         except WebApiError as exc:
             return ApiResponse(exc.status_code, {"error": exc.message, "status": exc.status_code})
+
+    def health(self) -> dict[str, Any]:
+        return {
+            "status": "ok",
+            "service": SERVICE_NAME,
+            "api": "readonly",
+            "version": READONLY_API_VERSION,
+        }
+
+    def version(self) -> dict[str, Any]:
+        return {
+            "service": SERVICE_NAME,
+            "api_version": READONLY_API_VERSION,
+            "dashboard_schema_version": DASHBOARD_SCHEMA_VERSION,
+            "readonly_api": True,
+            "package_version": _package_version(),
+        }
 
     def list_runs(self) -> dict[str, Any]:
         index = build_daily_history_index(self.reports_dir)
@@ -160,3 +185,10 @@ def serve_api(host: str = "127.0.0.1", port: int = 8000, reports_dir: str | Path
         server.serve_forever()
     finally:
         server.server_close()
+
+
+def _package_version() -> str:
+    try:
+        return metadata.version(PACKAGE_NAME)
+    except metadata.PackageNotFoundError:
+        return "unknown"
