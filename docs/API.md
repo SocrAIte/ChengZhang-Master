@@ -12,6 +12,26 @@ python -m market_impact_radar serve-api --host 127.0.0.1 --port 8000 --reports-d
 
 The API reads from `reports/daily/` by default.
 
+Open the minimal read-only console at:
+
+```text
+http://127.0.0.1:8000/console
+```
+
+The root path `/` serves the same console shell.
+
+## Read-only Console
+
+The console is a static HTML page served by the same process.
+
+It uses the existing API endpoints to:
+
+- list available daily runs from `GET /api/runs`
+- load dashboard data from `GET /api/runs/{date}/dashboard-data`
+- show run status, summary fields, signals, candidates, risks, and raw `dashboard_data.json`
+
+The console does not call `run-daily`, write files, fetch live market data, edit the knowledge graph, or compute new financial signals.
+
 ## Endpoints
 
 ### GET /api
@@ -32,7 +52,8 @@ Returns a lightweight endpoint index for the read-only API:
       "description": "Available daily report runs."
     }
   ],
-  "openapi": "/api/openapi.json"
+  "openapi": "/api/openapi.json",
+  "console": "/console"
 }
 ```
 

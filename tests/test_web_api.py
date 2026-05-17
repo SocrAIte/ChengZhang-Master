@@ -61,9 +61,31 @@ class WebApiTest(unittest.TestCase):
         self.assertEqual(response.payload["service"], "market_impact_radar")
         self.assertTrue(response.payload["readonly_api"])
         self.assertEqual(response.payload["openapi"], "/api/openapi.json")
+        self.assertEqual(response.payload["console"], "/console")
         paths = {endpoint["path"] for endpoint in response.payload["endpoints"]}
         self.assertIn("/api/runs", paths)
         self.assertIn("/api/runs/{date}/dashboard-data", paths)
+
+    def test_console_endpoint_returns_static_readonly_shell_without_file_access(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            api = DailyReportApi(Path(tmpdir) / "missing-reports")
+            response = api.handle_get("/console")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.content_type, "text/html; charset=utf-8")
+        self.assertIsInstance(response.payload, str)
+        self.assertIn("Market Impact Radar Console", response.payload)
+        self.assertIn("Read-only daily report viewer", response.payload)
+        self.assertIn('fetchJson("/api/runs")', response.payload)
+        self.assertIn("/api/runs/${date}/dashboard-data", response.payload)
+
+    def test_root_endpoint_returns_console_shell(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            response = DailyReportApi(Path(tmpdir) / "missing-reports").handle_get("/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.content_type, "text/html; charset=utf-8")
+        self.assertIn("Daily Runs", response.payload)
 
     def test_openapi_json_describes_public_readonly_paths_without_file_access(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -222,6 +244,27 @@ class WebApiTest(unittest.TestCase):
         self.assertEqual(response.status, 200)
         self.assertEqual(payload["status"], "ok")
         self.assertEqual(payload["version"], "v1")
+
+    def test_http_api_smoke_serves_console_html(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            server = ThreadingHTTPServer(("127.0.0.1", 0), make_handler(tmpdir))
+            thread = Thread(target=server.serve_forever, daemon=True)
+            thread.start()
+            try:
+                connection = HTTPConnection("127.0.0.1", server.server_port, timeout=5)
+                connection.request("GET", "/console")
+                response = connection.getresponse()
+                content_type = response.getheader("Content-Type")
+                body = response.read().decode("utf-8")
+            finally:
+                server.shutdown()
+                server.server_close()
+                thread.join(timeout=5)
+
+        self.assertEqual(response.status, 200)
+        self.assertEqual(content_type, "text/html; charset=utf-8")
+        self.assertIn("Market Impact Radar Console", body)
+        self.assertIn("/api/runs", body)
 
 
 if __name__ == "__main__":

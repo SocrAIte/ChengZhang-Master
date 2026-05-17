@@ -11,6 +11,7 @@ from urllib.parse import unquote, urlparse
 
 from .dashboard_contract import DASHBOARD_SCHEMA_VERSION, normalize_dashboard_data
 from .history_index import build_daily_history_index
+from .web_console import render_console_html
 
 
 SERVICE_NAME = "market_impact_radar"
@@ -29,7 +30,8 @@ class WebApiError(RuntimeError):
 @dataclass(frozen=True)
 class ApiResponse:
     status_code: int
-    payload: dict[str, Any]
+    payload: dict[str, Any] | str
+    content_type: str = "application/json; charset=utf-8"
 
 
 class DailyReportApi:
@@ -40,6 +42,8 @@ class DailyReportApi:
         path = urlparse(raw_path).path
         parts = [unquote(part) for part in path.strip("/").split("/") if part]
         try:
+            if parts == [] or parts == ["console"]:
+                return ApiResponse(200, render_console_html(), "text/html; charset=utf-8")
             if parts == ["api"]:
                 return ApiResponse(200, self.index())
             if parts == ["api", "health"]:
@@ -82,6 +86,7 @@ class DailyReportApi:
             "readonly_api": True,
             "endpoints": _endpoint_catalog(),
             "openapi": "/api/openapi.json",
+            "console": "/console",
         }
 
     def openapi_spec(self) -> dict[str, Any]:
@@ -228,9 +233,12 @@ def make_handler(reports_dir: str | Path = "reports/daily") -> type[BaseHTTPRequ
     class DailyReportApiHandler(BaseHTTPRequestHandler):
         def do_GET(self) -> None:
             response = api.handle_get(self.path)
-            body = json.dumps(response.payload, ensure_ascii=False, indent=2).encode("utf-8")
+            if isinstance(response.payload, str):
+                body = response.payload.encode("utf-8")
+            else:
+                body = json.dumps(response.payload, ensure_ascii=False, indent=2).encode("utf-8")
             self.send_response(response.status_code)
-            self.send_header("Content-Type", "application/json; charset=utf-8")
+            self.send_header("Content-Type", response.content_type)
             self.send_header("Content-Length", str(len(body)))
             self.end_headers()
             self.wfile.write(body)
