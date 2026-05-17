@@ -240,7 +240,7 @@ class BrowserSmokeTest(unittest.TestCase):
                 run_daily_bundle_browser_smoke(root, playwright_factory=_bundle_factory())
 
     def test_console_browser_smoke_happy_path_with_fake_browser(self) -> None:
-        body = "Market Impact Radar Console Daily Runs Dashboard Data 2026-05-15 Run Date Refresh Runs Signal Search Risk Filter Status Filter Sort Signals Grouped by theme Flat signal list Morning Brief Theme Hotlist Theme Compare Candidate Pool Comparison Theme Detail Signal Detail Panel Evidence Chain Data Quality / Freshness ETF observation pool Stock observation pool Artifact Links Historical Review Historical Theme Trends Recurring Observation Candidates Data Quality Trend API: API version: Dashboard Knowledge Review Run Diagnostics"
+        body = "Market Impact Radar Console Daily Runs Dashboard Data 2026-05-15 Run Date Refresh Runs Signal Search Risk Filter Status Filter Sort Signals Grouped by theme Flat signal list Morning Brief Source Reliability Source Breakdown Weak Evidence Signals Historical Data Quality Trend Theme Hotlist Theme Compare Candidate Pool Comparison Theme Detail Signal Detail Panel Evidence Chain Data Quality / Freshness ETF observation pool Stock observation pool Artifact Links Historical Review Historical Theme Trends Recurring Observation Candidates Data Quality Trend API: API version: Dashboard Knowledge Review Run Diagnostics"
         with tempfile.TemporaryDirectory() as tmpdir:
             root = Path(tmpdir)
             _write_console_run(root)
@@ -266,7 +266,7 @@ class BrowserSmokeTest(unittest.TestCase):
                 run_console_browser_smoke(root, playwright_factory=_console_factory("Market Impact Radar Console Daily Runs Dashboard Data 2026-05-15 Run Date Refresh Runs Signal Search Risk Filter Status Filter Sort Signals Grouped by theme Flat signal list Theme Detail Signal Detail Panel Evidence Chain Data Quality / Freshness ETF observation pool Stock observation pool Artifact Links API: API version:"))
 
     def test_console_browser_smoke_missing_control_fails(self) -> None:
-        body = "Market Impact Radar Console Daily Runs Dashboard Data 2026-05-15 Run Date Refresh Runs Signal Search Risk Filter Status Filter Sort Signals Grouped by theme Flat signal list Morning Brief Theme Hotlist Theme Compare Candidate Pool Comparison Theme Detail Signal Detail Panel Evidence Chain Data Quality / Freshness ETF observation pool Stock observation pool Artifact Links Historical Review Historical Theme Trends Recurring Observation Candidates Data Quality Trend API: API version: Dashboard Knowledge Review Run Diagnostics"
+        body = "Market Impact Radar Console Daily Runs Dashboard Data 2026-05-15 Run Date Refresh Runs Signal Search Risk Filter Status Filter Sort Signals Grouped by theme Flat signal list Morning Brief Source Reliability Source Breakdown Weak Evidence Signals Historical Data Quality Trend Theme Hotlist Theme Compare Candidate Pool Comparison Theme Detail Signal Detail Panel Evidence Chain Data Quality / Freshness ETF observation pool Stock observation pool Artifact Links Historical Review Historical Theme Trends Recurring Observation Candidates Data Quality Trend API: API version: Dashboard Knowledge Review Run Diagnostics"
         with tempfile.TemporaryDirectory() as tmpdir:
             root = Path(tmpdir)
             _write_console_run(root)

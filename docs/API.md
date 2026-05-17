@@ -23,7 +23,7 @@ The root path `/` serves the same console shell.
 The console also supports shareable query state, for example:
 
 ```text
-http://127.0.0.1:8000/console?date=2026-05-15&search=nvidia&risk=high&status=confirmed&sort=score_desc&view=grouped&compare=存储芯片,光模块
+http://127.0.0.1:8000/console?date=2026-05-15&search=nvidia&risk=high&status=confirmed&sort=score_desc&view=grouped&compare=storage%20chips,CPO
 ```
 
 Run a real browser smoke check for the console with:
@@ -49,6 +49,9 @@ It uses the existing API endpoints to:
 - sort signals by default order, score, risk, intraday status, or theme name
 - preserve console state in the URL for `date`, `search`, `risk`, `status`, `sort`, and `view`
 - show a Morning Brief with current run counts, strongest visible themes, risk notes, data quality notes, recurring themes, and recurring observation candidates
+- show Source Reliability for current run source coverage, evidence freshness, fallback use, weak evidence signals, and historical data quality trend
+- show Source Breakdown grouped by current run `source` / `sources`
+- show Weak Evidence Signals that need verification because source, fetched time, fallback, or data status metadata is incomplete
 - show a Theme Hotlist based on the currently visible signals
 - compare up to 3 themes side by side in Theme Compare
 - show Candidate Pool Comparison for repeated ETF and stock observation candidates across compared themes
@@ -85,6 +88,8 @@ Unknown query values fall back to safe defaults. Empty/default values are omitte
 Theme Detail Drilldown combines the selected run's visible signals with historical theme and candidate summaries. It shows current signals, historical observation counts, risk/status/data quality distributions, recent dates, external trigger summaries, and ETF / stock observation pools. It remains a research view and does not show return, profit, win-rate, alpha, entry, exit, or target-price metrics.
 
 Insight Workspace v2 adds Morning Brief, Theme Compare, and Candidate Pool Comparison. These views are rule-based summaries over existing local JSON outputs and read-only history APIs. They show signal counts, status distributions, risk distributions, data quality labels, external trigger summaries, and observation pool overlap. They do not call external models, trigger `run-daily`, fetch live market data, or change mappings.
+
+Source Reliability adds a dedicated data quality review. It summarizes current run `data_status`, `source` / `sources`, `fetched_at`, fallback metadata, weak evidence signals, and historical data quality observations from `GET /api/history/data-quality`. These are evidence quality hints only, not trading signals.
 
 ## Endpoints
 
@@ -169,6 +174,14 @@ This endpoint skips missing or invalid `dashboard_data.json` files. It does not 
 Returns read-only frequency summaries for ETF and stock observation candidates seen in local daily runs.
 
 It supports candidates represented as strings or objects, and reports `appearances`, related `themes`, recent dates, and last seen date. It is an observation-pool summary, not a recommendation list.
+
+### GET /api/history/data-quality
+
+Returns a read-only summary of data quality metadata observed across local `reports/daily/YYYY-MM-DD/dashboard_data.json` files.
+
+It reports `data_status_counts`, `source_counts`, missing source count, missing `fetched_at` count, fallback count, and themes with weak data metadata. Missing sources are grouped under `Unknown Source`.
+
+This endpoint only reads local daily report files. It does not fetch live data, run `run-daily`, recompute financial signals, or interpret data quality as a trading signal.
 
 ### GET /api/runs/{date}/dashboard-data
 

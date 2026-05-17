@@ -67,6 +67,55 @@ def build_candidate_history(reports_dir: str | Path) -> dict[str, Any]:
     }
 
 
+def build_data_quality_history(reports_dir: str | Path) -> dict[str, Any]:
+    runs = _load_dashboard_runs(Path(reports_dir))
+    data_status_counts: Counter = Counter()
+    source_counts: Counter = Counter()
+    missing_source_count = 0
+    missing_fetched_at_count = 0
+    fallback_count = 0
+    themes: dict[str, dict[str, Any]] = {}
+
+    for run_date, dashboard_data in runs:
+        for signal in _signals(dashboard_data):
+            theme = _theme_name(signal)
+            data_status = _data_status(signal)
+            sources = _source_values(signal)
+            fetched_at = _fetched_values(signal)
+            fallback_used = _fallback_used(signal)
+
+            _count(data_status_counts, data_status)
+            if sources:
+                for source in sources:
+                    _count(source_counts, source)
+            else:
+                missing_source_count += 1
+                _count(source_counts, "Unknown Source")
+            if not fetched_at:
+                missing_fetched_at_count += 1
+            if fallback_used:
+                fallback_count += 1
+
+            if _is_weak_data_status(data_status) or not sources or not fetched_at or fallback_used:
+                bucket = themes.setdefault(theme, _weak_theme_bucket(theme))
+                bucket["weak_signal_count"] += 1
+                _count(bucket["data_status_counts"], data_status)
+                _extend_unique(bucket["recent_dates"], [run_date])
+
+    return {
+        "schema_version": HISTORY_SCHEMA_VERSION,
+        "generated_at": _now_iso(),
+        "runs_count": len(runs),
+        "date_range": _date_range([date for date, _ in runs]),
+        "data_status_counts": dict(data_status_counts),
+        "source_counts": dict(source_counts),
+        "missing_source_count": missing_source_count,
+        "missing_fetched_at_count": missing_fetched_at_count,
+        "fallback_count": fallback_count,
+        "themes_with_weak_data": _finalize_weak_themes(themes),
+    }
+
+
 def normalize_candidate(candidate: Any) -> dict[str, Any]:
     if isinstance(candidate, dict):
         name = _first_existing(candidate, ("name", "label", "title", "symbol", "ticker", "code")) or "unknown"
@@ -122,6 +171,15 @@ def _theme_bucket(theme: str) -> dict[str, Any]:
     }
 
 
+def _weak_theme_bucket(theme: str) -> dict[str, Any]:
+    return {
+        "theme": theme,
+        "weak_signal_count": 0,
+        "recent_dates": [],
+        "data_status_counts": Counter(),
+    }
+
+
 def _finalize_theme_bucket(bucket: dict[str, Any]) -> dict[str, Any]:
     scores = bucket.pop("scores")
     recent_dates = sorted(bucket["recent_dates"], reverse=True)
@@ -141,6 +199,23 @@ def _finalize_theme_bucket(bucket: dict[str, Any]) -> dict[str, Any]:
         "recent_dates": recent_dates[:5],
         "last_seen": recent_dates[0] if recent_dates else None,
     }
+
+
+def _finalize_weak_themes(themes: dict[str, dict[str, Any]]) -> list[dict[str, Any]]:
+    rows = []
+    for bucket in themes.values():
+        recent_dates = sorted(bucket["recent_dates"], reverse=True)
+        rows.append(
+            {
+                "theme": bucket["theme"],
+                "weak_signal_count": bucket["weak_signal_count"],
+                "recent_dates": recent_dates[:5],
+                "last_seen": recent_dates[0] if recent_dates else None,
+                "data_status_counts": dict(bucket["data_status_counts"]),
+            }
+        )
+    rows.sort(key=lambda row: (-row["weak_signal_count"], row["theme"]))
+    return rows
 
 
 def _add_candidate(store: dict[tuple[str, str | None], dict[str, Any]], candidate: Any, theme: str, run_date: str) -> None:
@@ -208,6 +283,28 @@ def _as_list(value: Any) -> list[Any]:
     if value in (None, ""):
         return []
     return [value]
+
+
+def _source_values(signal: dict[str, Any]) -> list[str]:
+    return [str(item).strip() for item in _as_list(signal.get("sources") or signal.get("source")) if str(item).strip()]
+
+
+def _fetched_values(signal: dict[str, Any]) -> list[str]:
+    return [str(item).strip() for item in _as_list(signal.get("fetched_at") or signal.get("fetchedAt")) if str(item).strip()]
+
+
+def _data_status(signal: dict[str, Any]) -> str:
+    value = signal.get("data_status")
+    return str(value).strip() if value not in (None, "") else "unknown"
+
+
+def _fallback_used(signal: dict[str, Any]) -> bool:
+    value = signal.get("fallback_used")
+    return value is True or str(value).strip().lower() == "true"
+
+
+def _is_weak_data_status(value: Any) -> bool:
+    return str(value or "unknown").strip().lower() in {"missing", "missing_data", "partial", "stale", "failed", "unknown"}
 
 
 def _first_existing(values: dict[str, Any], keys: tuple[str, ...]) -> Any:

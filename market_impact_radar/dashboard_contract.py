@@ -181,8 +181,9 @@ def _normalize_signal(item: dict[str, Any]) -> dict[str, Any]:
         "risk_level": str(item.get("risk_level") or "unknown"),
         "risks": _as_list(item.get("risks")),
         "data_status": str(item.get("data_status") or "unknown"),
-        "sources": _as_list(item.get("sources")),
+        "sources": _as_list(item.get("sources") if item.get("sources") not in (None, "") else item.get("source")),
         "fetched_at": _as_list(item.get("fetched_at")),
+        "fallback_used": item.get("fallback_used"),
     }
 
 

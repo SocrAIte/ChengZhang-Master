@@ -67,6 +67,7 @@ class WebApiTest(unittest.TestCase):
         self.assertIn("/api/runs", paths)
         self.assertIn("/api/history/themes", paths)
         self.assertIn("/api/history/candidates", paths)
+        self.assertIn("/api/history/data-quality", paths)
         self.assertIn("/api/runs/{date}/artifacts", paths)
         self.assertIn("/api/runs/{date}/dashboard-data", paths)
 
@@ -96,6 +97,10 @@ class WebApiTest(unittest.TestCase):
         self.assertIn("Flat signal list", response.payload)
         self.assertIn("Theme Hotlist", response.payload)
         self.assertIn("Morning Brief", response.payload)
+        self.assertIn("Source Reliability", response.payload)
+        self.assertIn("Source Breakdown", response.payload)
+        self.assertIn("Weak Evidence Signals", response.payload)
+        self.assertIn("Historical Data Quality Trend", response.payload)
         self.assertIn("Theme Compare", response.payload)
         self.assertIn("Candidate Pool Comparison", response.payload)
         self.assertIn("compare-theme-select", response.payload)
@@ -159,6 +164,7 @@ class WebApiTest(unittest.TestCase):
         self.assertIn("/api/health", paths)
         self.assertIn("/api/history/themes", paths)
         self.assertIn("/api/history/candidates", paths)
+        self.assertIn("/api/history/data-quality", paths)
         self.assertIn("/api/runs/{date}/artifacts", paths)
         self.assertIn("/api/runs/{date}/diagnostics", paths)
 
@@ -277,6 +283,53 @@ class WebApiTest(unittest.TestCase):
         self.assertEqual(etfs["AI ETF"]["code"], "159000")
         self.assertEqual(stocks["OpticsCo"]["themes"], ["CPO"])
         self.assertEqual(stocks["BoardCo"]["code"], "600001")
+
+    def test_history_data_quality_summarizes_sources_and_weak_data(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            _write_run(
+                Path(tmpdir),
+                "2026-05-14",
+                [
+                    {
+                        "theme": "AI hardware",
+                        "data_status": "ok",
+                        "sources": ["yahoo"],
+                        "fetched_at": "2026-05-14T01:00:00+00:00",
+                    },
+                    {
+                        "theme": "storage chips",
+                        "data_status": "partial",
+                        "fallback_used": True,
+                    },
+                ],
+            )
+            _write_run(
+                Path(tmpdir),
+                "2026-05-15",
+                [
+                    {
+                        "theme": "storage chips",
+                        "data_status": "stale",
+                        "source": "eastmoney",
+                    }
+                ],
+            )
+            (Path(tmpdir) / "2026-05-16").mkdir()
+
+            response = DailyReportApi(tmpdir).handle_get("/api/history/data-quality")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.payload["schema_version"], "1.0")
+        self.assertEqual(response.payload["runs_count"], 2)
+        self.assertEqual(response.payload["data_status_counts"]["partial"], 1)
+        self.assertEqual(response.payload["data_status_counts"]["stale"], 1)
+        self.assertEqual(response.payload["source_counts"]["yahoo"], 1)
+        self.assertEqual(response.payload["source_counts"]["Unknown Source"], 1)
+        self.assertEqual(response.payload["missing_source_count"], 1)
+        self.assertEqual(response.payload["missing_fetched_at_count"], 2)
+        self.assertEqual(response.payload["fallback_count"], 1)
+        weak = {item["theme"]: item for item in response.payload["themes_with_weak_data"]}
+        self.assertEqual(weak["storage chips"]["weak_signal_count"], 2)
 
     def test_artifacts_endpoint_returns_output_file_index(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:

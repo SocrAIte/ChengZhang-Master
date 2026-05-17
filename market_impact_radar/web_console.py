@@ -49,6 +49,7 @@ def render_console_html() -> str:
     .theme-card { background: #fff; border: 1px solid #d9dee7; border-radius: 8px; padding: 12px; }
     .theme-card h3, .theme-group h3 { margin: 0 0 8px; }
     .morning-brief, .compare-workspace { margin-bottom: 14px; }
+    .source-reliability { margin-bottom: 14px; }
     .compare-grid { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
     .compare-card { background: #fff; border: 1px solid #d9dee7; border-radius: 8px; padding: 12px; }
     .compare-actions { align-items: end; display: grid; gap: 10px; grid-template-columns: minmax(180px, 1fr) auto; margin: 10px 0; }
@@ -161,6 +162,7 @@ def render_console_html() -> str:
     let apiVersionData = null;
     let themeHistoryData = null;
     let candidateHistoryData = null;
+    let dataQualityHistoryData = null;
     const VALID_RISKS = new Set(["", "low", "medium", "high", "unknown"]);
     const VALID_STATUSES = new Set(["", "confirmed", "downgraded", "missing_data", "failed", "not_checked", "unknown"]);
     const VALID_SORTS = new Set(["default", "score_desc", "risk_level", "intraday_status", "theme"]);
@@ -593,6 +595,50 @@ def render_console_html() -> str:
       return counts;
     }
 
+    function hasFallback(signal) {
+      return signal.fallback_used === true || normalized(signal.fallback_used) === "true";
+    }
+
+    function isWeakDataStatus(value) {
+      return ["missing", "missing_data", "partial", "stale", "failed", "unknown"].includes(normalized(value || "unknown"));
+    }
+
+    function weakEvidenceReasons(signal) {
+      const reasons = [];
+      const dataStatus = signal.data_status || "unknown";
+      const sources = sourceValues(signal);
+      const fetched = fetchedValues(signal);
+      if (isWeakDataStatus(dataStatus)) reasons.push(`${dataStatus} data`);
+      if (!sources.length) reasons.push("Unknown source");
+      if (!fetched.length) reasons.push("Missing fetched_at");
+      if (hasFallback(signal)) reasons.push("Fallback used");
+      if (normalized(signal.risk_level) === "high" && isWeakDataStatus(dataStatus)) reasons.push("High risk with weak data quality");
+      return uniqueValues(reasons, 6);
+    }
+
+    function sourceBreakdown(signals) {
+      const rows = new Map();
+      for (const signal of signals) {
+        const sources = sourceValues(signal);
+        const sourceList = sources.length ? sources : ["Unknown Source"];
+        for (const source of sourceList) {
+          const item = rows.get(source) || { source, signal_count: 0, themes: [], data_status_counts: {}, latest_fetched_at: null, weak_count: 0, fallback_count: 0 };
+          item.signal_count += 1;
+          const theme = themeName(signal);
+          if (!item.themes.some((value) => sameTheme(value, theme))) item.themes.push(theme);
+          const status = signal.data_status || "unknown";
+          item.data_status_counts[status] = (item.data_status_counts[status] || 0) + 1;
+          fetchedValues(signal).forEach((value) => {
+            if (!item.latest_fetched_at || String(value) > String(item.latest_fetched_at)) item.latest_fetched_at = value;
+          });
+          if (isWeakDataStatus(status)) item.weak_count += 1;
+          if (hasFallback(signal)) item.fallback_count += 1;
+          rows.set(source, item);
+        }
+      }
+      return Array.from(rows.values()).sort((left, right) => right.signal_count - left.signal_count || left.source.localeCompare(right.source));
+    }
+
     async function fetchJson(url) {
       const response = await fetch(url, { headers: { "Accept": "application/json" } });
       const payload = await response.json();
@@ -631,13 +677,15 @@ def render_console_html() -> str:
 
     async function loadHistoryReview() {
       try {
-        [themeHistoryData, candidateHistoryData] = await Promise.all([
+        [themeHistoryData, candidateHistoryData, dataQualityHistoryData] = await Promise.all([
           fetchJson("/api/history/themes"),
           fetchJson("/api/history/candidates"),
+          fetchJson("/api/history/data-quality"),
         ]);
       } catch (error) {
         themeHistoryData = { runs_count: "unknown", date_range: {}, themes: [] };
         candidateHistoryData = { etf_candidates: [], stock_candidates: [] };
+        dataQualityHistoryData = { runs_count: "unknown", date_range: {}, data_status_counts: {}, source_counts: {}, themes_with_weak_data: [] };
       }
     }
 
@@ -1140,6 +1188,7 @@ def render_console_html() -> str:
       panel.appendChild(renderValueList("External Trigger Summary", history?.external_triggers || currentSignalsForTheme.flatMap((signal) => arrayValue(signal.external_triggers))));
       panel.appendChild(renderValueList("Risk Summary", currentSignalsForTheme.flatMap((signal) => arrayValue(signal.risks))));
       panel.appendChild(renderValueList("Data Quality Summary", currentSignalsForTheme.flatMap((signal) => dataQualityItems(signal))));
+      panel.appendChild(renderValueList("Needs Verification", currentSignalsForTheme.flatMap((signal) => weakEvidenceReasons(signal))));
       panel.appendChild(renderThemeCandidateHistory("ETF observation pool", etfs));
       panel.appendChild(renderThemeCandidateHistory("Stock observation pool", stocks));
       return panel;
@@ -1153,6 +1202,7 @@ def render_console_html() -> str:
       const run = currentDashboardData?.run || {};
       const statusCounts = countSignalsBy(currentSignals, (signal) => signal.intraday_status || signal.status || "not_checked");
       const dataCounts = countSignalsBy(currentSignals, (signal) => signal.data_status || "unknown");
+      const weakSignals = currentSignals.filter((signal) => weakEvidenceReasons(signal).length > 0);
       const groups = groupedSignals(currentSignals);
       const strongThemes = groups.slice(0, 3).map((group) => `${group.theme} (${topScore(group.signals)})`);
       const highRiskThemes = groups.filter((group) => normalized(maxRisk(group.signals)) === "high").slice(0, 3).map((group) => group.theme);
@@ -1179,6 +1229,7 @@ def render_console_html() -> str:
         ["Visible signals", visibleSignals.length],
         ["Status overview", Object.entries(statusCounts).map(([key, count]) => `${key}: ${count}`).join(", ") || "unknown"],
         ["Data quality notes", qualityNotes.join(", ") || "No missing, partial, stale, or unknown data labels in current signals."],
+        ["Needs verification", `${weakSignals.length} signals need data verification.`],
         ["Requires confirmation", highRiskThemes.length ? `High risk themes: ${highRiskThemes.join(", ")}` : "No high risk themes in current signals."],
       ].forEach(([label, value]) => briefGrid.appendChild(metric(label, value)));
       section.appendChild(briefGrid);
@@ -1295,6 +1346,7 @@ def render_console_html() -> str:
       card.appendChild(renderCountBadges("Historical Data Status Distribution", history?.data_status_counts));
       card.appendChild(renderValueList("Recent Dates", history?.recent_dates || []));
       card.appendChild(renderValueList("Top external triggers", uniqueValues(currentSignalsForTheme.flatMap((signal) => arrayValue(signal.external_triggers)).concat(arrayValue(history?.external_triggers)), 5)));
+      card.appendChild(renderValueList("Needs Verification", currentSignalsForTheme.flatMap((signal) => weakEvidenceReasons(signal))));
       card.appendChild(renderCompareEvidence(theme, currentSignalsForTheme, etfs, stocks));
       return card;
     }
@@ -1336,6 +1388,135 @@ def render_console_html() -> str:
       });
       table.appendChild(tbody);
       section.appendChild(table);
+      return section;
+    }
+
+    function renderSourceBreakdown(signals) {
+      const section = document.createElement("div");
+      section.className = "detail-section";
+      section.appendChild(text("h3", "Source Breakdown"));
+      const rows = sourceBreakdown(signals);
+      if (!rows.length) {
+        section.appendChild(text("p", "No source metadata available for current signals.", "muted"));
+        return section;
+      }
+      const table = document.createElement("table");
+      table.className = "history-table";
+      const thead = document.createElement("thead");
+      const header = document.createElement("tr");
+      ["Source", "Signals", "Themes", "Data status counts", "Latest fetched_at", "Weak data count", "Fallback count"].forEach((label) => header.appendChild(text("th", label)));
+      thead.appendChild(header);
+      table.appendChild(thead);
+      const tbody = document.createElement("tbody");
+      rows.forEach((row) => {
+        const tr = document.createElement("tr");
+        [
+          row.source,
+          row.signal_count,
+          row.themes.join(", "),
+          Object.entries(row.data_status_counts).map(([key, count]) => `${key}: ${count}`).join(", "),
+          row.latest_fetched_at || "unknown",
+          row.weak_count,
+          row.fallback_count,
+        ].forEach((value) => tr.appendChild(text("td", value)));
+        tbody.appendChild(tr);
+      });
+      table.appendChild(tbody);
+      section.appendChild(table);
+      return section;
+    }
+
+    function renderWeakEvidenceSignals(signals) {
+      const section = document.createElement("div");
+      section.className = "detail-section";
+      section.appendChild(text("h3", "Weak Evidence Signals"));
+      const rows = signals
+        .map((signal) => ({ signal, reasons: weakEvidenceReasons(signal) }))
+        .filter((item) => item.reasons.length > 0);
+      if (!rows.length) {
+        section.appendChild(text("p", "No weak evidence signals found in the current run.", "muted"));
+        return section;
+      }
+      const table = document.createElement("table");
+      table.className = "history-table";
+      const thead = document.createElement("thead");
+      const header = document.createElement("tr");
+      ["Theme", "Strength", "Score", "Risk", "Intraday", "Data status", "Sources", "Fetched at", "Needs verification"].forEach((label) => header.appendChild(text("th", label)));
+      thead.appendChild(header);
+      table.appendChild(thead);
+      const tbody = document.createElement("tbody");
+      rows.forEach(({ signal, reasons }) => {
+        const tr = document.createElement("tr");
+        [
+          themeName(signal),
+          signal.strength || "unknown",
+          signal.score ?? "unknown",
+          signal.risk_level || "unknown",
+          signal.intraday_status || signal.status || "not_checked",
+          signal.data_status || "unknown",
+          sourceValues(signal).join(", ") || "Unknown source",
+          fetchedValues(signal).join(", ") || "unknown",
+          reasons.join(", "),
+        ].forEach((value) => tr.appendChild(text("td", value)));
+        tbody.appendChild(tr);
+      });
+      table.appendChild(tbody);
+      section.appendChild(table);
+      return section;
+    }
+
+    function renderHistoricalDataQualityTrend() {
+      const section = document.createElement("div");
+      section.className = "detail-section";
+      section.appendChild(text("h3", "Historical Data Quality Trend"));
+      if (!dataQualityHistoryData || dataQualityHistoryData.runs_count === 0) {
+        section.appendChild(text("p", "Not enough historical data.", "muted"));
+        return section;
+      }
+      const metrics = document.createElement("div");
+      metrics.className = "metrics";
+      [
+        ["History runs", dataQualityHistoryData.runs_count ?? "unknown"],
+        ["Missing source", dataQualityHistoryData.missing_source_count ?? 0],
+        ["Missing fetched_at", dataQualityHistoryData.missing_fetched_at_count ?? 0],
+        ["Fallback used", dataQualityHistoryData.fallback_count ?? 0],
+      ].forEach(([label, value]) => metrics.appendChild(metric(label, value)));
+      section.appendChild(metrics);
+      section.appendChild(renderHistoryTable("Historical data_status counts", ["Data status", "Observations"], Object.entries(dataQualityHistoryData.data_status_counts || {}).map(([key, count]) => [key, count])));
+      section.appendChild(renderHistoryTable("Top sources by appearances", ["Source", "Observations"], Object.entries(dataQualityHistoryData.source_counts || {}).sort((left, right) => Number(right[1]) - Number(left[1])).slice(0, 10).map(([key, count]) => [key, count])));
+      const weakThemes = Array.isArray(dataQualityHistoryData.themes_with_weak_data) ? dataQualityHistoryData.themes_with_weak_data : [];
+      section.appendChild(renderHistoryTable("Themes with weak data", ["Theme", "Weak signals", "Recent dates", "Last seen", "Data status counts"], weakThemes.slice(0, 10).map((item) => [item.theme, item.weak_signal_count, (item.recent_dates || []).join(", "), item.last_seen || "unknown", Object.entries(item.data_status_counts || {}).map(([key, count]) => `${key}: ${count}`).join(", ")])));
+      return section;
+    }
+
+    function renderSourceReliability() {
+      const section = document.createElement("article");
+      section.className = "source-reliability";
+      section.appendChild(text("h2", "Source Reliability"));
+      section.appendChild(text("p", "Data quality review for current and historical observations. These labels describe evidence freshness and completeness only.", "muted"));
+      const dataCounts = countSignalsBy(currentSignals, (signal) => signal.data_status || "unknown");
+      const withSources = currentSignals.filter((signal) => sourceValues(signal).length > 0).length;
+      const withFetched = currentSignals.filter((signal) => fetchedValues(signal).length > 0).length;
+      const fallbackCount = currentSignals.filter(hasFallback).length;
+      const weakSignals = currentSignals.filter((signal) => weakEvidenceReasons(signal).length > 0);
+      const highRiskWeakThemes = uniqueValues(weakSignals.filter((signal) => normalized(signal.risk_level) === "high").map(themeName), 20);
+      const metrics = document.createElement("div");
+      metrics.className = "metrics";
+      [
+        ["Total signals", currentSignals.length],
+        ["Signals with sources", withSources],
+        ["Signals without sources", currentSignals.length - withSources],
+        ["Signals with fetched_at", withFetched],
+        ["Signals without fetched_at", currentSignals.length - withFetched],
+        ["Fallback used", fallbackCount],
+        ["Needs verification", weakSignals.length],
+        ["High risk + weak data themes", highRiskWeakThemes.length],
+      ].forEach(([label, value]) => metrics.appendChild(metric(label, value)));
+      section.appendChild(metrics);
+      section.appendChild(renderHistoryTable("Current data_status distribution", ["Data status", "Signals"], Object.entries(dataCounts).map(([key, count]) => [key, count])));
+      section.appendChild(renderSourceBreakdown(currentSignals));
+      section.appendChild(renderWeakEvidenceSignals(currentSignals));
+      section.appendChild(renderHistoricalDataQualityTrend());
       return section;
     }
 
@@ -1441,6 +1622,7 @@ def render_console_html() -> str:
       const selectedSignal = visibleSignals.find((signal) => signal.__index === selectedSignalIndex) || null;
       signalCountEl.textContent = `${visibleSignals.length} of ${currentSignals.length} signals visible`;
       signalsAreaEl.appendChild(renderMorningBrief(visibleSignals));
+      signalsAreaEl.appendChild(renderSourceReliability());
       signalsAreaEl.appendChild(renderThemeHotlist(visibleSignals));
       signalsAreaEl.appendChild(renderThemeCompare(visibleSignals));
       const layout = document.createElement("div");
