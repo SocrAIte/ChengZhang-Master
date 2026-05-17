@@ -186,6 +186,7 @@ def run_console_browser_smoke(
                     page.goto(url, wait_until="networkidle")
                     body_text = page.locator("body").inner_text(timeout=5000).strip()
                     title = page.title()
+                    _assert_console_controls(page)
                 finally:
                     browser.close()
         except BrowserSmokeError:
@@ -282,6 +283,10 @@ def _assert_console_text(body_text: str, title: str, date: str) -> None:
         "Signal Search",
         "Risk Filter",
         "Status Filter",
+        "Sort Signals",
+        "Grouped by theme",
+        "Flat signal list",
+        "Theme Hotlist",
         "Artifacts",
         "Dashboard",
         "Knowledge Review",
@@ -290,3 +295,21 @@ def _assert_console_text(body_text: str, title: str, date: str) -> None:
     for text in required:
         if text not in visible_text:
             raise BrowserSmokeError(f"console missing required text: {text}")
+
+
+def _assert_console_controls(browser_page: Any) -> None:
+    for selector in (
+        "#run-select",
+        "#refresh-runs",
+        "#signal-search",
+        "#risk-filter",
+        "#status-filter",
+        "#sort-select",
+        "#view-mode",
+    ):
+        try:
+            count = browser_page.locator(selector).count()
+        except Exception as exc:
+            raise BrowserSmokeError(f"console selector check failed for {selector}: {exc}") from exc
+        if count < 1:
+            raise BrowserSmokeError(f"console missing selector: {selector}")

@@ -21,11 +21,15 @@ def render_console_html() -> str:
     label { display: block; font-size: 12px; font-weight: 600; margin-bottom: 4px; }
     .muted { color: #667085; font-size: 13px; }
     .controls { display: grid; gap: 10px; margin: 12px 0; }
-    .signal-controls { grid-template-columns: minmax(180px, 1fr) repeat(2, minmax(130px, 180px)); }
+    .signal-controls { grid-template-columns: minmax(180px, 1fr) repeat(4, minmax(130px, 180px)); }
     .metrics { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); margin-bottom: 14px; }
     .badge { border: 1px solid #d9dee7; border-radius: 999px; display: inline-block; font-size: 12px; margin: 2px 4px 2px 0; padding: 2px 8px; }
     .error { color: #b42318; }
     .signals { display: grid; gap: 12px; }
+    .theme-hotlist, .theme-group { margin-bottom: 14px; }
+    .theme-summary { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); }
+    .theme-card { background: #fff; border: 1px solid #d9dee7; border-radius: 8px; padding: 12px; }
+    .theme-card h3, .theme-group h3 { margin: 0 0 8px; }
     .artifacts { margin-bottom: 14px; }
     .artifacts li { margin-bottom: 4px; }
     a { color: #1f6feb; }
@@ -82,6 +86,23 @@ def render_console_html() -> str:
             <option value="unknown">unknown</option>
           </select>
         </div>
+        <div>
+          <label for="sort-select">Sort Signals</label>
+          <select id="sort-select">
+            <option value="default">Default order</option>
+            <option value="score-desc">Score descending</option>
+            <option value="risk">Risk level</option>
+            <option value="status">Intraday status</option>
+            <option value="theme">Theme name</option>
+          </select>
+        </div>
+        <div>
+          <label for="view-mode">View</label>
+          <select id="view-mode">
+            <option value="grouped">Grouped by theme</option>
+            <option value="flat">Flat signal list</option>
+          </select>
+        </div>
       </div>
       <div id="signal-count" class="muted">No signals loaded.</div>
       <div id="dashboard"></div>
@@ -97,7 +118,11 @@ def render_console_html() -> str:
     const signalSearchEl = document.querySelector("#signal-search");
     const riskFilterEl = document.querySelector("#risk-filter");
     const statusFilterEl = document.querySelector("#status-filter");
+    const sortSelectEl = document.querySelector("#sort-select");
+    const viewModeEl = document.querySelector("#view-mode");
     const signalCountEl = document.querySelector("#signal-count");
+    let currentSignals = [];
+    let signalsAreaEl = null;
 
     function clear(node) {
       while (node.firstChild) node.removeChild(node.firstChild);
@@ -127,6 +152,12 @@ def render_console_html() -> str:
       return ul;
     }
 
+    function arrayValue(value) {
+      if (Array.isArray(value)) return value;
+      if (value == null || value === "") return [];
+      return [value];
+    }
+
     function artifactLabel(key, fallback) {
       const labels = {
         dashboard_html: "Dashboard",
@@ -148,6 +179,106 @@ def render_console_html() -> str:
 
     function normalized(value) {
       return String(value == null ? "unknown" : value).toLowerCase();
+    }
+
+    function themeName(signal) {
+      return signal.theme ? String(signal.theme) : "Unknown Theme";
+    }
+
+    function numberScore(signal) {
+      const value = Number(signal.score);
+      return Number.isFinite(value) ? value : null;
+    }
+
+    function riskRank(value) {
+      const risk = normalized(value);
+      if (risk === "high") return 3;
+      if (risk === "medium") return 2;
+      if (risk === "low") return 1;
+      return 0;
+    }
+
+    function statusRank(value) {
+      const status = normalized(value || "not_checked");
+      if (status === "confirmed") return 5;
+      if (status === "downgraded") return 4;
+      if (status === "failed") return 3;
+      if (status === "missing_data") return 2;
+      if (status === "not_checked") return 1;
+      return 0;
+    }
+
+    function strengthRank(value) {
+      const strength = normalized(value);
+      if (strength.includes("strong")) return 3;
+      if (strength.includes("medium")) return 2;
+      if (strength.includes("weak")) return 1;
+      return 0;
+    }
+
+    function strongestStrength(signals) {
+      let best = "unknown";
+      let bestRank = -1;
+      for (const signal of signals) {
+        const rank = strengthRank(signal.strength);
+        if (rank > bestRank) {
+          bestRank = rank;
+          best = signal.strength || "unknown";
+        }
+      }
+      return best;
+    }
+
+    function topScore(signals) {
+      const scores = signals.map(numberScore).filter((value) => value != null);
+      return scores.length ? Math.max(...scores) : "unknown";
+    }
+
+    function maxRisk(signals) {
+      let best = "unknown";
+      let bestRank = -1;
+      for (const signal of signals) {
+        const risk = signal.risk_level || "unknown";
+        const rank = riskRank(risk);
+        if (rank > bestRank) {
+          bestRank = rank;
+          best = risk;
+        }
+      }
+      return best;
+    }
+
+    function mainStatus(signals) {
+      const counts = {};
+      for (const signal of signals) {
+        const status = signal.intraday_status || signal.status || "not_checked";
+        counts[status] = (counts[status] || 0) + 1;
+      }
+      return Object.entries(counts).sort((left, right) => right[1] - left[1] || statusRank(right[0]) - statusRank(left[0]))[0]?.[0] || "not_checked";
+    }
+
+    function distribution(signals, field, fallback) {
+      const counts = {};
+      for (const signal of signals) {
+        const value = signal[field] || fallback;
+        counts[value] = (counts[value] || 0) + 1;
+      }
+      return Object.entries(counts).sort((left, right) => right[1] - left[1]).map(([key, count]) => `${key}: ${count}`).join(", ") || "none";
+    }
+
+    function candidateCount(signals, field) {
+      return signals.reduce((total, signal) => total + arrayValue(signal[field]).length, 0);
+    }
+
+    function triggerSummary(signals) {
+      const values = [];
+      for (const signal of signals) {
+        for (const item of arrayValue(signal.external_triggers)) {
+          const label = typeof item === "string" ? item : JSON.stringify(item);
+          if (label && !values.includes(label)) values.push(label);
+        }
+      }
+      return values.slice(0, 5).join(", ") || "No external triggers provided.";
     }
 
     async function fetchJson(url) {
@@ -208,21 +339,45 @@ def render_console_html() -> str:
       ].map((value) => normalized(value)).join(" ");
     }
 
-    function applySignalFilters() {
-      const cards = Array.from(document.querySelectorAll(".signal-card"));
+    function filteredSignals() {
       const query = normalized(signalSearchEl.value).trim();
       const risk = normalized(riskFilterEl.value).trim();
       const status = normalized(statusFilterEl.value).trim();
-      let visible = 0;
-      for (const card of cards) {
-        const matchesQuery = !query || card.dataset.search.includes(query);
-        const matchesRisk = !risk || card.dataset.risk === risk;
-        const matchesStatus = !status || card.dataset.status === status;
-        const show = matchesQuery && matchesRisk && matchesStatus;
-        card.hidden = !show;
-        if (show) visible += 1;
+      return currentSignals.filter((signal) => {
+        const matchesQuery = !query || signalText(signal).includes(query);
+        const matchesRisk = !risk || normalized(signal.risk_level) === risk;
+        const matchesStatus = !status || normalized(signal.intraday_status || signal.status || "not_checked") === status;
+        return matchesQuery && matchesRisk && matchesStatus;
+      });
+    }
+
+    function sortSignals(signals) {
+      const mode = sortSelectEl.value || "default";
+      const sorted = [...signals];
+      sorted.sort((left, right) => {
+        if (mode === "score-desc") return (numberScore(right) ?? -Infinity) - (numberScore(left) ?? -Infinity);
+        if (mode === "risk") return riskRank(right.risk_level) - riskRank(left.risk_level) || left.__index - right.__index;
+        if (mode === "status") return statusRank(right.intraday_status || right.status) - statusRank(left.intraday_status || left.status) || left.__index - right.__index;
+        if (mode === "theme") return themeName(left).localeCompare(themeName(right)) || left.__index - right.__index;
+        return left.__index - right.__index;
+      });
+      return sorted;
+    }
+
+    function groupedSignals(signals) {
+      const groups = new Map();
+      for (const signal of signals) {
+        const theme = themeName(signal);
+        if (!groups.has(theme)) groups.set(theme, []);
+        groups.get(theme).push(signal);
       }
-      signalCountEl.textContent = `${visible} of ${cards.length} signals visible`;
+      return Array.from(groups.entries())
+        .map(([theme, items]) => ({ theme, signals: items }))
+        .sort((left, right) => (numberScore({ score: topScore(right.signals) }) ?? -Infinity) - (numberScore({ score: topScore(left.signals) }) ?? -Infinity) || left.theme.localeCompare(right.theme));
+    }
+
+    function applySignalFilters() {
+      renderSignalSections();
     }
 
     function renderArtifacts(payload) {
@@ -251,38 +406,116 @@ def render_console_html() -> str:
       return section;
     }
 
+    function badge(value) {
+      return text("span", value, "badge");
+    }
+
+    function createSignalCard(signal) {
+      const card = document.createElement("article");
+      card.className = "signal-card";
+      card.dataset.search = signalText(signal);
+      card.dataset.risk = normalized(signal.risk_level);
+      card.dataset.status = normalized(signal.intraday_status || signal.status || "not_checked");
+      card.appendChild(text("h3", themeName(signal)));
+      [`strength: ${signal.strength || "unknown"}`, `score: ${signal.score ?? "unknown"}`, `intraday: ${signal.intraday_status || "not_checked"}`, `risk: ${signal.risk_level || "unknown"}`, `data: ${signal.data_status || "unknown"}`].forEach((value) => card.appendChild(badge(value)));
+      card.appendChild(text("p", signal.a_share_mapping_reason || "No mapping reason provided.", "muted"));
+      [["External triggers", signal.external_triggers], ["ETF candidates", signal.etf_candidates], ["Stock candidates", signal.stock_candidates], ["Risks", signal.risks]].forEach(([label, values]) => {
+        card.appendChild(text("strong", label));
+        card.appendChild(list(values));
+      });
+      return card;
+    }
+
+    function createThemeSummaryCard(group) {
+      const node = document.createElement("article");
+      node.className = "theme-card";
+      node.appendChild(text("h3", group.theme));
+      node.appendChild(badge(`${group.signals.length} signals`));
+      node.appendChild(badge(`top score: ${topScore(group.signals)}`));
+      node.appendChild(badge(`max risk: ${maxRisk(group.signals)}`));
+      node.appendChild(badge(`main status: ${mainStatus(group.signals)}`));
+      node.appendChild(badge(`ETF candidates: ${candidateCount(group.signals, "etf_candidates")}`));
+      node.appendChild(badge(`stock candidates: ${candidateCount(group.signals, "stock_candidates")}`));
+      node.appendChild(text("p", triggerSummary(group.signals), "muted"));
+      return node;
+    }
+
+    function renderThemeHotlist(signals) {
+      const section = document.createElement("article");
+      section.className = "theme-hotlist";
+      section.appendChild(text("h2", "Theme Hotlist"));
+      section.appendChild(text("p", "Hot themes based on the current visible signals. For observation only, not trading advice.", "muted"));
+      const groups = groupedSignals(signals);
+      if (groups.length === 0) {
+        section.appendChild(text("p", "No themes match the current filters.", "muted"));
+        return section;
+      }
+      const wrap = document.createElement("div");
+      wrap.className = "theme-summary";
+      for (const group of groups) wrap.appendChild(createThemeSummaryCard(group));
+      section.appendChild(wrap);
+      return section;
+    }
+
+    function renderGroupedSignals(signals) {
+      const wrap = document.createElement("div");
+      wrap.className = "signals";
+      for (const group of groupedSignals(signals)) {
+        const section = document.createElement("article");
+        section.className = "theme-group";
+        section.appendChild(text("h2", group.theme));
+        section.appendChild(badge(`${group.signals.length} signals`));
+        section.appendChild(badge(`highest score: ${topScore(group.signals)}`));
+        section.appendChild(badge(`strongest: ${strongestStrength(group.signals)}`));
+        section.appendChild(badge(`risks: ${distribution(group.signals, "risk_level", "unknown")}`));
+        section.appendChild(badge(`statuses: ${distribution(group.signals, "intraday_status", "not_checked")}`));
+        section.appendChild(badge(`ETF candidates: ${candidateCount(group.signals, "etf_candidates")}`));
+        section.appendChild(badge(`stock candidates: ${candidateCount(group.signals, "stock_candidates")}`));
+        section.appendChild(text("p", triggerSummary(group.signals), "muted"));
+        for (const signal of group.signals) section.appendChild(createSignalCard(signal));
+        wrap.appendChild(section);
+      }
+      return wrap;
+    }
+
+    function renderFlatSignals(signals) {
+      const wrap = document.createElement("div");
+      wrap.className = "signals";
+      for (const signal of signals) wrap.appendChild(createSignalCard(signal));
+      return wrap;
+    }
+
+    function renderSignalSections() {
+      if (!signalsAreaEl) return;
+      clear(signalsAreaEl);
+      const visibleSignals = sortSignals(filteredSignals());
+      signalCountEl.textContent = `${visibleSignals.length} of ${currentSignals.length} signals visible`;
+      signalsAreaEl.appendChild(renderThemeHotlist(visibleSignals));
+      const heading = text("h2", viewModeEl.value === "flat" ? `Signals (${visibleSignals.length})` : `Signals grouped by theme (${visibleSignals.length})`);
+      signalsAreaEl.appendChild(heading);
+      if (visibleSignals.length === 0) {
+        signalsAreaEl.appendChild(text("p", "No signals match the current filters.", "muted"));
+        return;
+      }
+      signalsAreaEl.appendChild(viewModeEl.value === "flat" ? renderFlatSignals(visibleSignals) : renderGroupedSignals(visibleSignals));
+    }
+
     function renderDashboard(data, artifacts) {
       clear(dashboardEl);
       const run = data.run || {};
       const summary = data.summary || {};
       const signals = Array.isArray(data.signals) ? data.signals : [];
+      currentSignals = signals.map((signal, index) => ({ ...signal, __index: index }));
       const metrics = document.createElement("div");
       metrics.className = "metrics";
       [["Date", run.date], ["Status", run.status], ["Schema", data.schema_version], ["Strong", summary.strong_signals], ["Confirmed", summary.confirmed], ["Missing data", summary.missing_data]].forEach(([label, value]) => metrics.appendChild(metric(label, value)));
       dashboardEl.appendChild(metrics);
       dashboardEl.appendChild(renderArtifacts(artifacts));
 
-      const wrap = document.createElement("div");
-      wrap.className = "signals";
-      wrap.appendChild(text("h2", `Signals (${signals.length})`));
-      if (signals.length === 0) wrap.appendChild(text("p", "No signals in this run.", "muted"));
-      for (const signal of signals) {
-        const card = document.createElement("article");
-        card.className = "signal-card";
-        card.dataset.search = signalText(signal);
-        card.dataset.risk = normalized(signal.risk_level);
-        card.dataset.status = normalized(signal.intraday_status || signal.status || "not_checked");
-        card.appendChild(text("h3", signal.theme || "unknown theme"));
-        [`strength: ${signal.strength || "unknown"}`, `score: ${signal.score ?? "unknown"}`, `intraday: ${signal.intraday_status || "not_checked"}`, `risk: ${signal.risk_level || "unknown"}`, `data: ${signal.data_status || "unknown"}`].forEach((value) => card.appendChild(text("span", value, "badge")));
-        card.appendChild(text("p", signal.a_share_mapping_reason || "No mapping reason provided.", "muted"));
-        [["External triggers", signal.external_triggers], ["ETF candidates", signal.etf_candidates], ["Stock candidates", signal.stock_candidates], ["Risks", signal.risks]].forEach(([label, values]) => {
-          card.appendChild(text("strong", label));
-          card.appendChild(list(values));
-        });
-        wrap.appendChild(card);
-      }
-      dashboardEl.appendChild(wrap);
-      applySignalFilters();
+      signalsAreaEl = document.createElement("div");
+      signalsAreaEl.id = "signals-area";
+      dashboardEl.appendChild(signalsAreaEl);
+      renderSignalSections();
 
       const details = document.createElement("details");
       details.appendChild(text("summary", "Raw dashboard_data.json"));
@@ -307,6 +540,8 @@ def render_console_html() -> str:
         renderDashboard(data, artifacts);
       } catch (error) {
         clear(dashboardEl);
+        currentSignals = [];
+        signalsAreaEl = null;
         signalCountEl.textContent = "No signals loaded.";
         setStatus(dashboardStatusEl, `Failed to load dashboard data: ${error.message}`, true);
       }
@@ -316,6 +551,8 @@ def render_console_html() -> str:
       setStatus(runsStatusEl, "Loading runs...");
       clear(runsEl);
       clear(dashboardEl);
+      currentSignals = [];
+      signalsAreaEl = null;
       signalCountEl.textContent = "No signals loaded.";
       try {
         renderRuns(await fetchJson("/api/runs"));
@@ -331,6 +568,8 @@ def render_console_html() -> str:
     signalSearchEl.addEventListener("input", applySignalFilters);
     riskFilterEl.addEventListener("change", applySignalFilters);
     statusFilterEl.addEventListener("change", applySignalFilters);
+    sortSelectEl.addEventListener("change", applySignalFilters);
+    viewModeEl.addEventListener("change", applySignalFilters);
     loadRuns();
   </script>
 </body>

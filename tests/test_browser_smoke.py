@@ -88,6 +88,21 @@ def _factory(body_text: str):
     return lambda: _FakePlaywright(_FakePage(body_text))
 
 
+def _console_factory(body_text: str, selector_counts: dict[str, int] | None = None):
+    counts = {
+        "#run-select": 1,
+        "#refresh-runs": 1,
+        "#signal-search": 1,
+        "#risk-filter": 1,
+        "#status-filter": 1,
+        "#sort-select": 1,
+        "#view-mode": 1,
+    }
+    if selector_counts:
+        counts.update(selector_counts)
+    return lambda: _FakePlaywright(_FakePage(body_text, selector_counts=counts))
+
+
 def _bundle_factory():
     pages = [
         _FakePage("Daily Runs 2026-05-15 Dashboard Knowledge Review Run Diagnostics", "Daily Runs"),
@@ -210,12 +225,12 @@ class BrowserSmokeTest(unittest.TestCase):
                 run_daily_bundle_browser_smoke(root, playwright_factory=_bundle_factory())
 
     def test_console_browser_smoke_happy_path_with_fake_browser(self) -> None:
-        body = "Market Impact Radar Console Daily Runs Dashboard Data 2026-05-15 Run Date Refresh Runs Signal Search Risk Filter Status Filter Artifacts Dashboard Knowledge Review Run Diagnostics"
+        body = "Market Impact Radar Console Daily Runs Dashboard Data 2026-05-15 Run Date Refresh Runs Signal Search Risk Filter Status Filter Sort Signals Grouped by theme Flat signal list Theme Hotlist Artifacts Dashboard Knowledge Review Run Diagnostics"
         with tempfile.TemporaryDirectory() as tmpdir:
             root = Path(tmpdir)
             _write_console_run(root)
 
-            result = run_console_browser_smoke(root, playwright_factory=_factory(body))
+            result = run_console_browser_smoke(root, playwright_factory=_console_factory(body))
 
         self.assertEqual(result.status, "passed")
         self.assertEqual(result.pages_checked, 1)
@@ -224,15 +239,24 @@ class BrowserSmokeTest(unittest.TestCase):
     def test_console_browser_smoke_missing_run_fails(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             with self.assertRaisesRegex(BrowserSmokeError, "run directory does not exist"):
-                run_console_browser_smoke(Path(tmpdir), playwright_factory=_factory(""))
+                run_console_browser_smoke(Path(tmpdir), playwright_factory=_console_factory(""))
 
     def test_console_browser_smoke_missing_required_text_fails(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             root = Path(tmpdir)
             _write_console_run(root)
 
-            with self.assertRaisesRegex(BrowserSmokeError, "Artifacts"):
-                run_console_browser_smoke(root, playwright_factory=_factory("Market Impact Radar Console Daily Runs Dashboard Data 2026-05-15 Run Date Refresh Runs Signal Search Risk Filter Status Filter"))
+            with self.assertRaisesRegex(BrowserSmokeError, "Theme Hotlist"):
+                run_console_browser_smoke(root, playwright_factory=_console_factory("Market Impact Radar Console Daily Runs Dashboard Data 2026-05-15 Run Date Refresh Runs Signal Search Risk Filter Status Filter Sort Signals Grouped by theme Flat signal list"))
+
+    def test_console_browser_smoke_missing_control_fails(self) -> None:
+        body = "Market Impact Radar Console Daily Runs Dashboard Data 2026-05-15 Run Date Refresh Runs Signal Search Risk Filter Status Filter Sort Signals Grouped by theme Flat signal list Theme Hotlist Artifacts Dashboard Knowledge Review Run Diagnostics"
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            _write_console_run(root)
+
+            with self.assertRaisesRegex(BrowserSmokeError, "#sort-select"):
+                run_console_browser_smoke(root, playwright_factory=_console_factory(body, {"#sort-select": 0}))
 
 
 if __name__ == "__main__":

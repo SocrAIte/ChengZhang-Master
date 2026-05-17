@@ -88,6 +88,11 @@ class WebApiTest(unittest.TestCase):
         self.assertIn("Signal Search", response.payload)
         self.assertIn("Risk Filter", response.payload)
         self.assertIn("Status Filter", response.payload)
+        self.assertIn("Sort Signals", response.payload)
+        self.assertIn("Grouped by theme", response.payload)
+        self.assertIn("Flat signal list", response.payload)
+        self.assertIn("Theme Hotlist", response.payload)
+        self.assertIn("No signals match the current filters.", response.payload)
         self.assertIn("signal-count", response.payload)
 
     def test_root_endpoint_returns_console_shell(self) -> None:

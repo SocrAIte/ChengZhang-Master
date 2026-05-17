@@ -39,10 +39,13 @@ It uses the existing API endpoints to:
 - discover run output availability from `GET /api/runs/{date}/artifacts`
 - select a run date and refresh the run list
 - search signals and filter them by risk or intraday status
+- group signals by theme and switch back to a flat signal list
+- sort signals by default order, score, risk, intraday status, or theme name
+- show a Theme Hotlist based on the currently visible signals
 - show run status, summary fields, signals, candidates, risks, and raw `dashboard_data.json`
 - show Dashboard, Knowledge Review, Run Diagnostics, and raw JSON artifact availability
 
-The console does not call `run-daily`, write files, fetch live market data, edit the knowledge graph, or compute new financial signals.
+The console does not call `run-daily`, write files, fetch live market data, edit the knowledge graph, compute new financial signals, or provide trading instructions.
 
 ## Endpoints
 
