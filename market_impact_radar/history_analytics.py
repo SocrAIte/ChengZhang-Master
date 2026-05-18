@@ -225,6 +225,71 @@ def build_theme_source_matrix(reports_dir: str | Path) -> dict[str, Any]:
     }
 
 
+def build_daily_compare(reports_dir: str | Path, from_date: str | None = None, to_date: str | None = None) -> dict[str, Any]:
+    runs = _load_dashboard_runs(Path(reports_dir))
+    dates = [date for date, _ in runs]
+    run_map = dict(runs)
+    resolved_to = to_date if to_date in run_map else (dates[-1] if dates and not to_date else None)
+    resolved_from = from_date if from_date in run_map else None
+    if resolved_to and not resolved_from:
+        previous = [date for date in dates if date < resolved_to]
+        resolved_from = previous[-1] if previous else None
+    if not resolved_from or not resolved_to:
+        return _empty_compare(from_date, resolved_to or to_date, "Not enough daily runs to compare.")
+    if resolved_from == resolved_to:
+        return _empty_compare(resolved_from, resolved_to, "Choose two different dates.")
+
+    from_data = run_map.get(resolved_from)
+    to_data = run_map.get(resolved_to)
+    if not from_data or not to_data:
+        return _empty_compare(resolved_from, resolved_to, "Requested daily run data is not available.")
+
+    from_themes = _theme_snapshot(from_data)
+    to_themes = _theme_snapshot(to_data)
+    theme_changes = _compare_theme_snapshots(from_themes, to_themes)
+    etf_changes = _compare_candidate_snapshots(
+        _candidate_snapshot(from_data, "etf_candidates"),
+        _candidate_snapshot(to_data, "etf_candidates"),
+        resolved_from,
+        resolved_to,
+    )
+    stock_changes = _compare_candidate_snapshots(
+        _candidate_snapshot(from_data, "stock_candidates"),
+        _candidate_snapshot(to_data, "stock_candidates"),
+        resolved_from,
+        resolved_to,
+    )
+    quality = _compare_quality_snapshots(_quality_snapshot(from_data), _quality_snapshot(to_data), from_themes, to_themes)
+    sources = _compare_source_snapshots(_source_snapshot(from_data), _source_snapshot(to_data))
+
+    return {
+        "schema_version": HISTORY_SCHEMA_VERSION,
+        "generated_at": _now_iso(),
+        "from_date": resolved_from,
+        "to_date": resolved_to,
+        "available": True,
+        "summary": {
+            "from_signals": len(_signals(from_data)),
+            "to_signals": len(_signals(to_data)),
+            "new_themes_count": len(theme_changes["new"]),
+            "removed_themes_count": len(theme_changes["removed"]),
+            "changed_themes_count": len(theme_changes["changed"]),
+            "new_etf_candidates_count": len(etf_changes["new"]),
+            "new_stock_candidates_count": len(stock_changes["new"]),
+            "weaker_data_quality_count": len(quality["weaker_themes"]),
+            "improved_data_quality_count": len(quality["improved_themes"]),
+        },
+        "themes": theme_changes,
+        "candidates": {"etf": etf_changes, "stock": stock_changes},
+        "data_quality": quality,
+        "sources": sources,
+        "notes": [
+            "Score delta is a signal score change, not a market performance metric.",
+            "Data quality changes describe evidence freshness and source coverage only.",
+        ],
+    }
+
+
 def normalize_candidate(candidate: Any) -> dict[str, Any]:
     if isinstance(candidate, dict):
         name = _first_existing(candidate, ("name", "label", "title", "symbol", "ticker", "code")) or "unknown"
@@ -233,6 +298,247 @@ def normalize_candidate(candidate: Any) -> dict[str, Any]:
     if candidate is None or candidate == "":
         return {"name": "unknown", "code": None}
     return {"name": str(candidate), "code": None}
+
+
+def _empty_compare(from_date: str | None, to_date: str | None, note: str) -> dict[str, Any]:
+    return {
+        "schema_version": HISTORY_SCHEMA_VERSION,
+        "generated_at": _now_iso(),
+        "from_date": from_date,
+        "to_date": to_date,
+        "available": False,
+        "summary": {
+            "from_signals": 0,
+            "to_signals": 0,
+            "new_themes_count": 0,
+            "removed_themes_count": 0,
+            "changed_themes_count": 0,
+            "new_etf_candidates_count": 0,
+            "new_stock_candidates_count": 0,
+            "weaker_data_quality_count": 0,
+            "improved_data_quality_count": 0,
+        },
+        "themes": {"new": [], "removed": [], "changed": []},
+        "candidates": {"etf": {"new": [], "removed": [], "repeated": []}, "stock": {"new": [], "removed": [], "repeated": []}},
+        "data_quality": {
+            "from_counts": {},
+            "to_counts": {},
+            "weaker_themes": [],
+            "improved_themes": [],
+            "missing_source_delta": 0,
+            "missing_fetched_at_delta": 0,
+            "fallback_delta": 0,
+        },
+        "sources": {"new": [], "removed": [], "repeated": []},
+        "notes": [note],
+    }
+
+
+def _theme_snapshot(dashboard_data: dict[str, Any]) -> dict[str, dict[str, Any]]:
+    themes: dict[str, dict[str, Any]] = {}
+    for signal in _signals(dashboard_data):
+        theme = _theme_name(signal)
+        item = themes.setdefault(
+            theme,
+            {
+                "theme": theme,
+                "scores": [],
+                "strength_counts": Counter(),
+                "risk_counts": Counter(),
+                "intraday_status_counts": Counter(),
+                "data_status_counts": Counter(),
+                "missing_source_count": 0,
+                "missing_fetched_at_count": 0,
+                "fallback_count": 0,
+                "weak_score": 0,
+            },
+        )
+        _add_score(item, signal.get("score"))
+        _count(item["strength_counts"], signal.get("strength"))
+        _count(item["risk_counts"], signal.get("risk_level"))
+        _count(item["intraday_status_counts"], signal.get("intraday_status") or signal.get("status") or "not_checked")
+        _count(item["data_status_counts"], _data_status(signal))
+        if not _source_values(signal):
+            item["missing_source_count"] += 1
+        if not _fetched_values(signal):
+            item["missing_fetched_at_count"] += 1
+        if _fallback_used(signal):
+            item["fallback_count"] += 1
+        item["weak_score"] += _weak_quality_score(signal)
+
+    return {theme: _finalize_theme_snapshot(item) for theme, item in themes.items()}
+
+
+def _finalize_theme_snapshot(item: dict[str, Any]) -> dict[str, Any]:
+    scores = item.get("scores", [])
+    return {
+        "score": round(max(scores), 2) if scores else None,
+        "strength": _top_count(item["strength_counts"]),
+        "risk_level": _top_count(item["risk_counts"]),
+        "intraday_status": _top_count(item["intraday_status_counts"]) or "not_checked",
+        "data_status": _top_count(item["data_status_counts"]),
+        "missing_source_count": item["missing_source_count"],
+        "missing_fetched_at_count": item["missing_fetched_at_count"],
+        "fallback_count": item["fallback_count"],
+        "weak_score": item["weak_score"],
+    }
+
+
+def _compare_theme_snapshots(from_themes: dict[str, dict[str, Any]], to_themes: dict[str, dict[str, Any]]) -> dict[str, list[Any]]:
+    from_names = set(from_themes)
+    to_names = set(to_themes)
+    changed = []
+    for theme in sorted(from_names & to_names):
+        before = from_themes[theme]
+        after = to_themes[theme]
+        score_delta = _score_delta(before.get("score"), after.get("score"))
+        changes = {
+            "score_delta": score_delta,
+            "strength_changed": before.get("strength") != after.get("strength"),
+            "risk_changed": before.get("risk_level") != after.get("risk_level"),
+            "intraday_status_changed": before.get("intraday_status") != after.get("intraday_status"),
+            "data_status_changed": before.get("data_status") != after.get("data_status"),
+        }
+        if any(value is True for value in changes.values()) or score_delta not in (None, 0):
+            changed.append({"theme": theme, "from": before, "to": after, "changes": changes})
+    return {
+        "new": sorted(to_names - from_names),
+        "removed": sorted(from_names - to_names),
+        "changed": changed,
+    }
+
+
+def _candidate_snapshot(dashboard_data: dict[str, Any], field: str) -> dict[tuple[str, str | None], dict[str, Any]]:
+    rows: dict[tuple[str, str | None], dict[str, Any]] = {}
+    for signal in _signals(dashboard_data):
+        theme = _theme_name(signal)
+        for candidate in _as_list(signal.get(field)):
+            normalized = normalize_candidate(candidate)
+            key = (normalized["name"], normalized["code"])
+            item = rows.setdefault(key, {"name": normalized["name"], "code": normalized["code"], "themes": []})
+            _extend_unique(item["themes"], [theme])
+    return rows
+
+
+def _candidate_sort_key(key: tuple[str, str | None]) -> tuple[str, str]:
+    return (key[0], key[1] or "")
+
+
+def _compare_candidate_snapshots(
+    before: dict[tuple[str, str | None], dict[str, Any]],
+    after: dict[tuple[str, str | None], dict[str, Any]],
+    from_date: str,
+    to_date: str,
+) -> dict[str, list[dict[str, Any]]]:
+    before_keys = set(before)
+    after_keys = set(after)
+    return {
+        "new": [_candidate_change_row(after[key], 0, 1, to_date) for key in sorted(after_keys - before_keys, key=_candidate_sort_key)],
+        "removed": [_candidate_change_row(before[key], 1, 0, from_date) for key in sorted(before_keys - after_keys, key=_candidate_sort_key)],
+        "repeated": [_candidate_change_row(after[key], 1, 1, to_date) for key in sorted(before_keys & after_keys, key=_candidate_sort_key)],
+    }
+
+
+def _candidate_change_row(item: dict[str, Any], from_appearance: int, to_appearance: int, last_seen: str) -> dict[str, Any]:
+    return {
+        "name": item["name"],
+        "code": item["code"],
+        "themes": sorted(item["themes"]),
+        "from_appearance": from_appearance,
+        "to_appearance": to_appearance,
+        "last_seen": last_seen,
+    }
+
+
+def _quality_snapshot(dashboard_data: dict[str, Any]) -> dict[str, Any]:
+    counts: Counter = Counter()
+    missing_source_count = 0
+    missing_fetched_at_count = 0
+    fallback_count = 0
+    for signal in _signals(dashboard_data):
+        _count(counts, _data_status(signal))
+        if not _source_values(signal):
+            missing_source_count += 1
+        if not _fetched_values(signal):
+            missing_fetched_at_count += 1
+        if _fallback_used(signal):
+            fallback_count += 1
+    return {
+        "counts": dict(counts),
+        "missing_source_count": missing_source_count,
+        "missing_fetched_at_count": missing_fetched_at_count,
+        "fallback_count": fallback_count,
+    }
+
+
+def _compare_quality_snapshots(
+    before: dict[str, Any],
+    after: dict[str, Any],
+    from_themes: dict[str, dict[str, Any]],
+    to_themes: dict[str, dict[str, Any]],
+) -> dict[str, Any]:
+    weaker = []
+    improved = []
+    for theme in sorted(set(from_themes) | set(to_themes)):
+        before_score = int(from_themes.get(theme, {}).get("weak_score") or 0)
+        after_score = int(to_themes.get(theme, {}).get("weak_score") or 0)
+        if after_score > before_score:
+            weaker.append({"theme": theme, "from_weak_score": before_score, "to_weak_score": after_score})
+        elif after_score < before_score:
+            improved.append({"theme": theme, "from_weak_score": before_score, "to_weak_score": after_score})
+    return {
+        "from_counts": before["counts"],
+        "to_counts": after["counts"],
+        "weaker_themes": weaker,
+        "improved_themes": improved,
+        "missing_source_delta": int(after["missing_source_count"]) - int(before["missing_source_count"]),
+        "missing_fetched_at_delta": int(after["missing_fetched_at_count"]) - int(before["missing_fetched_at_count"]),
+        "fallback_delta": int(after["fallback_count"]) - int(before["fallback_count"]),
+    }
+
+
+def _source_snapshot(dashboard_data: dict[str, Any]) -> set[str]:
+    sources: set[str] = set()
+    for signal in _signals(dashboard_data):
+        for source in _source_values(signal) or ["Unknown Source"]:
+            sources.add(source)
+    return sources
+
+
+def _compare_source_snapshots(before: set[str], after: set[str]) -> dict[str, list[str]]:
+    return {
+        "new": sorted(after - before),
+        "removed": sorted(before - after),
+        "repeated": sorted(before & after),
+    }
+
+
+def _top_count(counter: Counter) -> str:
+    if not counter:
+        return "unknown"
+    return sorted(counter.items(), key=lambda item: (-item[1], str(item[0])))[0][0]
+
+
+def _score_delta(before: Any, after: Any) -> float | None:
+    if before is None or after is None:
+        return None
+    try:
+        return round(float(after) - float(before), 2)
+    except (TypeError, ValueError):
+        return None
+
+
+def _weak_quality_score(signal: dict[str, Any]) -> int:
+    score = 0
+    if _is_weak_data_status(_data_status(signal)):
+        score += 1
+    if not _source_values(signal):
+        score += 1
+    if not _fetched_values(signal):
+        score += 1
+    if _fallback_used(signal):
+        score += 1
+    return score
 
 
 def _load_dashboard_runs(reports_dir: Path) -> list[tuple[str, dict[str, Any]]]:

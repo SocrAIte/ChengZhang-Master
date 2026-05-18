@@ -54,6 +54,15 @@ It uses the existing API endpoints to:
 - show Theme x Source Matrix, Matrix Summary, Cell Detail, and Weak Evidence Cells for theme-source evidence review
 - show Source Breakdown grouped by current run `source` / `sources`
 - show Weak Evidence Signals that need verification because source, fetched time, fallback, or data status metadata is incomplete
+- show Workspace Navigation with stable section anchors for Morning Brief, controls, source reliability, the theme-source matrix, comparison, history, signal explorer, detail panels, and artifacts
+- support hash anchors such as `#theme-source-matrix` and `#source-detail` without clearing query state
+- organize major sections with short descriptions, collapsible long sections, empty states, and Back to top links
+- use consistent section cards, compact tables, and semantic status badges for risk, intraday status, data quality, weak evidence, and unknown values
+- build a Daily Research Brief from the current browser state, visible signals, watch themes, evidence chains, observation candidates, risks, and data quality notes
+- switch the Daily Research Brief between English and Chinese output templates
+- switch the Daily Research Brief between Full Brief and Compact Brief
+- enable or disable brief sections before copying
+- copy the Daily Research Brief as Markdown or plain text in the browser without saving it to the server
 - show a Theme Hotlist based on the currently visible signals
 - compare up to 3 themes side by side in Theme Compare
 - show Candidate Pool Comparison for repeated ETF and stock observation candidates across compared themes
@@ -69,12 +78,20 @@ It uses the existing API endpoints to:
 - preserve selected source state with the `source` query parameter for shareable source detail views
 - preserve selected matrix cell with `matrixTheme` and `matrixSource` query parameters
 - preserve compared theme state with the `compare` query parameter for shareable compare views
+- compare two local daily runs with Date Compare and the `compareFrom` / `compareTo` query parameters
+- include Date-over-Date Changes in the Daily Research Brief when comparison data is available
 - show run status, summary fields, signals, candidates, risks, and raw `dashboard_data.json`
 - show Dashboard, Knowledge Review, Run Diagnostics, and raw JSON artifact availability
 
 The URL state is only a browser-side view preference. It makes a filtered observation view easier to share, but it does not call `run-daily`, write files, fetch live market data, edit the knowledge graph, compute new financial signals, or provide trading instructions.
 
-Historical Review is a research view over existing daily report files. It does not calculate returns, profit, win rate, alpha, entry points, exits, or target prices.
+The console information architecture is read-only. Workspace Navigation jumps between local page anchors and does not call write endpoints or rerun analysis. Long historical and artifact sections may be collapsed with native browser controls, while the primary observation sections remain visible.
+
+The console readability layer uses lightweight static HTML and CSS only. Section Cards separate major research areas, Status Badges label evidence and risk metadata, Collapsible Sections keep long history and artifact content scannable, and Back to Top links help navigate the long page. These visual cues do not create trading actions or change the underlying analysis data.
+
+Daily Research Brief Builder is a browser-local summary tool. It uses the already loaded run data, current filters, selected theme, compared themes, selected source, history summaries, source reliability data, and theme-source matrix metadata to generate a copyable research note. It supports English / Chinese templates, Full / Compact modes, section toggles, Copy as Markdown, and Copy as Plain Text. The `briefLang` and `briefMode` query parameters can restore a shared brief view. The builder does not save content, call write APIs, trigger `run-daily`, fetch live market data, or produce trading instructions.
+
+Historical Review is a research view over existing daily report files. It does not calculate trading performance metrics, entry points, exits, or pricing claims.
 
 Supported query parameters:
 
@@ -89,16 +106,22 @@ Supported query parameters:
 - `matrixTheme`: selected theme for Theme x Source Matrix Cell Detail.
 - `matrixSource`: selected source for Theme x Source Matrix Cell Detail.
 - `compare`: comma-separated themes for Theme Compare, capped at 3 themes.
+- `compareFrom`: baseline run date for Date Compare.
+- `compareTo`: current run date for Date Compare.
+- `briefLang`: `en` or `zh` for the Daily Research Brief language.
+- `briefMode`: `full` or `compact` for the Daily Research Brief length.
 
 Unknown query values fall back to safe defaults. Empty/default values are omitted from the URL when controls change.
 
-Theme Detail Drilldown combines the selected run's visible signals with historical theme and candidate summaries. It shows current signals, historical observation counts, risk/status/data quality distributions, recent dates, external trigger summaries, and ETF / stock observation pools. It remains a research view and does not show return, profit, win-rate, alpha, entry, exit, or target-price metrics.
+Theme Detail Drilldown combines the selected run's visible signals with historical theme and candidate summaries. It shows current signals, historical observation counts, risk/status/data quality distributions, recent dates, external trigger summaries, and ETF / stock observation pools. It remains a research view and does not show trading performance, entry, exit, or pricing metrics.
 
 Insight Workspace v2 adds Morning Brief, Theme Compare, and Candidate Pool Comparison. These views are rule-based summaries over existing local JSON outputs and read-only history APIs. They show signal counts, status distributions, risk distributions, data quality labels, external trigger summaries, and observation pool overlap. They do not call external models, trigger `run-daily`, fetch live market data, or change mappings.
 
 Source Reliability adds a dedicated data quality review. It summarizes current run `data_status`, `source` / `sources`, `fetched_at`, fallback metadata, weak evidence signals, and historical data quality observations from `GET /api/history/data-quality`. Source Detail uses `GET /api/history/sources` to show source coverage, dates, example signals, source-level distributions, and conservative reliability notes. These are evidence quality hints only, not trading signals.
 
 Theme x Source Matrix uses `GET /api/history/theme-source-matrix` to show which sources support which themes, where evidence metadata is missing, and which theme-source cells need review. Matrix cells expose source coverage, data status counts, missing `fetched_at`, fallback counts, recent dates, and example signals. The matrix is an evidence review view and does not decide whether a theme is investable.
+
+Date Compare uses `GET /api/history/compare` to compare two local daily runs. It highlights new watch themes, themes no longer present in the current watch list, changed signal scores, risk/status/data-quality changes, observation candidate changes, and source coverage changes. Score delta is only a signal score change; it is not a return, performance, or pricing metric.
 
 ## Endpoints
 
@@ -208,6 +231,28 @@ The response includes theme summaries, source summaries, matrix cells, and weak 
 
 Missing themes are grouped under `Unknown Theme`, and missing sources are grouped under `Unknown Source`. Weak cells mean the evidence metadata needs review; they do not represent trading signals or performance metrics.
 
+### GET /api/history/compare
+
+Returns a read-only date-over-date comparison between two local daily runs.
+
+Example:
+
+```text
+GET /api/history/compare?from=2026-05-14&to=2026-05-15
+```
+
+If `from` is omitted, the API uses the closest earlier local run before `to`. If either side is unavailable, the response returns `available = false` with notes instead of failing.
+
+The response includes:
+
+- `summary`: signal counts, new/removed/changed theme counts, new observation candidate counts, and data-quality change counts.
+- `themes`: new, removed, and changed watch themes with score, risk, intraday status, and data status changes.
+- `candidates`: ETF and stock observation candidate changes grouped as new, removed, and repeated.
+- `data_quality`: `data_status` counts, missing source delta, missing `fetched_at` delta, fallback delta, and themes with weaker or improved evidence metadata.
+- `sources`: new, removed, and repeated source names.
+
+This endpoint only reads local `dashboard_data.json` files. It does not fetch live data, trigger `run-daily`, change mappings, or report trading performance.
+
 ### GET /api/runs/{date}/dashboard-data
 
 Returns normalized `dashboard_data.json` for the given date.
@@ -269,4 +314,4 @@ Invalid dates and path traversal attempts return a JSON 404 response.
 - No frontend framework.
 - No live market data requests.
 - No financial signal recomputation in the API layer.
-- No return, profit, win-rate, alpha, entry, exit, or target-price reporting.
+- No trading performance, entry, exit, or pricing-metric reporting.

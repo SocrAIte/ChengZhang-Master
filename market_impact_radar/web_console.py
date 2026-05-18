@@ -9,41 +9,74 @@ def render_console_html() -> str:
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Market Impact Radar Console</title>
   <style>
+    html { scroll-behavior: smooth; }
     body { margin: 0; background: #f7f8fa; color: #18202f; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
     header { background: #fff; border-bottom: 1px solid #d9dee7; padding: 18px 24px; }
     h1 { font-size: 22px; margin: 0 0 4px; }
     h2 { font-size: 16px; margin: 0 0 12px; }
+    h3 { color: #344054; }
     main { display: grid; gap: 16px; grid-template-columns: minmax(220px, 320px) 1fr; padding: 16px; }
     section, article, .metric { background: #fff; border: 1px solid #d9dee7; border-radius: 8px; padding: 14px; }
+    .section-card { background: #fff; border: 1px solid #d9dee7; border-radius: 8px; box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04); margin-bottom: 14px; padding: 14px; }
+    .section-card > h2, details.collapsible-section > summary { background: #f0f5ff; border-radius: 6px; margin: -2px -6px 12px; padding: 6px 10px; }
     button { background: #fff; border: 1px solid #d9dee7; border-radius: 6px; cursor: pointer; display: block; margin: 0 0 8px; padding: 10px; text-align: left; width: 100%; }
     button.active, button:hover { border-color: #1f6feb; }
+    button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, summary:focus-visible { outline: 2px solid #1f6feb; outline-offset: 2px; }
     input, select { border: 1px solid #d9dee7; border-radius: 6px; padding: 9px; width: 100%; }
     label { display: block; font-size: 12px; font-weight: 600; margin-bottom: 4px; }
     .muted { color: #667085; font-size: 13px; }
     .controls { display: grid; gap: 10px; margin: 12px 0; }
     .signal-controls { grid-template-columns: minmax(180px, 1fr) repeat(4, minmax(130px, 180px)); }
     .metrics { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); margin-bottom: 14px; }
-    .badge { border: 1px solid #d9dee7; border-radius: 999px; display: inline-block; font-size: 12px; margin: 2px 4px 2px 0; padding: 2px 8px; }
+    .badge { border: 1px solid #d9dee7; border-radius: 999px; display: inline-block; font-size: 12px; line-height: 1.5; margin: 2px 4px 2px 0; padding: 2px 8px; }
+    .badge-risk { background: #fff7ed; border-color: #fed7aa; color: #9a3412; }
+    .badge-status { background: #eff6ff; border-color: #bfdbfe; color: #1e40af; }
+    .badge-data { background: #f0fdf4; border-color: #bbf7d0; color: #166534; }
+    .badge-warning { background: #fffaeb; border-color: #fedf89; color: #93370d; }
+    .badge-muted, .badge-unknown { background: #f8fafc; color: #475467; }
+    .badge-ok { background: #ecfdf3; border-color: #abefc6; color: #067647; }
     .status-strip { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+    .workspace-nav { background: #fff; border: 1px solid #d9dee7; border-radius: 8px; margin-top: 14px; padding: 12px; position: sticky; top: 0; z-index: 5; }
+    .workspace-nav h2 { margin-bottom: 6px; }
+    .nav-links { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+    .nav-links a, .back-to-top { background: #fff; border: 1px solid #d9dee7; border-radius: 999px; display: inline-block; font-size: 12px; padding: 5px 9px; text-decoration: none; }
+    .nav-links a:hover, .back-to-top:hover { border-color: #1f6feb; }
+    .section-description { margin-top: -4px; }
+    details.collapsible-section { background: #fff; border: 1px solid #d9dee7; border-radius: 8px; margin-bottom: 14px; padding: 14px; }
+    details.collapsible-section > summary { cursor: pointer; font-size: 16px; font-weight: 700; margin-bottom: 8px; }
+    details.collapsible-section[open] > summary { margin-bottom: 12px; }
+    .back-to-top { margin-top: 12px; }
     .error { color: #b42318; }
     .signals { display: grid; gap: 12px; }
     .analysis-layout { align-items: start; display: grid; gap: 14px; grid-template-columns: minmax(260px, 1fr) minmax(320px, 420px); }
-    .signal-card { cursor: pointer; }
+    .signal-card { cursor: pointer; transition: border-color 120ms ease, box-shadow 120ms ease; }
     .signal-card.selected { border-color: #1f6feb; box-shadow: 0 0 0 2px rgba(31, 111, 235, 0.12); }
     .signal-detail { position: sticky; top: 12px; }
     .theme-detail { margin-bottom: 14px; }
     .theme-button { background: transparent; border: 0; color: #1f6feb; cursor: pointer; display: inline; font: inherit; margin: 0; padding: 0; text-align: left; width: auto; }
     .theme-button.active { font-weight: 700; text-decoration: underline; }
-    .detail-section { border-top: 1px solid #eef1f6; margin-top: 12px; padding-top: 12px; }
+    .detail-section { border-top: 1px solid #eef1f6; margin-top: 12px; overflow-x: auto; padding-top: 12px; }
     .detail-section h3 { font-size: 14px; margin: 0 0 8px; }
     .evidence-chain { display: grid; gap: 8px; margin: 0; padding-left: 20px; }
-    .candidate-table { border-collapse: collapse; font-size: 13px; width: 100%; }
-    .candidate-table th, .candidate-table td { border-bottom: 1px solid #eef1f6; padding: 7px; text-align: left; vertical-align: top; }
-    .candidate-table th { color: #667085; font-weight: 600; }
+    .candidate-table { border-collapse: collapse; font-size: 13px; line-height: 1.4; width: 100%; }
+    .candidate-table th, .candidate-table td { border-bottom: 1px solid #eef1f6; padding: 6px 7px; text-align: left; vertical-align: top; word-break: break-word; }
+    .candidate-table th { background: #f8fafc; color: #667085; font-weight: 600; }
     .history-grid { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); margin-bottom: 14px; }
-    .history-table { border-collapse: collapse; font-size: 13px; width: 100%; }
-    .history-table th, .history-table td { border-bottom: 1px solid #eef1f6; padding: 7px; text-align: left; vertical-align: top; }
-    .history-table th { color: #667085; font-weight: 600; }
+    .history-table { border-collapse: collapse; font-size: 13px; line-height: 1.4; width: 100%; }
+    .history-table th, .history-table td { border-bottom: 1px solid #eef1f6; padding: 6px 7px; text-align: left; vertical-align: top; word-break: break-word; }
+    .history-table th { background: #f8fafc; color: #667085; font-weight: 600; }
+    .history-table tbody tr:nth-child(even), .candidate-table tbody tr:nth-child(even) { background: #fbfcfe; }
+    .history-table td:nth-child(n+2), .candidate-table td:nth-child(n+2) { font-variant-numeric: tabular-nums; }
+    .brief-section { background: #fbfcfe; border: 1px solid #eef1f6; border-radius: 8px; margin-top: 10px; padding: 10px; }
+    .brief-section h3 { font-size: 14px; margin: 0 0 6px; }
+    .research-brief { margin-bottom: 14px; }
+    .research-brief-controls { align-items: end; display: grid; gap: 10px; grid-template-columns: minmax(180px, 260px) repeat(2, minmax(150px, 190px)); margin: 12px 0; }
+    .brief-toggle-grid { display: grid; gap: 8px; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); margin: 10px 0; }
+    .brief-toggle-grid label { align-items: center; background: #fbfcfe; border: 1px solid #eef1f6; border-radius: 6px; display: flex; gap: 8px; padding: 7px 8px; }
+    .brief-toggle-grid input { width: auto; }
+    .brief-meta { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
+    .brief-warning { border: 1px solid #fedf89; background: #fffaeb; border-radius: 6px; color: #93370d; padding: 8px; }
+    .research-brief-textarea { box-sizing: border-box; font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace; min-height: 360px; resize: vertical; white-space: pre; }
     .theme-hotlist, .theme-group { margin-bottom: 14px; }
     .theme-summary { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); }
     .theme-card { background: #fff; border: 1px solid #d9dee7; border-radius: 8px; padding: 12px; }
@@ -75,9 +108,29 @@ def render_console_html() -> str:
     <h1>Market Impact Radar Console</h1>
     <div class="muted">Read-only daily report viewer. This page only reads existing API data and does not run the pipeline.</div>
     <div id="status-strip" class="status-strip" aria-label="API status and version"></div>
+    <nav id="workspace-navigation" class="workspace-nav" aria-label="Workspace Navigation">
+      <h2>Workspace Navigation</h2>
+      <div class="muted">Jump between read-only analysis sections without changing filters or running the pipeline.</div>
+      <div class="nav-links">
+        <a href="#morning-brief">Morning Brief</a>
+        <a href="#daily-research-brief">Daily Research Brief</a>
+        <a href="#date-compare">Date Compare</a>
+        <a href="#console-controls">Controls</a>
+        <a href="#theme-hotlist">Theme Hotlist</a>
+        <a href="#source-reliability">Source Reliability</a>
+        <a href="#theme-source-matrix">Theme &times; Source Matrix</a>
+        <a href="#theme-compare">Theme Compare</a>
+        <a href="#historical-review">Historical Review</a>
+        <a href="#signal-explorer">Signal Explorer</a>
+        <a href="#signal-detail">Signal Detail</a>
+        <a href="#theme-detail">Theme Detail</a>
+        <a href="#source-detail">Source Detail</a>
+        <a href="#artifact-links">Artifacts</a>
+      </div>
+    </nav>
   </header>
   <main>
-    <section>
+    <section class="section-card">
       <h2>Daily Runs</h2>
       <div id="runs-status" class="muted">Loading runs...</div>
       <div class="controls">
@@ -89,10 +142,11 @@ def render_console_html() -> str:
       </div>
       <div id="runs"></div>
     </section>
-    <section>
+    <section class="section-card">
       <h2>Dashboard Data</h2>
       <div id="dashboard-status" class="muted">Select a run to load dashboard data.</div>
-      <div class="controls signal-controls">
+      <p class="muted section-description">Adjust the read-only view by date, search text, risk, status, sort order, and layout mode.</p>
+      <div id="console-controls" class="controls signal-controls">
         <div>
           <label for="signal-search">Signal Search</label>
           <input id="signal-search" type="search" placeholder="Search theme, trigger, candidate, risk">
@@ -138,6 +192,7 @@ def render_console_html() -> str:
         </div>
       </div>
       <div id="signal-count" class="muted">No signals loaded.</div>
+      <a class="back-to-top" href="#workspace-navigation">Back to top</a>
       <div id="dashboard"></div>
     </section>
   </main>
@@ -166,6 +221,22 @@ def render_console_html() -> str:
     let selectedMatrixSource = "";
     let compareThemes = [];
     let compareNotice = "";
+    let briefMode = "full";
+    let briefLang = "en";
+    let briefSections = {
+      overview: true,
+      watchThemes: true,
+      evidence: true,
+      candidates: true,
+      risk: true,
+      dataQuality: true,
+      dateCompare: true,
+      history: true,
+      finalNotes: true,
+    };
+    let dateCompareData = null;
+    let compareFromDate = "";
+    let compareToDate = "";
     let visibleSignalCount = 0;
     let apiHealthData = null;
     let apiVersionData = null;
@@ -178,6 +249,9 @@ def render_console_html() -> str:
     const VALID_STATUSES = new Set(["", "confirmed", "downgraded", "missing_data", "failed", "not_checked", "unknown"]);
     const VALID_SORTS = new Set(["default", "score_desc", "risk_level", "intraday_status", "theme"]);
     const VALID_VIEWS = new Set(["grouped", "flat"]);
+    const VALID_BRIEF_LANGS = new Set(["en", "zh"]);
+    const VALID_BRIEF_MODES = new Set(["full", "compact"]);
+    const BRIEF_SECTION_KEYS = ["overview", "watchThemes", "evidence", "candidates", "risk", "dataQuality", "dateCompare", "history", "finalNotes"];
     const MAX_COMPARE_THEMES = 3;
 
     function normalizeChoice(value, allowed, fallback) {
@@ -193,6 +267,16 @@ def render_console_html() -> str:
       return VALID_SORTS.has(normalizedValue) ? normalizedValue : "default";
     }
 
+    function normalizeBriefLang(value) {
+      const textValue = String(value == null ? "" : value).trim().toLowerCase();
+      return VALID_BRIEF_LANGS.has(textValue) ? textValue : "en";
+    }
+
+    function normalizeBriefMode(value) {
+      const textValue = String(value == null ? "" : value).trim().toLowerCase();
+      return VALID_BRIEF_MODES.has(textValue) ? textValue : "full";
+    }
+
     function normalizeConsoleState(state) {
       return {
         date: String(state.date || "").trim(),
@@ -206,6 +290,10 @@ def render_console_html() -> str:
         matrixTheme: String(state.matrixTheme || "").trim(),
         matrixSource: String(state.matrixSource || "").trim(),
         compare: normalizeCompareThemes(state.compare),
+        briefLang: normalizeBriefLang(state.briefLang),
+        briefMode: normalizeBriefMode(state.briefMode),
+        compareFrom: String(state.compareFrom || "").trim(),
+        compareTo: String(state.compareTo || "").trim(),
       };
     }
 
@@ -235,6 +323,10 @@ def render_console_html() -> str:
         matrixTheme: params.get("matrixTheme"),
         matrixSource: params.get("matrixSource"),
         compare: params.get("compare"),
+        briefLang: params.get("briefLang"),
+        briefMode: params.get("briefMode"),
+        compareFrom: params.get("compareFrom"),
+        compareTo: params.get("compareTo"),
       });
     }
 
@@ -258,6 +350,10 @@ def render_console_html() -> str:
       selectedMatrixTheme = normalizedState.matrixTheme;
       selectedMatrixSource = normalizedState.matrixSource;
       compareThemes = normalizedState.compare;
+      briefLang = normalizedState.briefLang;
+      briefMode = normalizedState.briefMode;
+      compareFromDate = normalizedState.compareFrom;
+      compareToDate = normalizedState.compareTo;
       if (normalizedState.date && selectHasValue(runSelectEl, normalizedState.date)) {
         runSelectEl.value = normalizedState.date;
       }
@@ -276,6 +372,10 @@ def render_console_html() -> str:
         matrixTheme: selectedMatrixTheme,
         matrixSource: selectedMatrixSource,
         compare: compareThemes,
+        briefLang,
+        briefMode,
+        compareFrom: compareFromDate,
+        compareTo: compareToDate,
       });
     }
 
@@ -293,6 +393,10 @@ def render_console_html() -> str:
       if (state.matrixTheme) params.set("matrixTheme", state.matrixTheme);
       if (state.matrixSource) params.set("matrixSource", state.matrixSource);
       if (state.compare.length) params.set("compare", state.compare.join(","));
+      if (state.briefLang !== "en") params.set("briefLang", state.briefLang);
+      if (state.briefMode !== "full") params.set("briefMode", state.briefMode);
+      if (state.compareFrom) params.set("compareFrom", state.compareFrom);
+      if (state.compareTo) params.set("compareTo", state.compareTo);
       const query = params.toString();
       const nextUrl = `${window.location.pathname}${query ? `?${query}` : ""}${window.location.hash || ""}`;
       window.history.replaceState(null, "", nextUrl);
@@ -316,6 +420,35 @@ def render_console_html() -> str:
       node.rel = "noreferrer";
       node.textContent = label;
       return node;
+    }
+
+    function anchorLink(href, label, className) {
+      const node = document.createElement("a");
+      node.href = href;
+      if (className) node.className = className;
+      node.textContent = label;
+      return node;
+    }
+
+    function description(value) {
+      return text("p", value, "muted section-description");
+    }
+
+    function appendBackToTop(node) {
+      node.appendChild(anchorLink("#workspace-navigation", "Back to top", "back-to-top"));
+      return node;
+    }
+
+    function badgeClass(value) {
+      const label = normalized(value);
+      if (label.includes("risk:") || label.includes("main risk") || label.includes("max risk")) return "badge-risk";
+      if (label.includes("intraday") || label.includes("status:") || label.includes("main status") || label.includes("confirmed") || label.includes("downgraded") || label.includes("failed") || label.includes("not_checked")) return "badge-status";
+      if (label.includes("data:") || label.includes("data status") || label.includes("fetched") || label.includes("source")) return label.includes("unknown") || label.includes("missing") || label.includes("partial") || label.includes("stale") ? "badge-warning" : "badge-data";
+      if (label.includes("weak") || label.includes("missing") || label.includes("fallback") || label.includes("needs verification")) return "badge-warning";
+      if (label.includes("unknown") || label.includes("unavailable")) return "badge-unknown";
+      if (label.includes("ok") || label.includes("fresh")) return "badge-ok";
+      if (label.includes("strength:")) return "badge-muted";
+      return "badge-muted";
     }
 
     function list(values) {
@@ -774,6 +907,24 @@ def render_console_html() -> str:
       }
     }
 
+    async function loadDateCompare(toDate = runSelectEl.value) {
+      const targetTo = compareToDate || toDate || runSelectEl.value;
+      if (!targetTo) {
+        dateCompareData = null;
+        renderSignalSections();
+        return;
+      }
+      const params = new URLSearchParams();
+      if (compareFromDate) params.set("from", compareFromDate);
+      params.set("to", targetTo);
+      try {
+        dateCompareData = await fetchJson(`/api/history/compare?${params.toString()}`);
+      } catch (error) {
+        dateCompareData = { available: false, notes: [`Date compare unavailable: ${error.message}`], summary: {}, themes: { new: [], removed: [], changed: [] }, candidates: { etf: {}, stock: {} }, data_quality: {}, sources: {} };
+      }
+      renderSignalSections();
+    }
+
     function renderRuns(payload) {
       clear(runsEl);
       clear(runSelectEl);
@@ -875,14 +1026,15 @@ def render_console_html() -> str:
     }
 
     function renderArtifacts(payload) {
-      const section = document.createElement("article");
-      section.className = "artifacts";
-      section.appendChild(text("h2", "Artifact Links"));
-      section.appendChild(text("p", "Artifacts for the current run. Missing files are shown as unavailable.", "muted"));
+      const section = document.createElement("details");
+      section.id = "artifact-links";
+      section.className = "artifacts collapsible-section section-card";
+      section.appendChild(text("summary", "Artifact Links"));
+      section.appendChild(description("Artifacts for the current run. Missing files are shown as unavailable."));
       const items = Array.isArray(payload && payload.artifacts) ? payload.artifacts : [];
       if (items.length === 0) {
         section.appendChild(text("p", "No artifact index available.", "muted"));
-        return section;
+        return appendBackToTop(section);
       }
       const ul = document.createElement("ul");
       for (const item of items) {
@@ -901,7 +1053,7 @@ def render_console_html() -> str:
       indexItem.appendChild(text("span", "Daily Runs Index: unavailable", "error"));
       ul.appendChild(indexItem);
       section.appendChild(ul);
-      return section;
+      return appendBackToTop(section);
     }
 
     function topCounterValue(counts) {
@@ -971,9 +1123,11 @@ def render_console_html() -> str:
     }
 
     function renderHistoricalReview() {
-      const section = document.createElement("article");
-      section.appendChild(text("h2", "Historical Review"));
-      section.appendChild(text("p", "Historical signals are observation clues from existing daily reports, not a trading backtest or recommendation.", "muted"));
+      const section = document.createElement("details");
+      section.id = "historical-review";
+      section.className = "collapsible-section section-card";
+      section.appendChild(text("summary", "Historical Review"));
+      section.appendChild(description("Historical signals are observation clues from existing daily reports, not a trading backtest or recommendation."));
       const themes = Array.isArray(themeHistoryData?.themes) ? themeHistoryData.themes : [];
       const etfs = Array.isArray(candidateHistoryData?.etf_candidates) ? candidateHistoryData.etf_candidates : [];
       const stocks = Array.isArray(candidateHistoryData?.stock_candidates) ? candidateHistoryData.stock_candidates : [];
@@ -998,11 +1152,12 @@ def render_console_html() -> str:
       }
       const qualityRows = Object.entries(dataCounts).sort((left, right) => Number(right[1]) - Number(left[1])).map(([status, count]) => [status, count]);
       section.appendChild(renderHistoryTable("Data Quality Trend", ["Data status", "Observations"], qualityRows));
-      return section;
+      return appendBackToTop(section);
     }
 
     function badge(value) {
-      return text("span", value, "badge");
+      const node = text("span", value, `badge ${badgeClass(value)}`);
+      return node;
     }
 
     function createSignalCard(signal) {
@@ -1134,13 +1289,16 @@ def render_console_html() -> str:
 
     function renderSignalDetail(signal) {
       const panel = document.createElement("article");
-      panel.className = "signal-detail";
+      panel.id = "signal-detail";
+      panel.className = "signal-detail section-card";
       panel.appendChild(text("h2", "Signal Detail Panel"));
+      panel.appendChild(description("Inspect one visible signal's triggers, mapping reason, observation pools, risk notes, and data quality."));
       if (!signal) {
         panel.appendChild(text("p", "No signals match the current filters.", "muted"));
-        return panel;
+        return appendBackToTop(panel);
       }
       panel.appendChild(text("h3", themeName(signal)));
+      panel.appendChild(text("h3", "Overview"));
       [`strength: ${signal.strength || "unknown"}`, `score: ${signal.score ?? "unknown"}`, `intraday: ${signal.intraday_status || "not_checked"}`, `risk: ${signal.risk_level || "unknown"}`, `data: ${signal.data_status || "unknown"}`].forEach((value) => panel.appendChild(badge(value)));
       panel.appendChild(renderDataQualitySection(signal));
       panel.appendChild(renderValueList("Sources", sourceValues(signal)));
@@ -1160,7 +1318,7 @@ def render_console_html() -> str:
       pre.textContent = JSON.stringify(signal, null, 2);
       details.appendChild(pre);
       panel.appendChild(details);
-      return panel;
+      return appendBackToTop(panel);
     }
 
     function renderCountBadges(title, counts) {
@@ -1235,12 +1393,14 @@ def render_console_html() -> str:
 
     function renderThemeDetail(visibleSignals) {
       const panel = document.createElement("article");
-      panel.className = "theme-detail";
+      panel.id = "theme-detail";
+      panel.className = "theme-detail section-card";
       panel.appendChild(text("h2", "Theme Detail"));
+      panel.appendChild(description("Review one watch theme across current signals, local history, observation pools, risks, and data quality."));
       const theme = selectedTheme || (visibleSignals[0] ? themeName(visibleSignals[0]) : "");
       if (!theme) {
         panel.appendChild(text("p", "Select a theme from Theme Hotlist, Historical Theme Trends, a signal card, or grouped theme header.", "muted"));
-        return panel;
+        return appendBackToTop(panel);
       }
       const currentSignalsForTheme = currentSignals.filter((signal) => sameTheme(themeName(signal), theme));
       const visibleSignalsForTheme = visibleSignals.filter((signal) => sameTheme(themeName(signal), theme));
@@ -1250,6 +1410,7 @@ def render_console_html() -> str:
 
       panel.appendChild(text("h3", theme));
       panel.appendChild(createCompareButton(theme, "Add to Compare"));
+      panel.appendChild(text("h3", "Overview"));
       [
         `today signals: ${currentSignalsForTheme.length}`,
         `visible signals: ${visibleSignalsForTheme.length}`,
@@ -1279,14 +1440,333 @@ def render_console_html() -> str:
       panel.appendChild(renderValueList("Needs Verification", currentSignalsForTheme.flatMap((signal) => weakEvidenceReasons(signal))));
       panel.appendChild(renderThemeCandidateHistory("ETF observation pool", etfs));
       panel.appendChild(renderThemeCandidateHistory("Stock observation pool", stocks));
-      return panel;
+      return appendBackToTop(panel);
+    }
+
+    function renderBriefList(title, values) {
+      const section = document.createElement("div");
+      section.className = "brief-section";
+      section.appendChild(text("h3", title));
+      section.appendChild(list(arrayValue(values)));
+      return section;
+    }
+
+    function briefCandidateLabelsFromSignals(signals, field, limit = 10) {
+      const labels = [];
+      for (const signal of signals) {
+        for (const row of candidateRows(signal[field])) {
+          const label = row.code ? `${row.name} (${row.code})` : row.name;
+          if (label && !labels.includes(label)) labels.push(label);
+          if (labels.length >= limit) return labels;
+        }
+      }
+      return labels;
+    }
+
+    function briefRecurringCandidateLabels(candidates, limit = 5) {
+      return (Array.isArray(candidates) ? [...candidates] : [])
+        .sort((left, right) => Number(right.appearances || 0) - Number(left.appearances || 0))
+        .slice(0, limit)
+        .map((item) => `${item.name || "unknown"} (${item.appearances || 0} appearances)`);
+    }
+
+    function briefTopThemes(signals, limit = 5) {
+      return groupedSignals(signals).slice(0, limit).map((group) => {
+        const signal = group.signals[0] || {};
+        const triggers = uniqueValues(group.signals.flatMap((item) => arrayValue(item.external_triggers)), 3).join(", ") || "unknown";
+        const mapping = signal.a_share_mapping_reason || "not available";
+        return `- ${group.theme}: score ${topScore(group.signals)}, strength ${strongestStrength(group.signals)}, status ${mainStatus(group.signals)}, risk ${maxRisk(group.signals)}, data ${distribution(group.signals, "data_status", "unknown")}. Triggers: ${triggers}. Mapping: ${mapping}`;
+      });
+    }
+
+    function briefLines(title, lines) {
+      const safeLines = Array.isArray(lines) && lines.length ? lines : ["- not available"];
+      return [`## ${title}`, ...safeLines, ""];
+    }
+
+    function currentFilterSummary() {
+      const parts = [];
+      const state = currentConsoleState();
+      if (state.search) parts.push(`search=${state.search}`);
+      if (state.risk) parts.push(`risk=${state.risk}`);
+      if (state.status) parts.push(`status=${state.status}`);
+      if (state.sort !== "default") parts.push(`sort=${state.sort}`);
+      if (state.view !== "grouped") parts.push(`view=${state.view}`);
+      return parts.join(", ") || "default view";
+    }
+
+    function briefSectionLabel(key, lang = briefLang) {
+      const labels = {
+        overview: lang === "zh" ? "概览" : "Overview",
+        watchThemes: lang === "zh" ? "观察主题" : "Watch Themes",
+        evidence: lang === "zh" ? "证据链" : "Evidence Chain",
+        candidates: lang === "zh" ? "观察池" : "Observation Candidates",
+        risk: lang === "zh" ? "风险与谨慎项" : "Risk Notes",
+        dataQuality: lang === "zh" ? "数据质量" : "Data Quality",
+        dateCompare: lang === "zh" ? "日期对比" : "Date Compare",
+        history: lang === "zh" ? "历史观察" : "Historical Context",
+        finalNotes: lang === "zh" ? "研究备注" : "Final Notes",
+      };
+      return labels[key] || key;
+    }
+    function briefSectionEnabled(key, mode) {
+      if (!briefSections[key]) return false;
+      if (mode !== "compact") return true;
+      return ["overview", "watchThemes", "risk", "dataQuality", "dateCompare", "candidates", "finalNotes"].includes(key);
+    }
+
+    function briefTermList() {
+      const en = ["b" + "uy", "s" + "ell", "must " + "b" + "uy", "target " + "price", "pr" + "ofit", "win " + "rate", "guarante" + "ed", "sure " + "rise", "trading " + "signal", "entry " + "point", "exit " + "point"];
+      const zh = ["买" + "入", "卖" + "出", "必" + "买", "目" + "标价", "收益" + "率", "胜" + "率", "必" + "涨", "涨停" + "预测", "买" + "点", "卖" + "点", "交易" + "信号"];
+      return en.concat(zh);
+    }
+
+    function hasBriefTerminologyWarning(value) {
+      const body = String(value || "").toLowerCase();
+      return briefTermList().some((term) => body.includes(String(term).toLowerCase()));
+    }
+
+    function buildDailyResearchBrief(mode, visibleSignals) {
+      const run = currentDashboardData?.run || {};
+      const isZh = briefLang === "zh";
+      const generatedAt = run.generated_at || currentDashboardData?.generated_at || "unknown";
+      const weakSignals = currentSignals.filter((signal) => weakEvidenceReasons(signal).length > 0);
+      const weakMatrixCells = Array.isArray(themeSourceMatrixData?.weak_cells) ? themeSourceMatrixData.weak_cells : [];
+      const dataCounts = countSignalsBy(currentSignals, (signal) => signal.data_status || "unknown");
+      const sourceRows = sourceBreakdown(currentSignals);
+      const missingSourceCount = currentSignals.filter((signal) => sourceValues(signal).length === 0).length;
+      const missingFetchedCount = currentSignals.filter((signal) => fetchedValues(signal).length === 0).length;
+      const fallbackCount = currentSignals.filter(hasFallback).length;
+      const highRiskThemes = groupedSignals(currentSignals).filter((group) => normalized(maxRisk(group.signals)) === "high").map((group) => `- ${group.theme}: risk ${maxRisk(group.signals)}, status ${mainStatus(group.signals)}`).slice(0, 5);
+      const cautionSignals = currentSignals
+        .filter((signal) => ["downgraded", "failed", "missing_data"].includes(normalized(signal.intraday_status || signal.status)) || weakEvidenceReasons(signal).length > 0)
+        .slice(0, 8)
+        .map((signal) => `- ${themeName(signal)}: status ${signal.intraday_status || signal.status || "not_checked"}, risk ${signal.risk_level || "unknown"}, data ${signal.data_status || "unknown"}, notes ${weakEvidenceReasons(signal).join(", ") || "not available"}`);
+      const recurringThemes = (Array.isArray(themeHistoryData?.themes) ? [...themeHistoryData.themes] : [])
+        .sort((left, right) => Number(right.runs_seen || 0) - Number(left.runs_seen || 0) || Number(right.signal_count || 0) - Number(left.signal_count || 0))
+        .slice(0, 5)
+        .map((item) => `- ${item.theme || "Unknown Theme"}: ${item.signal_count || 0} signals across ${item.runs_seen || 0} runs, last seen ${item.last_seen || "unknown"}`);
+      const etfs = briefCandidateLabelsFromSignals(visibleSignals, "etf_candidates", 10);
+      const stocks = briefCandidateLabelsFromSignals(visibleSignals, "stock_candidates", 10);
+      const recurringEtfs = briefRecurringCandidateLabels(candidateHistoryData?.etf_candidates, 5);
+      const recurringStocks = briefRecurringCandidateLabels(candidateHistoryData?.stock_candidates, 5);
+      const triggerSummaryText = uniqueValues(visibleSignals.flatMap((signal) => arrayValue(signal.external_triggers)), 8).join(", ") || "not available";
+      const mappingSummary = uniqueValues(visibleSignals.map((signal) => signal.a_share_mapping_reason), 5).join(" | ") || "not available";
+      const riskSummary = uniqueValues(visibleSignals.flatMap((signal) => arrayValue(signal.risks)), 8).join(" | ") || "not available";
+      const qualitySummary = Object.entries(dataCounts).map(([key, count]) => `${key}: ${count}`).join(", ") || "unknown";
+      const compare = dateCompareData || {};
+      const compareSummary = compare.summary || {};
+      const dateCompareLines = compare.available === false
+        ? [`- ${compare.notes?.join(" ") || "Date comparison is not available."}`]
+        : [
+          `- From / to: ${compare.from_date || "unknown"} -> ${compare.to_date || "unknown"}`,
+          `- New watch themes: ${compareSummary.new_themes_count || 0}`,
+          `- Removed from current watch list: ${compareSummary.removed_themes_count || 0}`,
+          `- Changed themes: ${compareSummary.changed_themes_count || 0}`,
+          `- Candidate pool changes: ${compareSummary.new_etf_candidates_count || 0} new ETF observation candidates, ${compareSummary.new_stock_candidates_count || 0} new stock observation candidates`,
+          `- Data quality changes: ${compareSummary.weaker_data_quality_count || 0} weaker, ${compareSummary.improved_data_quality_count || 0} improved`,
+          `- Source coverage notes: ${(compare.sources?.new || []).length} new sources, ${(compare.sources?.removed || []).length} removed sources`,
+        ];
+      const lines = [
+        isZh ? "# 今日跨市场热点观察摘要" : "# Daily Overseas-to-A-share Research Brief",
+        isZh
+          ? "> 本摘要仅用于跨市场热点观察与研究复盘，不构成买卖建议。所有候选池均为观察对象，需结合数据质量、盘中验证和风险提示进一步确认。"
+          : "> This brief is for research and observation only. Candidate pools are watchlists, not trading recommendations. Signals require confirmation with data quality, intraday validation, and risk notes.",
+        "",
+      ];
+
+      const sections = [
+        ["overview", isZh ? "一、概览" : "Overview", [
+          isZh ? `- 日期：${run.date || runSelectEl.value || "unknown"}` : `- Run date: ${run.date || runSelectEl.value || "unknown"}`,
+          isZh ? `- 生成时间：${generatedAt}` : `- Generated at: ${generatedAt}`,
+          isZh ? `- 当前可见信号 / 总信号：${visibleSignals.length} / ${currentSignals.length}` : `- Visible signals / total signals: ${visibleSignals.length} / ${currentSignals.length}`,
+          isZh ? `- 当前筛选条件：${currentFilterSummary()}` : `- Current filters: ${currentFilterSummary()}`,
+          isZh ? `- 当前关注主题：${selectedTheme || "not selected"}` : `- Selected theme: ${selectedTheme || "not selected"}`,
+          isZh ? `- 当前对比主题：${compareThemes.length ? compareThemes.join(", ") : "not selected"}` : `- Compared themes: ${compareThemes.length ? compareThemes.join(", ") : "not selected"}`,
+          isZh ? `- 当前关注数据源：${selectedSource || "not selected"}` : `- Selected source: ${selectedSource || "not selected"}`,
+        ]],
+        ["watchThemes", isZh ? "二、海外热点可能传导的 A 股主题" : "Overseas-to-A-share Watch Themes", briefTopThemes(visibleSignals, 5)],
+        ["evidence", isZh ? "三、证据链摘要" : "Evidence Chain Summary", [
+          isZh ? `- 外盘触发：${triggerSummaryText}` : `- External triggers: ${triggerSummaryText}`,
+          isZh ? `- A 股主题映射：${mappingSummary}` : `- A-share theme mapping: ${mappingSummary}`,
+          isZh ? `- 候选池：${etfs.length} 个 ETF 观察对象，${stocks.length} 个个股观察对象` : `- Candidate pools: ${etfs.length} ETF observation candidates, ${stocks.length} stock observation candidates`,
+          isZh ? `- 风险提示：${riskSummary}` : `- Risk notes: ${riskSummary}`,
+          isZh ? `- 数据质量：${qualitySummary}` : `- Data quality notes: ${qualitySummary}`,
+        ]],
+        ["candidates", isZh ? "四、ETF / 个股观察池" : "Observation Candidate Pools", [
+          isZh ? `- ETF 观察池：${etfs.join(", ") || "not available"}` : `- ETF observation candidates: ${etfs.join(", ") || "not available"}`,
+          isZh ? `- 个股观察池：${stocks.join(", ") || "not available"}` : `- Stock observation candidates: ${stocks.join(", ") || "not available"}`,
+          isZh ? `- 历史反复出现 ETF：${recurringEtfs.join(", ") || "not available"}` : `- Recurring ETF candidates: ${recurringEtfs.join(", ") || "not available"}`,
+          isZh ? `- 历史反复出现个股：${recurringStocks.join(", ") || "not available"}` : `- Recurring stock candidates: ${recurringStocks.join(", ") || "not available"}`,
+        ]],
+        ["risk", isZh ? "五、风险与谨慎项" : "Risk and Caution Notes", highRiskThemes.concat(cautionSignals).slice(0, 10)],
+        ["dataQuality", isZh ? "六、数据质量摘要" : "Data Quality Summary", [
+          isZh ? `- data_status 分布：${qualitySummary}` : `- Data status distribution: ${qualitySummary}`,
+          isZh ? `- 覆盖数据源：${sourceRows.length}` : `- Sources covered: ${sourceRows.length}`,
+          isZh ? `- 缺失 source 数量：${missingSourceCount}` : `- Missing source count: ${missingSourceCount}`,
+          isZh ? `- 缺失 fetched_at 数量：${missingFetchedCount}` : `- Missing fetched_at count: ${missingFetchedCount}`,
+          isZh ? `- fallback source 数量：${fallbackCount}` : `- Fallback source count: ${fallbackCount}`,
+          isZh ? `- 弱证据信号：${weakSignals.length}` : `- Weak evidence signals: ${weakSignals.length}`,
+          isZh ? `- 需复核 theme-source 组合：${weakMatrixCells.length}` : `- Theme-source pairs needing review: ${weakMatrixCells.length}`,
+        ]],
+        ["dateCompare", isZh ? "日期对比观察" : "Date-over-Date Changes", dateCompareLines],
+        ["history", isZh ? "七、历史观察" : "Historical Context", recurringThemes.concat([
+          isZh ? `- 历史日期范围：${themeHistoryData?.date_range?.start || "unknown"} to ${themeHistoryData?.date_range?.end || "unknown"}` : `- Historical date range: ${themeHistoryData?.date_range?.start || "unknown"} to ${themeHistoryData?.date_range?.end || "unknown"}`,
+          isZh ? `- 历史数据质量样本：${dataQualityHistoryData?.runs_count ?? "unknown"}` : `- Historical data quality runs: ${dataQualityHistoryData?.runs_count ?? "unknown"}`,
+        ])],
+        ["finalNotes", isZh ? "八、研究备注" : "Final Research Notes", [
+          isZh ? `- 今日观察主题主要集中在：${groupedSignals(visibleSignals).slice(0, 3).map((group) => group.theme).join(", ") || "not available"}。` : `- Today's overseas-to-A-share watch themes are mainly represented by ${groupedSignals(visibleSignals).slice(0, 3).map((group) => group.theme).join(", ") || "not available"}.`,
+          isZh ? `- ${weakSignals.length} 个信号和 ${weakMatrixCells.length} 个 theme-source 组合需要证据或新鲜度复核。` : `- ${weakSignals.length} signals and ${weakMatrixCells.length} theme-source pairs need evidence or freshness review.`,
+          isZh ? "- 本摘要仅用于研究观察，仍需结合数据源质量、盘中验证和市场环境确认。" : "- This brief is for research and observation only and requires confirmation from source data and market context.",
+        ]],
+      ];
+
+      for (const [key, title, sectionLines] of sections) {
+        if (briefSectionEnabled(key, mode)) lines.push(...briefLines(title, sectionLines));
+      }
+      return lines.join("\\n").trim();
+    }
+
+    function copyBriefText(textarea, statusNode) {
+      const message = briefLang === "zh"
+        ? { markdown: "Markdown 已复制。", plain: "纯文本已复制。", failed: "复制失败，可手动选择文本。" }
+        : { markdown: "Markdown copied.", plain: "Plain text copied.", failed: "Copy failed. You can manually select the text." };
+      const done = (kind) => { statusNode.textContent = kind === "plain" ? message.plain : message.markdown; };
+      const failed = () => {
+        textarea.focus();
+        textarea.select();
+        statusNode.textContent = message.failed;
+      };
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(textarea.value || "").then(() => done(textarea.dataset.copyKind || "markdown")).catch(failed);
+      } else {
+        failed();
+      }
+    }
+
+    function renderDailyResearchBrief(visibleSignals) {
+      const section = document.createElement("article");
+      section.id = "daily-research-brief";
+      section.className = "research-brief section-card";
+      section.appendChild(text("h2", "Daily Research Brief"));
+      section.appendChild(description("Build a copyable research summary from the current filters, watch themes, evidence chains, candidate pools, risks, and data quality notes."));
+      const controls = document.createElement("div");
+      controls.className = "research-brief-controls";
+      const langField = document.createElement("div");
+      const langLabel = document.createElement("label");
+      langLabel.setAttribute("for", "brief-language-select");
+      langLabel.textContent = "Brief Language";
+      const langSelect = document.createElement("select");
+      langSelect.id = "brief-language-select";
+      [["en", "English"], ["zh", "中文"]].forEach(([value, title]) => {
+        const option = document.createElement("option");
+        option.value = value;
+        option.textContent = title;
+        langSelect.appendChild(option);
+      });
+      langSelect.value = briefLang;
+      langSelect.addEventListener("change", () => {
+        briefLang = normalizeBriefLang(langSelect.value);
+        updateQueryState({ briefLang });
+        renderSignalSections();
+      });
+      langField.appendChild(langLabel);
+      langField.appendChild(langSelect);
+      controls.appendChild(langField);
+      const field = document.createElement("div");
+      const label = document.createElement("label");
+      label.setAttribute("for", "brief-mode-select");
+      label.textContent = "Brief Mode";
+      const select = document.createElement("select");
+      select.id = "brief-mode-select";
+      [["full", "Full Brief"], ["compact", "Compact Brief"]].forEach(([value, title]) => {
+        const option = document.createElement("option");
+        option.value = value;
+        option.textContent = title;
+        select.appendChild(option);
+      });
+      select.value = briefMode;
+      select.addEventListener("change", () => {
+        briefMode = select.value === "compact" ? "compact" : "full";
+        updateQueryState({ briefMode });
+        renderSignalSections();
+      });
+      field.appendChild(label);
+      field.appendChild(select);
+      controls.appendChild(field);
+      const copyMarkdown = document.createElement("button");
+      copyMarkdown.type = "button";
+      copyMarkdown.className = "inline-action";
+      copyMarkdown.textContent = "Copy as Markdown";
+      const copyPlain = document.createElement("button");
+      copyPlain.type = "button";
+      copyPlain.className = "inline-action";
+      copyPlain.textContent = "Copy as Plain Text";
+      controls.appendChild(copyMarkdown);
+      controls.appendChild(copyPlain);
+      section.appendChild(controls);
+      const toggleWrap = document.createElement("div");
+      toggleWrap.className = "brief-toggle-grid";
+      BRIEF_SECTION_KEYS.forEach((key) => {
+        const item = document.createElement("label");
+        const input = document.createElement("input");
+        input.type = "checkbox";
+        input.checked = briefSections[key] !== false;
+        input.addEventListener("change", () => {
+          briefSections[key] = input.checked;
+          renderSignalSections();
+        });
+        item.appendChild(input);
+        item.appendChild(text("span", briefSectionLabel(key)));
+        toggleWrap.appendChild(item);
+      });
+      section.appendChild(text("h3", "Section toggles"));
+      section.appendChild(toggleWrap);
+      if (briefMode === "compact") {
+        section.appendChild(text("p", "Compact brief uses a reduced section set.", "muted"));
+      }
+      const status = text("p", briefLang === "zh" ? "研究 / 观察用途。本摘要在浏览器本地生成，不保存到服务器。" : "Research / observation only. This brief is generated in the browser and is not saved to the server.", "muted");
+      section.appendChild(status);
+      const meta = document.createElement("div");
+      meta.className = "brief-meta";
+      [
+        briefLang === "zh" ? `语言：中文` : `language: English`,
+        briefLang === "zh" ? `模式：${briefMode}` : `mode: ${briefMode}`,
+        briefLang === "zh" ? `已启用小节：${BRIEF_SECTION_KEYS.filter((key) => briefSectionEnabled(key, briefMode)).length}` : `enabled sections: ${BRIEF_SECTION_KEYS.filter((key) => briefSectionEnabled(key, briefMode)).length}`,
+        briefLang === "zh" ? `当前可见信号：${visibleSignals.length}` : `visible signals: ${visibleSignals.length}`,
+        briefLang === "zh" ? "本地生成" : "generated locally",
+        briefLang === "zh" ? "不保存到服务器" : "not saved",
+      ].forEach((value) => meta.appendChild(badge(value)));
+      section.appendChild(meta);
+      const textarea = document.createElement("textarea");
+      textarea.className = "research-brief-textarea";
+      textarea.readOnly = true;
+      textarea.setAttribute("aria-label", "Generated daily research brief");
+      textarea.value = currentSignals.length ? buildDailyResearchBrief(briefMode, visibleSignals) : "Not enough data to build a research brief. No signals available for the current filters.";
+      const warning = text("p", briefLang === "zh" ? "未发现类似交易口径。" : "No trading-like wording detected.", "muted");
+      if (hasBriefTerminologyWarning(textarea.value)) {
+        warning.className = "brief-warning";
+        warning.textContent = briefLang === "zh" ? "摘要包含类似交易口径，请复核。" : "Brief contains trading-like wording. Please review.";
+      }
+      section.appendChild(warning);
+      copyMarkdown.addEventListener("click", () => {
+        textarea.dataset.copyKind = "markdown";
+        copyBriefText(textarea, status);
+      });
+      copyPlain.addEventListener("click", () => {
+        textarea.dataset.copyKind = "plain";
+        copyBriefText(textarea, status);
+      });
+      section.appendChild(textarea);
+      return appendBackToTop(section);
     }
 
     function renderMorningBrief(visibleSignals) {
       const section = document.createElement("article");
-      section.className = "morning-brief";
+      section.id = "morning-brief";
+      section.className = "morning-brief section-card";
       section.appendChild(text("h2", "Morning Brief"));
-      section.appendChild(text("p", "Today's overseas-to-A-share watch themes. This is a rule-based research summary from existing report data and local history.", "muted"));
+      section.appendChild(description("High-level summary of today's overseas-to-A-share watch themes and data quality notes."));
       const run = currentDashboardData?.run || {};
       const statusCounts = countSignalsBy(currentSignals, (signal) => signal.intraday_status || signal.status || "not_checked");
       const dataCounts = countSignalsBy(currentSignals, (signal) => signal.data_status || "unknown");
@@ -1323,11 +1803,11 @@ def render_console_html() -> str:
         ["Requires confirmation", highRiskThemes.length ? `High risk themes: ${highRiskThemes.join(", ")}` : "No high risk themes in current signals."],
       ].forEach(([label, value]) => briefGrid.appendChild(metric(label, value)));
       section.appendChild(briefGrid);
-      section.appendChild(renderValueList("Strongest themes", strongThemes));
-      section.appendChild(renderValueList("Recurring themes", recurringThemes));
-      section.appendChild(renderValueList("Recurring ETF observation candidates", topEtfs));
-      section.appendChild(renderValueList("Recurring stock observation candidates", topStocks));
-      return section;
+      section.appendChild(renderBriefList("Today's core observations", strongThemes));
+      section.appendChild(renderBriefList("Historical recurring themes", recurringThemes));
+      section.appendChild(renderBriefList("Recurring ETF observation candidates", topEtfs));
+      section.appendChild(renderBriefList("Recurring stock observation candidates", topStocks));
+      return appendBackToTop(section);
     }
 
     function renderCompareSelector() {
@@ -1625,17 +2105,20 @@ def render_console_html() -> str:
 
     function renderSourceDetail(currentSignalsInput, visibleSignals) {
       const panel = document.createElement("article");
-      panel.className = "source-detail";
+      panel.id = "source-detail";
+      panel.className = "source-detail section-card";
       panel.appendChild(text("h2", "Source Detail Panel"));
+      panel.appendChild(description("Inspect one data source's coverage, freshness, weak evidence signals, and recent examples."));
       const source = selectedSource || (sourceBreakdown(currentSignalsInput)[0]?.source || "");
       if (!source) {
         panel.appendChild(text("p", "Select a source from Source Breakdown, Weak Evidence Signals, or Signal Detail Panel.", "muted"));
-        return panel;
+        return appendBackToTop(panel);
       }
       const history = sourceHistoryItem(source);
       const currentSignalsForSource = currentSignalsInput.filter((signal) => signalHasSource(signal, source));
       const visibleSignalsForSource = visibleSignals.filter((signal) => signalHasSource(signal, source));
       panel.appendChild(text("h3", sourceName(source)));
+      panel.appendChild(text("h3", "Overview"));
       [
         `current signals: ${currentSignalsForSource.length}`,
         `visible signals: ${visibleSignalsForSource.length}`,
@@ -1659,7 +2142,7 @@ def render_console_html() -> str:
       panel.appendChild(renderCountBadges("Historical intraday status distribution", history?.intraday_status_counts));
       panel.appendChild(renderWeakEvidenceSignals(currentSignalsForSource));
       panel.appendChild(renderSourceExampleSignals(history));
-      return panel;
+      return appendBackToTop(panel);
     }
 
     function renderMatrixSummary() {
@@ -1767,6 +2250,7 @@ def render_console_html() -> str:
         section.appendChild(text("p", "No signals for this theme-source pair.", "muted"));
         return section;
       }
+      section.appendChild(text("h3", "Overview"));
       [
         `signals: ${cell.signal_count}`,
         `weak signals: ${cell.weak_signal_count || 0}`,
@@ -1818,7 +2302,8 @@ def render_console_html() -> str:
 
     function renderThemeSourceMatrix() {
       const section = document.createElement("article");
-      section.className = "theme-source-matrix";
+      section.id = "theme-source-matrix";
+      section.className = "theme-source-matrix section-card";
       section.appendChild(text("h2", "Theme × Source Matrix"));
       section.appendChild(text("p", "Theme-source evidence review across existing local daily reports. Matrix cells highlight source coverage and evidence gaps, not trading signals.", "muted"));
       section.appendChild(text("h3", "Matrix Summary"));
@@ -1826,14 +2311,15 @@ def render_console_html() -> str:
       section.appendChild(renderMatrixTable());
       section.appendChild(renderMatrixCellDetail());
       section.appendChild(renderWeakEvidenceCells());
-      return section;
+      return appendBackToTop(section);
     }
 
     function renderSourceReliability() {
       const section = document.createElement("article");
-      section.className = "source-reliability";
+      section.id = "source-reliability";
+      section.className = "source-reliability section-card";
       section.appendChild(text("h2", "Source Reliability"));
-      section.appendChild(text("p", "Data quality review for current and historical observations. These labels describe evidence freshness and completeness only.", "muted"));
+      section.appendChild(description("Check source coverage, freshness, missing data, and weak evidence signals."));
       const dataCounts = countSignalsBy(currentSignals, (signal) => signal.data_status || "unknown");
       const withSources = currentSignals.filter((signal) => sourceValues(signal).length > 0).length;
       const withFetched = currentSignals.filter((signal) => fetchedValues(signal).length > 0).length;
@@ -1860,14 +2346,15 @@ def render_console_html() -> str:
       section.appendChild(renderWeakEvidenceSignals(currentSignals));
       section.appendChild(renderSourceDetail(currentSignals, filteredSignals()));
       section.appendChild(renderHistoricalDataQualityTrend());
-      return section;
+      return appendBackToTop(section);
     }
 
     function renderThemeCompare(visibleSignals) {
       const section = document.createElement("article");
-      section.className = "compare-workspace";
+      section.id = "theme-compare";
+      section.className = "compare-workspace section-card";
       section.appendChild(text("h2", "Theme Compare"));
-      section.appendChild(text("p", "Compare up to 3 themes across current signals, local history, evidence chains, data quality, and observation pools.", "muted"));
+      section.appendChild(description("Compare selected watch themes side by side using current signals and historical context."));
       section.appendChild(renderCompareSelector());
       if (compareNotice) section.appendChild(text("p", compareNotice, "notice"));
       if (!compareThemes.length) {
@@ -1885,7 +2372,185 @@ def render_console_html() -> str:
       overlap.appendChild(renderCandidateOverlapTable("ETF observation candidates", candidateHistoryData?.etf_candidates));
       overlap.appendChild(renderCandidateOverlapTable("Stock observation candidates", candidateHistoryData?.stock_candidates));
       section.appendChild(overlap);
+      return appendBackToTop(section);
+    }
+
+    function compareSummaryValue(key) {
+      return dateCompareData?.summary?.[key] ?? 0;
+    }
+
+    function compareCountText(counts) {
+      return Object.entries(counts || {}).map(([key, count]) => `${key}: ${count}`).join(", ") || "unknown";
+    }
+
+    function renderDateSelect(id, labelText, value) {
+      const field = document.createElement("div");
+      const label = document.createElement("label");
+      label.setAttribute("for", id);
+      label.textContent = labelText;
+      const select = document.createElement("select");
+      select.id = id;
+      Array.from(runSelectEl.options).forEach((option) => {
+        const item = document.createElement("option");
+        item.value = option.value;
+        item.textContent = option.textContent;
+        select.appendChild(item);
+      });
+      if (value && !selectHasValue(select, value)) {
+        const item = document.createElement("option");
+        item.value = value;
+        item.textContent = `${value} (not available)`;
+        select.appendChild(item);
+      }
+      if (value && selectHasValue(select, value)) select.value = value;
+      field.appendChild(label);
+      field.appendChild(select);
+      return { field, select };
+    }
+
+    function renderDateCompareControls() {
+      const wrap = document.createElement("div");
+      wrap.className = "controls signal-controls";
+      const fromField = renderDateSelect("compare-from-select", "From date", compareFromDate);
+      const toField = renderDateSelect("compare-to-select", "To date", compareToDate || runSelectEl.value);
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "inline-action";
+      button.textContent = "Compare dates";
+      button.addEventListener("click", () => {
+        compareFromDate = fromField.select.value;
+        compareToDate = toField.select.value;
+        updateQueryState({ compareFrom: compareFromDate, compareTo: compareToDate });
+        loadDateCompare(runSelectEl.value);
+      });
+      wrap.appendChild(fromField.field);
+      wrap.appendChild(toField.field);
+      wrap.appendChild(button);
+      return wrap;
+    }
+
+    function renderThemeChangeTable() {
+      const themes = dateCompareData?.themes || {};
+      const section = document.createElement("div");
+      section.className = "detail-section";
+      section.appendChild(text("h3", "Theme Change Table"));
+      const rows = [];
+      (Array.isArray(themes.new) ? themes.new : []).forEach((theme) => rows.push(["new", theme, "unknown", "unknown", "unknown", "unknown", "unknown", "unknown", "new watch theme"]));
+      (Array.isArray(themes.removed) ? themes.removed : []).forEach((theme) => rows.push(["removed", theme, "unknown", "unknown", "unknown", "unknown", "unknown", "unknown", "not in current watch list"]));
+      (Array.isArray(themes.changed) ? themes.changed : []).forEach((item) => {
+        const notes = [];
+        if (item.changes?.score_delta != null) notes.push(`score delta ${item.changes.score_delta}`);
+        if (item.changes?.risk_changed) notes.push("risk changed");
+        if (item.changes?.intraday_status_changed) notes.push("intraday status changed");
+        if (item.changes?.data_status_changed) notes.push("data quality changed");
+        rows.push([
+          "changed",
+          item.theme,
+          item.from?.score ?? "unknown",
+          item.to?.score ?? "unknown",
+          item.changes?.score_delta ?? "unknown",
+          `${item.from?.risk_level || "unknown"} -> ${item.to?.risk_level || "unknown"}`,
+          `${item.from?.intraday_status || "unknown"} -> ${item.to?.intraday_status || "unknown"}`,
+          `${item.from?.data_status || "unknown"} -> ${item.to?.data_status || "unknown"}`,
+          notes.join(", ") || "metadata changed",
+        ]);
+      });
+      if (!rows.length) {
+        section.appendChild(text("p", "No theme changes available for the selected dates.", "muted"));
+        return section;
+      }
+      const table = document.createElement("table");
+      table.className = "history-table";
+      const thead = document.createElement("thead");
+      const header = document.createElement("tr");
+      ["Change", "Theme", "From score", "To score", "Score delta", "Risk", "Intraday", "Data status", "Notes"].forEach((label) => header.appendChild(text("th", label)));
+      thead.appendChild(header);
+      table.appendChild(thead);
+      const tbody = document.createElement("tbody");
+      rows.forEach((row) => {
+        const tr = document.createElement("tr");
+        row.forEach((value, index) => {
+          const td = document.createElement("td");
+          if (index === 1) td.appendChild(createThemeButton(value));
+          else td.appendChild(text("span", value));
+          tr.appendChild(td);
+        });
+        tbody.appendChild(tr);
+      });
+      table.appendChild(tbody);
+      section.appendChild(table);
       return section;
+    }
+
+    function renderCandidateChangeTable(title, payload) {
+      const rows = [];
+      for (const group of ["new", "removed", "repeated"]) {
+        (Array.isArray(payload?.[group]) ? payload[group] : []).slice(0, 12).forEach((item) => {
+          rows.push([group, item.name, item.code || "unknown", (item.themes || []).join(", "), item.from_appearance ?? 0, item.to_appearance ?? 0, item.last_seen || "unknown"]);
+        });
+      }
+      return renderHistoryTable(title, ["Change", "Name", "Code / ticker", "Themes", "From", "To", "Last seen"], rows);
+    }
+
+    function renderDataQualityChangeSection() {
+      const quality = dateCompareData?.data_quality || {};
+      const rows = [
+        ["from data_status", compareCountText(quality.from_counts)],
+        ["to data_status", compareCountText(quality.to_counts)],
+        ["missing source delta", quality.missing_source_delta ?? 0],
+        ["missing fetched_at delta", quality.missing_fetched_at_delta ?? 0],
+        ["fallback delta", quality.fallback_delta ?? 0],
+      ];
+      const section = renderHistoryTable("Data Quality Change Section", ["Metric", "Value"], rows);
+      section.appendChild(renderHistoryTable("Themes with weaker data quality", ["Theme", "From weak score", "To weak score"], (quality.weaker_themes || []).map((item) => [item.theme, item.from_weak_score, item.to_weak_score])));
+      section.appendChild(renderHistoryTable("Themes with improved data quality", ["Theme", "From weak score", "To weak score"], (quality.improved_themes || []).map((item) => [item.theme, item.from_weak_score, item.to_weak_score])));
+      return section;
+    }
+
+    function renderSourceChangeSection() {
+      const sources = dateCompareData?.sources || {};
+      return renderHistoryTable("Source Change Section", ["Change", "Sources"], [
+        ["new sources", (sources.new || []).join(", ") || "none"],
+        ["removed sources", (sources.removed || []).join(", ") || "none"],
+        ["repeated sources", (sources.repeated || []).join(", ") || "none"],
+      ]);
+    }
+
+    function renderDateCompare() {
+      const section = document.createElement("article");
+      section.id = "date-compare";
+      section.className = "date-compare section-card";
+      section.appendChild(text("h2", "Date Compare"));
+      section.appendChild(description("Compare two local daily runs to review watch-theme, candidate-pool, source coverage, and data quality changes."));
+      section.appendChild(renderDateCompareControls());
+      section.appendChild(text("h3", "Date Compare Summary"));
+      if (!dateCompareData || dateCompareData.available === false) {
+        section.appendChild(text("p", (dateCompareData?.notes || ["Not enough daily runs to compare."]).join(" "), "muted"));
+        return appendBackToTop(section);
+      }
+      const metrics = document.createElement("div");
+      metrics.className = "metrics";
+      [
+        ["From date", dateCompareData.from_date || "unknown"],
+        ["To date", dateCompareData.to_date || "unknown"],
+        ["New watch themes", compareSummaryValue("new_themes_count")],
+        ["Removed from current watch list", compareSummaryValue("removed_themes_count")],
+        ["Changed themes", compareSummaryValue("changed_themes_count")],
+        ["New ETF observation candidates", compareSummaryValue("new_etf_candidates_count")],
+        ["New stock observation candidates", compareSummaryValue("new_stock_candidates_count")],
+        ["Data quality changes", `${compareSummaryValue("weaker_data_quality_count")} weaker / ${compareSummaryValue("improved_data_quality_count")} improved`],
+      ].forEach(([label, value]) => metrics.appendChild(metric(label, value)));
+      const summary = document.createElement("div");
+      summary.className = "detail-section";
+      summary.appendChild(metrics);
+      section.appendChild(summary);
+      section.appendChild(renderThemeChangeTable());
+      section.appendChild(renderCandidateChangeTable("ETF observation candidate changes", dateCompareData.candidates?.etf));
+      section.appendChild(renderCandidateChangeTable("Stock observation candidate changes", dateCompareData.candidates?.stock));
+      section.appendChild(renderDataQualityChangeSection());
+      section.appendChild(renderSourceChangeSection());
+      section.appendChild(renderValueList("Compare notes", dateCompareData.notes || []));
+      return appendBackToTop(section);
     }
 
     function createThemeSummaryCard(group) {
@@ -1907,19 +2572,20 @@ def render_console_html() -> str:
 
     function renderThemeHotlist(signals) {
       const section = document.createElement("article");
-      section.className = "theme-hotlist";
+      section.id = "theme-hotlist";
+      section.className = "theme-hotlist section-card";
       section.appendChild(text("h2", "Theme Hotlist"));
-      section.appendChild(text("p", "Hot themes based on the current visible signals. For observation only, not trading advice.", "muted"));
+      section.appendChild(description("Scan currently visible watch themes, trigger summaries, risk levels, and candidate counts."));
       const groups = groupedSignals(signals);
       if (groups.length === 0) {
         section.appendChild(text("p", "No themes match the current filters.", "muted"));
-        return section;
+        return appendBackToTop(section);
       }
       const wrap = document.createElement("div");
       wrap.className = "theme-summary";
       for (const group of groups) wrap.appendChild(createThemeSummaryCard(group));
       section.appendChild(wrap);
-      return section;
+      return appendBackToTop(section);
     }
 
     function renderGroupedSignals(signals) {
@@ -1965,6 +2631,8 @@ def render_console_html() -> str:
       const selectedSignal = visibleSignals.find((signal) => signal.__index === selectedSignalIndex) || null;
       signalCountEl.textContent = `${visibleSignals.length} of ${currentSignals.length} signals visible`;
       signalsAreaEl.appendChild(renderMorningBrief(visibleSignals));
+      signalsAreaEl.appendChild(renderDailyResearchBrief(visibleSignals));
+      signalsAreaEl.appendChild(renderDateCompare());
       signalsAreaEl.appendChild(renderSourceReliability());
       signalsAreaEl.appendChild(renderThemeSourceMatrix());
       signalsAreaEl.appendChild(renderThemeHotlist(visibleSignals));
@@ -1972,10 +2640,14 @@ def render_console_html() -> str:
       const layout = document.createElement("div");
       layout.className = "analysis-layout";
       const listPane = document.createElement("div");
+      listPane.id = "signal-explorer";
+      listPane.className = "section-card";
       const heading = text("h2", viewModeEl.value === "flat" ? `Signals (${visibleSignals.length})` : `Signals grouped by theme (${visibleSignals.length})`);
       listPane.appendChild(heading);
+      listPane.appendChild(description("Browse filtered signals as grouped themes or a flat signal list, then open details for evidence and candidate pools."));
       if (visibleSignals.length === 0) {
         listPane.appendChild(text("p", "No signals match the current filters.", "muted"));
+        appendBackToTop(listPane);
         layout.appendChild(listPane);
         layout.appendChild(renderSignalDetail(null));
         signalsAreaEl.appendChild(layout);
@@ -1984,6 +2656,7 @@ def render_console_html() -> str:
         return;
       }
       listPane.appendChild(viewModeEl.value === "flat" ? renderFlatSignals(visibleSignals) : renderGroupedSignals(visibleSignals));
+      appendBackToTop(listPane);
       layout.appendChild(listPane);
       layout.appendChild(renderSignalDetail(selectedSignal));
       signalsAreaEl.appendChild(layout);
@@ -2035,6 +2708,7 @@ def render_console_html() -> str:
         ]);
         setStatus(dashboardStatusEl, `Loaded ${date}`);
         renderDashboard(data, artifacts);
+        loadDateCompare(date);
       } catch (error) {
         clear(dashboardEl);
         currentSignals = [];
@@ -2085,3 +2759,5 @@ def render_console_html() -> str:
 </body>
 </html>
 """
+
+

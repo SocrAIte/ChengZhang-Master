@@ -70,6 +70,7 @@ class WebApiTest(unittest.TestCase):
         self.assertIn("/api/history/data-quality", paths)
         self.assertIn("/api/history/sources", paths)
         self.assertIn("/api/history/theme-source-matrix", paths)
+        self.assertIn("/api/history/compare", paths)
         self.assertIn("/api/runs/{date}/artifacts", paths)
         self.assertIn("/api/runs/{date}/dashboard-data", paths)
 
@@ -83,6 +84,24 @@ class WebApiTest(unittest.TestCase):
         self.assertIsInstance(response.payload, str)
         self.assertIn("Market Impact Radar Console", response.payload)
         self.assertIn("Read-only daily report viewer", response.payload)
+        self.assertIn("Workspace Navigation", response.payload)
+        for anchor in (
+            "#morning-brief",
+            "#daily-research-brief",
+            "#date-compare",
+            "#console-controls",
+            "#theme-hotlist",
+            "#source-reliability",
+            "#theme-source-matrix",
+            "#theme-compare",
+            "#historical-review",
+            "#signal-explorer",
+            "#signal-detail",
+            "#theme-detail",
+            "#source-detail",
+            "#artifact-links",
+        ):
+            self.assertIn(anchor, response.payload)
         self.assertIn('fetchJson("/api/runs")', response.payload)
         self.assertIn("/api/runs/${date}/dashboard-data", response.payload)
         self.assertIn("/api/runs/${date}/artifacts", response.payload)
@@ -99,6 +118,30 @@ class WebApiTest(unittest.TestCase):
         self.assertIn("Flat signal list", response.payload)
         self.assertIn("Theme Hotlist", response.payload)
         self.assertIn("Morning Brief", response.payload)
+        self.assertIn("Daily Research Brief", response.payload)
+        self.assertIn("Date Compare", response.payload)
+        self.assertIn("date-compare", response.payload)
+        self.assertIn("compareFrom", response.payload)
+        self.assertIn("compareTo", response.payload)
+        self.assertIn("From date", response.payload)
+        self.assertIn("To date", response.payload)
+        self.assertIn("Date-over-Date Changes", response.payload)
+        self.assertIn("daily-research-brief", response.payload)
+        self.assertIn("Copy as Markdown", response.payload)
+        self.assertIn("Copy as Plain Text", response.payload)
+        self.assertIn("Brief Language", response.payload)
+        self.assertIn("中文", response.payload)
+        self.assertIn("Brief Mode", response.payload)
+        self.assertIn("Full Brief", response.payload)
+        self.assertIn("Compact Brief", response.payload)
+        self.assertIn("Section toggles", response.payload)
+        self.assertIn("briefLang", response.payload)
+        self.assertIn("briefMode", response.payload)
+        self.assertIn("brief-language-select", response.payload)
+        self.assertIn("brief-mode-select", response.payload)
+        self.assertIn("generated locally", response.payload)
+        self.assertIn("not saved", response.payload)
+        self.assertIn("research and observation only", response.payload.lower())
         self.assertIn("Source Reliability", response.payload)
         self.assertIn("Source Detail Panel", response.payload)
         self.assertIn("Source Breakdown", response.payload)
@@ -110,6 +153,15 @@ class WebApiTest(unittest.TestCase):
         self.assertIn("Weak Evidence Cells", response.payload)
         self.assertIn("Theme Compare", response.payload)
         self.assertIn("Candidate Pool Comparison", response.payload)
+        self.assertIn("Back to top", response.payload)
+        self.assertIn("section-card", response.payload)
+        self.assertIn("section-description", response.payload)
+        self.assertIn("collapsible-section", response.payload)
+        self.assertIn("badge-risk", response.payload)
+        self.assertIn("badge-status", response.payload)
+        self.assertIn("badge-data", response.payload)
+        self.assertIn("badge-warning", response.payload)
+        self.assertIn("badge-unknown", response.payload)
         self.assertIn("compare-theme-select", response.payload)
         self.assertIn("createCompareButton", response.payload)
         self.assertIn("Theme Detail", response.payload)
@@ -177,6 +229,7 @@ class WebApiTest(unittest.TestCase):
         self.assertIn("/api/history/data-quality", paths)
         self.assertIn("/api/history/sources", paths)
         self.assertIn("/api/history/theme-source-matrix", paths)
+        self.assertIn("/api/history/compare", paths)
         self.assertIn("/api/runs/{date}/artifacts", paths)
         self.assertIn("/api/runs/{date}/diagnostics", paths)
 
@@ -453,6 +506,146 @@ class WebApiTest(unittest.TestCase):
         self.assertEqual(cells[("Unknown Theme", "Unknown Source")]["data_status_counts"]["partial"], 1)
         self.assertLessEqual(len(cells[("AI hardware", "yahoo")]["example_signals"]), 3)
         self.assertTrue(any(item["theme"] == "Unknown Theme" and item["source"] == "Unknown Source" for item in response.payload["weak_cells"]))
+
+    def test_history_compare_returns_unavailable_when_missing_dates(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            response = DailyReportApi(tmpdir).handle_get("/api/history/compare?to=2026-05-15")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.payload["schema_version"], "1.0")
+        self.assertFalse(response.payload["available"])
+        self.assertIn("notes", response.payload)
+
+    def test_history_compare_identifies_theme_candidate_and_quality_changes(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            _write_run(
+                Path(tmpdir),
+                "2026-05-14",
+                [
+                    {
+                        "theme": "Storage",
+                        "score": 60,
+                        "strength": "medium",
+                        "risk_level": "medium",
+                        "intraday_status": "confirmed",
+                        "data_status": "ok",
+                        "sources": ["Yahoo"],
+                        "fetched_at": "2026-05-14T01:00:00+00:00",
+                        "etf_candidates": ["Chip ETF"],
+                        "stock_candidates": ["OldCo"],
+                    },
+                    {
+                        "theme": "Removed Theme",
+                        "score": 50,
+                        "data_status": "ok",
+                        "source": "OldSource",
+                        "fetched_at": "2026-05-14T01:10:00+00:00",
+                    },
+                ],
+            )
+            _write_run(
+                Path(tmpdir),
+                "2026-05-15",
+                [
+                    {
+                        "theme": "Storage",
+                        "score": 80,
+                        "strength": "strong",
+                        "risk_level": "high",
+                        "intraday_status": "downgraded",
+                        "data_status": "partial",
+                        "sources": ["Yahoo", "Eastmoney"],
+                        "fallback_used": True,
+                        "etf_candidates": ["Chip ETF", {"name": "New ETF", "code": "159001"}],
+                        "stock_candidates": ["NewCo"],
+                    },
+                    {
+                        "theme": "New Theme",
+                        "score": 70,
+                        "data_status": "unknown",
+                    },
+                ],
+            )
+            (Path(tmpdir) / "2026-05-16").mkdir()
+            (Path(tmpdir) / "2026-05-17").mkdir()
+            (Path(tmpdir) / "2026-05-17" / "dashboard_data.json").write_text("{bad json", encoding="utf-8")
+
+            response = DailyReportApi(tmpdir).handle_get("/api/history/compare?from=2026-05-14&to=2026-05-15")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.payload["available"])
+        self.assertEqual(response.payload["from_date"], "2026-05-14")
+        self.assertEqual(response.payload["to_date"], "2026-05-15")
+        self.assertIn("New Theme", response.payload["themes"]["new"])
+        self.assertIn("Removed Theme", response.payload["themes"]["removed"])
+        changed = {item["theme"]: item for item in response.payload["themes"]["changed"]}
+        self.assertEqual(changed["Storage"]["changes"]["score_delta"], 20.0)
+        self.assertTrue(changed["Storage"]["changes"]["risk_changed"])
+        self.assertTrue(changed["Storage"]["changes"]["data_status_changed"])
+        self.assertEqual(response.payload["summary"]["new_themes_count"], 1)
+        self.assertEqual(response.payload["summary"]["removed_themes_count"], 1)
+        self.assertEqual(response.payload["summary"]["changed_themes_count"], 1)
+        self.assertEqual(response.payload["candidates"]["etf"]["new"][0]["name"], "New ETF")
+        self.assertEqual(response.payload["candidates"]["etf"]["repeated"][0]["name"], "Chip ETF")
+        self.assertEqual(response.payload["candidates"]["stock"]["new"][0]["name"], "NewCo")
+        self.assertEqual(response.payload["data_quality"]["missing_fetched_at_delta"], 2)
+        self.assertGreaterEqual(response.payload["summary"]["weaker_data_quality_count"], 1)
+        self.assertIn("Eastmoney", response.payload["sources"]["new"])
+        self.assertIn("Yahoo", response.payload["sources"]["repeated"])
+
+    def test_history_compare_defaults_from_to_previous_run(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            _write_run(Path(tmpdir), "2026-05-14", [{"theme": "Storage"}])
+            _write_run(Path(tmpdir), "2026-05-15", [{"theme": "Storage", "score": 2}])
+
+            response = DailyReportApi(tmpdir).handle_get("/api/history/compare?to=2026-05-15")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.payload["available"])
+        self.assertEqual(response.payload["from_date"], "2026-05-14")
+        self.assertEqual(response.payload["to_date"], "2026-05-15")
+
+    def test_history_compare_candidate_sort_with_none_code(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            _write_run(
+                Path(tmpdir),
+                "2026-05-14",
+                [
+                    {
+                        "theme": "Storage",
+                        "etf_candidates": ["Chip ETF"],
+                        "stock_candidates": [{"name": "OldCo", "code": None}],
+                    },
+                ],
+            )
+            _write_run(
+                Path(tmpdir),
+                "2026-05-15",
+                [
+                    {
+                        "theme": "Storage",
+                        "etf_candidates": [{"name": "Chip ETF", "code": "159995"}],
+                        "stock_candidates": [{"name": "NewCo", "code": "000001"}],
+                    },
+                ],
+            )
+
+            response = DailyReportApi(tmpdir).handle_get("/api/history/compare?from=2026-05-14&to=2026-05-15")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.payload["available"])
+        etf = response.payload["candidates"]["etf"]
+        self.assertEqual(len(etf["new"]), 1)
+        self.assertEqual(etf["new"][0]["name"], "Chip ETF")
+        self.assertEqual(etf["new"][0]["code"], "159995")
+        self.assertEqual(len(etf["removed"]), 1)
+        self.assertEqual(etf["removed"][0]["name"], "Chip ETF")
+        self.assertIsNone(etf["removed"][0]["code"])
+        stock = response.payload["candidates"]["stock"]
+        self.assertEqual(len(stock["new"]), 1)
+        self.assertEqual(stock["new"][0]["name"], "NewCo")
+        self.assertEqual(len(stock["removed"]), 1)
+        self.assertEqual(stock["removed"][0]["name"], "OldCo")
 
     def test_artifacts_endpoint_returns_output_file_index(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:

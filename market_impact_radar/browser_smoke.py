@@ -188,6 +188,13 @@ def run_console_browser_smoke(
         ("source", "?source=Unknown%20Source", {}),
         ("source_theme_compare", "?source=Unknown%20Source&theme=Unknown%20Theme&compare=Unknown%20Theme", {}),
         ("matrix", "?matrixTheme=Unknown%20Theme&matrixSource=Unknown%20Source", {}),
+        ("matrix_hash", "#theme-source-matrix", {}),
+        ("source_hash_state", "?theme=Unknown%20Theme&source=Unknown%20Source#source-detail", {}),
+        ("research_brief_hash", "#daily-research-brief", {}),
+        ("research_brief_state", "?theme=Unknown%20Theme&source=Unknown%20Source#daily-research-brief", {}),
+        ("research_brief_options", "?briefLang=zh&briefMode=compact#daily-research-brief", {"#brief-language-select": "zh", "#brief-mode-select": "compact"}),
+        ("date_compare_hash", "#date-compare", {}),
+        ("date_compare_state", "?compareFrom=2026-05-14&compareTo=2026-05-15#date-compare", {"#compare-from-select": "2026-05-14", "#compare-to-select": "2026-05-15"}),
     )
     checked_pages = 0
     try:
@@ -303,6 +310,19 @@ def _assert_console_text(body_text: str, title: str, date: str) -> None:
     visible_text = f"{body_text}\n{title}"
     required = (
         "Market Impact Radar Console",
+        "Workspace Navigation",
+        "Back to top",
+        "Daily Research Brief",
+        "Date Compare",
+        "From date",
+        "To date",
+        "Date Compare Summary",
+        "Brief Language",
+        "中文",
+        "Copy as Markdown",
+        "Copy as Plain Text",
+        "Brief Mode",
+        "Section toggles",
         "Daily Runs",
         "Dashboard Data",
         date,
@@ -335,9 +355,6 @@ def _assert_console_text(body_text: str, title: str, date: str) -> None:
         "Stock observation pool",
         "Artifact Links",
         "Historical Review",
-        "Historical Theme Trends",
-        "Recurring Observation Candidates",
-        "Data Quality Trend",
         "API:",
         "API version:",
         "Dashboard",
@@ -359,6 +376,10 @@ def _assert_console_controls(browser_page: Any) -> None:
         "#sort-select",
         "#view-mode",
         "#compare-theme-select",
+        "#brief-language-select",
+        "#brief-mode-select",
+        "#compare-from-select",
+        "#compare-to-select",
     ):
         try:
             count = browser_page.locator(selector).count()

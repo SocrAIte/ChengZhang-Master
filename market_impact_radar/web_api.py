@@ -7,10 +7,10 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from importlib import metadata
 from pathlib import Path
 from typing import Any
-from urllib.parse import unquote, urlparse
+from urllib.parse import parse_qs, unquote, urlparse
 
 from .dashboard_contract import DASHBOARD_SCHEMA_VERSION, normalize_dashboard_data
-from .history_analytics import build_candidate_history, build_data_quality_history, build_source_history, build_theme_history, build_theme_source_matrix
+from .history_analytics import build_candidate_history, build_daily_compare, build_data_quality_history, build_source_history, build_theme_history, build_theme_source_matrix
 from .history_index import build_daily_history_index
 from .web_console import render_console_html
 
@@ -40,7 +40,9 @@ class DailyReportApi:
         self.reports_dir = Path(reports_dir)
 
     def handle_get(self, raw_path: str) -> ApiResponse:
-        path = urlparse(raw_path).path
+        parsed = urlparse(raw_path)
+        path = parsed.path
+        query = parse_qs(parsed.query)
         parts = [unquote(part) for part in path.strip("/").split("/") if part]
         try:
             if parts == [] or parts == ["console"]:
@@ -65,6 +67,8 @@ class DailyReportApi:
                 return ApiResponse(200, self.source_history())
             if parts == ["api", "history", "theme-source-matrix"]:
                 return ApiResponse(200, self.theme_source_matrix())
+            if parts == ["api", "history", "compare"]:
+                return ApiResponse(200, self.daily_compare(query))
             if len(parts) == 4 and parts[:2] == ["api", "runs"]:
                 date = self._validate_date(parts[2])
                 endpoint = parts[3]
@@ -128,6 +132,7 @@ class DailyReportApi:
                 "/api/history/data-quality": {"get": {"summary": "Summarize historical data quality observations."}},
                 "/api/history/sources": {"get": {"summary": "Summarize historical source coverage and reliability observations."}},
                 "/api/history/theme-source-matrix": {"get": {"summary": "Summarize historical theme-source evidence matrix."}},
+                "/api/history/compare": {"get": {"summary": "Compare two local daily report runs."}},
                 "/api/runs/{date}/dashboard-data": {
                     "get": {
                         "summary": "Return normalized dashboard_data.json for a run.",
@@ -208,6 +213,11 @@ class DailyReportApi:
 
     def theme_source_matrix(self) -> dict[str, Any]:
         return build_theme_source_matrix(self.reports_dir)
+
+    def daily_compare(self, query: dict[str, list[str]]) -> dict[str, Any]:
+        from_date = _first_query_value(query, "from")
+        to_date = _first_query_value(query, "to")
+        return build_daily_compare(self.reports_dir, from_date=from_date, to_date=to_date)
 
     def dashboard_data(self, date: str) -> dict[str, Any]:
         return normalize_dashboard_data(self._load_json(date, "dashboard_data.json"))
@@ -335,12 +345,19 @@ def _endpoint_catalog() -> list[dict[str, str]]:
         {"method": "GET", "path": "/api/history/data-quality", "description": "Historical data quality summary."},
         {"method": "GET", "path": "/api/history/sources", "description": "Historical source detail summary."},
         {"method": "GET", "path": "/api/history/theme-source-matrix", "description": "Historical theme-source evidence matrix."},
+        {"method": "GET", "path": "/api/history/compare", "description": "Date-over-date daily run comparison."},
         {"method": "GET", "path": "/api/runs/{date}/artifacts", "description": "Daily run output file index."},
         {"method": "GET", "path": "/api/runs/{date}/dashboard-data", "description": "Dashboard data JSON."},
         {"method": "GET", "path": "/api/runs/{date}/run-summary", "description": "Run summary JSON."},
         {"method": "GET", "path": "/api/runs/{date}/knowledge-review", "description": "Knowledge review HTML payload."},
         {"method": "GET", "path": "/api/runs/{date}/diagnostics", "description": "Run diagnostics HTML payload."},
     ]
+
+
+def _first_query_value(query: dict[str, list[str]], key: str) -> str | None:
+    values = query.get(key) or []
+    value = values[0] if values else None
+    return str(value).strip() if value not in (None, "") else None
 
 
 def _artifact_catalog(date: str) -> list[dict[str, Any]]:
