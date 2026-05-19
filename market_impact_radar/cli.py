@@ -135,14 +135,14 @@ def main() -> int:
     console_smoke_parser.add_argument("--reports-dir", default=DEFAULT_OUTPUT_DIR, help="Daily reports root for the console API")
     console_smoke_parser.add_argument("--date", default=DEFAULT_CHECK_DATE, help="Run date to verify in the console")
 
-    backtest_parser = subparsers.add_parser("backtest", help="计算单个隔夜传导统计")
+    backtest_parser = subparsers.add_parser("backtest", help="[legacy] 计算单个隔夜传导统计（legacy research utility）")
     backtest_parser.add_argument("--history", required=True, help="历史 CSV")
     backtest_parser.add_argument("--external-symbol", help="外盘代码，例如 MU")
     backtest_parser.add_argument("--theme", help="A股主题，例如 存储芯片")
     backtest_parser.add_argument("--threshold", type=float, default=5.0, help="外盘触发阈值")
     backtest_parser.add_argument("--direction", choices=["up", "down"], default="up")
 
-    batch_parser = subparsers.add_parser("backtest-batch", help="批量计算外盘到A股主题传导统计")
+    batch_parser = subparsers.add_parser("backtest-batch", help="[legacy] 批量计算外盘到A股主题传导统计（legacy research utility）")
     batch_parser.add_argument("--history", required=True, help="历史 CSV")
     batch_parser.add_argument("--thresholds", default="3,5,8", help="逗号分隔阈值，例如 3,5,8")
     batch_parser.add_argument("--direction", choices=["up", "down"], default="up")

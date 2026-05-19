@@ -91,7 +91,7 @@ The console readability layer uses lightweight static HTML and CSS only. Section
 
 Daily Research Brief Builder is a browser-local summary tool. It uses the already loaded run data, current filters, selected theme, compared themes, selected source, history summaries, source reliability data, and theme-source matrix metadata to generate a copyable research note. It supports English / Chinese templates, Full / Compact modes, section toggles, Copy as Markdown, and Copy as Plain Text. The `briefLang` and `briefMode` query parameters can restore a shared brief view. The builder does not save content, call write APIs, trigger `run-daily`, fetch live market data, or produce trading instructions.
 
-Historical Review is a research view over existing daily report files. It does not calculate trading performance metrics, entry points, exits, or pricing claims.
+Historical Review is a research view over existing daily report files. It does not calculate entry points, exits, or pricing claims.
 
 Supported query parameters:
 
@@ -213,7 +213,7 @@ Returns a read-only summary of data quality metadata observed across local `repo
 
 It reports `data_status_counts`, `source_counts`, missing source count, missing `fetched_at` count, fallback count, and themes with weak data metadata. Missing sources are grouped under `Unknown Source`.
 
-This endpoint only reads local daily report files. It does not fetch live data, run `run-daily`, recompute financial signals, or interpret data quality as a trading signal.
+This endpoint only reads local daily report files. It does not treat data quality as a trading signal and does not fetch live data or run `run-daily`.
 
 ### GET /api/history/sources
 

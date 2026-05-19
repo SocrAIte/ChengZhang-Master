@@ -1,6 +1,6 @@
 # 跨市场传导雷达
 
-Global Signal -> China A-share Playbook.
+Global Signal -> China A-share Research.
 
 ## Daily pipeline
 
@@ -29,6 +29,8 @@ On Windows, use `conda run -n market_impact_radar ...` if `conda activate` does 
 
 这个项目用于在 A 股开盘前，把美股、日股、台股、商品期货等隔夜异动，映射成 A 股 ETF/个股候选，并给出风险过滤与盘中验证条件。
 
+**产品边界：** 这是一个只读研究型分析网站，不是交易系统。默认体验包含信号识别、观察池、证据链、风险提示、数据质量、历史观察和跨日期变化。不提供买入/卖出建议、目标价、收益率预测或自动交易。详见 [docs/PRODUCT_BOUNDARIES.md](docs/PRODUCT_BOUNDARIES.md)。
+
 当前版本是 MVP：不依赖外部服务，先用 JSON/CSV 输入跑通核心链路。
 
 ## 已实现
@@ -37,13 +39,10 @@ On Windows, use `conda run -n market_impact_radar ...` if `conda activate` does 
 - 成交量放大与上涨/下跌方向识别
 - 板块共振分数
 - 外盘资产 -> 主题 -> A股 ETF/个股池映射
-- 历史传导胜率、A股提前反应、高开、拥挤度、大盘环境评分
+- 历史传导统计、A股提前反应、高开、拥挤度、大盘环境评分
 - 每日 Markdown 报告生成
-- 简易隔夜传导回测统计
-- 批量隔夜传导回测和边际分排序
 - 强信号 / 可观察 / 弱观察 / 风险不追 分层日报
 - 跨市场冲击事件生成
-- 回测结果写回 `historical_edges`，用于评分反哺
 - 收盘复盘模板生成
 - 评分规则配置化：`data/scoring_rules.json`
 - 输入 JSON schema 校验
@@ -55,6 +54,18 @@ On Windows, use `conda run -n market_impact_radar ...` if `conda activate` does 
 - 每条外盘行情记录保存 `source`、`fetched_at`、`price`、`prev_close`、`change_pct`
 - 多源交叉校验：过期、缺失或分歧数据不会参与强信号生成
 - 公开市场列表爬取与知识图谱扩容
+- 只读研究控制台（/console）：Daily Research Brief、Date Compare、Theme × Source Matrix、跨日期变化对比
+
+## Legacy Research Utilities
+
+以下工具仍可运行，但不属于默认只读研究控制台（/console）：
+
+- `backtest`：简易隔夜传导统计
+- `backtest-batch`：批量隔夜传导统计和边际分排序
+- 回测结果写回 `historical_edges` 用于评分反哺
+- 胜率渲染、收盘复盘模板等
+
+详见 [docs/LEGACY_RESEARCH_UTILITIES.md](docs/LEGACY_RESEARCH_UTILITIES.md)。
 
 ## 快速开始
 
@@ -220,7 +231,7 @@ python -m market_impact_radar verify-knowledge `
 
 复核报告会标出：外盘代码是否存在于对应市场列表、外盘主题是否能在 `theme_mappings` 中找到、A股股票/ETF 是否能被 A股公开列表或 ETF 列表匹配。报告只提示问题，不会自动修改 `mappings.json`。
 
-## 简易回测
+## 简易回测（Legacy Research Utility）
 
 ```powershell
 python -m market_impact_radar backtest `
@@ -236,7 +247,7 @@ python -m market_impact_radar backtest `
 外盘 T 日涨跌幅 -> A股主题 T+1 日表现
 ```
 
-## 批量回测
+## 批量回测（Legacy Research Utility）
 
 批量统计所有 `外盘代码 -> A股主题` 的隔夜传导表现：
 
