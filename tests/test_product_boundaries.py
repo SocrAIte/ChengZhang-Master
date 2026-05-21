@@ -224,6 +224,7 @@ class ConsoleBoundariesTest(unittest.TestCase):
         html = response.payload.lower()
         self.assertIn("research", html)
         self.assertIn("observation", html)
+        self.assertIn("research review queue", html)
 
     def test_console_html_no_positive_trading_expression(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:

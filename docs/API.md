@@ -63,6 +63,7 @@ It uses the existing API endpoints to:
 - switch the Daily Research Brief between Full Brief and Compact Brief
 - enable or disable brief sections before copying
 - copy the Daily Research Brief as Markdown or plain text in the browser without saving it to the server
+- show a Research Review Queue that consolidates weak evidence, source gaps, freshness gaps, theme-source matrix gaps, and date-compare notes into a read-only review checklist
 - show a Theme Hotlist based on the currently visible signals
 - compare up to 3 themes side by side in Theme Compare
 - show Candidate Pool Comparison for repeated ETF and stock observation candidates across compared themes
@@ -89,7 +90,9 @@ The console information architecture is read-only. Workspace Navigation jumps be
 
 The console readability layer uses lightweight static HTML and CSS only. Section Cards separate major research areas, Status Badges label evidence and risk metadata, Collapsible Sections keep long history and artifact content scannable, and Back to Top links help navigate the long page. These visual cues do not create trading actions or change the underlying analysis data.
 
-Daily Research Brief Builder is a browser-local summary tool. It uses the already loaded run data, current filters, selected theme, compared themes, selected source, history summaries, source reliability data, and theme-source matrix metadata to generate a copyable research note. It supports English / Chinese templates, Full / Compact modes, section toggles, Copy as Markdown, and Copy as Plain Text. The `briefLang` and `briefMode` query parameters can restore a shared brief view. The builder does not save content, call write APIs, trigger `run-daily`, fetch live market data, or produce trading instructions.
+Daily Research Brief Builder is a browser-local summary tool. It uses the already loaded run data, current filters, selected theme, compared themes, selected source, review queue items, history summaries, source reliability data, and theme-source matrix metadata to generate a copyable research note. It supports English / Chinese templates, Full / Compact modes, section toggles, Copy as Markdown, and Copy as Plain Text. The `briefLang` and `briefMode` query parameters can restore a shared brief view. The builder does not save content, call write APIs, trigger `run-daily`, fetch live market data, or produce trading instructions.
+
+Research Review Queue is a browser-local review checklist. It derives items from already loaded signals, source reliability metadata, weak evidence reasons, theme-source matrix weak cells, and date-compare summaries. It supports severity, category, and scope filters with `reviewSeverity`, `reviewCategory`, and `reviewScope` URL state. Review items are research follow-up prompts only; they do not create tasks on the server, modify data, or recommend market actions.
 
 Historical Review is a research view over existing daily report files. It does not calculate entry points, exits, or pricing claims.
 
@@ -110,6 +113,9 @@ Supported query parameters:
 - `compareTo`: current run date for Date Compare.
 - `briefLang`: `en` or `zh` for the Daily Research Brief language.
 - `briefMode`: `full` or `compact` for the Daily Research Brief length.
+- `reviewSeverity`: `high`, `medium`, `low`, or `info` for Research Review Queue filtering.
+- `reviewCategory`: review queue category such as `weak_evidence`, `missing_source`, `missing_fetched_at`, `stale_or_partial_data`, `fallback_used`, `high_risk_with_weak_data`, `date_compare_change`, `candidate_pool_change`, or `theme_source_gap`.
+- `reviewScope`: `visible` for the current filtered signal set or `all` for the current run plus history-derived review items.
 
 Unknown query values fall back to safe defaults. Empty/default values are omitted from the URL when controls change.
 

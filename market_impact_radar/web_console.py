@@ -77,6 +77,11 @@ def render_console_html() -> str:
     .brief-meta { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
     .brief-warning { border: 1px solid #fedf89; background: #fffaeb; border-radius: 6px; color: #93370d; padding: 8px; }
     .research-brief-textarea { box-sizing: border-box; font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace; min-height: 360px; resize: vertical; white-space: pre; }
+    .review-queue { margin-bottom: 14px; }
+    .review-controls { align-items: end; display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); margin: 12px 0; }
+    .review-item-list { display: grid; gap: 10px; margin-top: 10px; }
+    .review-item { background: #fbfcfe; border: 1px solid #eef1f6; border-radius: 8px; padding: 10px; }
+    .review-item h3 { font-size: 14px; margin: 0 0 6px; }
     .theme-hotlist, .theme-group { margin-bottom: 14px; }
     .theme-summary { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); }
     .theme-card { background: #fff; border: 1px solid #d9dee7; border-radius: 8px; padding: 12px; }
@@ -114,6 +119,7 @@ def render_console_html() -> str:
       <div class="nav-links">
         <a href="#morning-brief">Morning Brief</a>
         <a href="#daily-research-brief">Daily Research Brief</a>
+        <a href="#research-review-queue">Research Review Queue</a>
         <a href="#date-compare">Date Compare</a>
         <a href="#console-controls">Controls</a>
         <a href="#theme-hotlist">Theme Hotlist</a>
@@ -231,12 +237,16 @@ def render_console_html() -> str:
       risk: true,
       dataQuality: true,
       dateCompare: true,
+      reviewQueue: true,
       history: true,
       finalNotes: true,
     };
     let dateCompareData = null;
     let compareFromDate = "";
     let compareToDate = "";
+    let reviewSeverity = "";
+    let reviewCategory = "";
+    let reviewScope = "visible";
     let visibleSignalCount = 0;
     let apiHealthData = null;
     let apiVersionData = null;
@@ -251,7 +261,10 @@ def render_console_html() -> str:
     const VALID_VIEWS = new Set(["grouped", "flat"]);
     const VALID_BRIEF_LANGS = new Set(["en", "zh"]);
     const VALID_BRIEF_MODES = new Set(["full", "compact"]);
-    const BRIEF_SECTION_KEYS = ["overview", "watchThemes", "evidence", "candidates", "risk", "dataQuality", "dateCompare", "history", "finalNotes"];
+    const VALID_REVIEW_SEVERITIES = new Set(["", "high", "medium", "low", "info"]);
+    const VALID_REVIEW_CATEGORIES = new Set(["", "weak_evidence", "missing_source", "missing_fetched_at", "stale_or_partial_data", "fallback_used", "high_risk_with_weak_data", "date_compare_change", "candidate_pool_change", "theme_source_gap"]);
+    const VALID_REVIEW_SCOPES = new Set(["visible", "all"]);
+    const BRIEF_SECTION_KEYS = ["overview", "watchThemes", "evidence", "candidates", "risk", "dataQuality", "dateCompare", "reviewQueue", "history", "finalNotes"];
     const MAX_COMPARE_THEMES = 3;
 
     function normalizeChoice(value, allowed, fallback) {
@@ -277,6 +290,11 @@ def render_console_html() -> str:
       return VALID_BRIEF_MODES.has(textValue) ? textValue : "full";
     }
 
+    function normalizeReviewScope(value) {
+      const textValue = String(value == null ? "" : value).trim().toLowerCase() || "visible";
+      return VALID_REVIEW_SCOPES.has(textValue) ? textValue : "visible";
+    }
+
     function normalizeConsoleState(state) {
       return {
         date: String(state.date || "").trim(),
@@ -294,6 +312,9 @@ def render_console_html() -> str:
         briefMode: normalizeBriefMode(state.briefMode),
         compareFrom: String(state.compareFrom || "").trim(),
         compareTo: String(state.compareTo || "").trim(),
+        reviewSeverity: normalizeChoice(state.reviewSeverity, VALID_REVIEW_SEVERITIES, ""),
+        reviewCategory: normalizeChoice(state.reviewCategory, VALID_REVIEW_CATEGORIES, ""),
+        reviewScope: normalizeReviewScope(state.reviewScope),
       };
     }
 
@@ -327,6 +348,9 @@ def render_console_html() -> str:
         briefMode: params.get("briefMode"),
         compareFrom: params.get("compareFrom"),
         compareTo: params.get("compareTo"),
+        reviewSeverity: params.get("reviewSeverity"),
+        reviewCategory: params.get("reviewCategory"),
+        reviewScope: params.get("reviewScope"),
       });
     }
 
@@ -354,6 +378,9 @@ def render_console_html() -> str:
       briefMode = normalizedState.briefMode;
       compareFromDate = normalizedState.compareFrom;
       compareToDate = normalizedState.compareTo;
+      reviewSeverity = normalizedState.reviewSeverity;
+      reviewCategory = normalizedState.reviewCategory;
+      reviewScope = normalizedState.reviewScope;
       if (normalizedState.date && selectHasValue(runSelectEl, normalizedState.date)) {
         runSelectEl.value = normalizedState.date;
       }
@@ -376,6 +403,9 @@ def render_console_html() -> str:
         briefMode,
         compareFrom: compareFromDate,
         compareTo: compareToDate,
+        reviewSeverity,
+        reviewCategory,
+        reviewScope,
       });
     }
 
@@ -397,6 +427,9 @@ def render_console_html() -> str:
       if (state.briefMode !== "full") params.set("briefMode", state.briefMode);
       if (state.compareFrom) params.set("compareFrom", state.compareFrom);
       if (state.compareTo) params.set("compareTo", state.compareTo);
+      if (state.reviewSeverity) params.set("reviewSeverity", state.reviewSeverity);
+      if (state.reviewCategory) params.set("reviewCategory", state.reviewCategory);
+      if (state.reviewScope !== "visible") params.set("reviewScope", state.reviewScope);
       const query = params.toString();
       const nextUrl = `${window.location.pathname}${query ? `?${query}` : ""}${window.location.hash || ""}`;
       window.history.replaceState(null, "", nextUrl);
@@ -818,6 +851,153 @@ def render_console_html() -> str:
       return uniqueValues(reasons, 6);
     }
 
+    function reviewSeverityRank(value) {
+      return { high: 4, medium: 3, low: 2, info: 1 }[normalized(value)] || 0;
+    }
+
+    function reviewSeverityLabel(value) {
+      const textValue = normalized(value || "info");
+      return textValue.charAt(0).toUpperCase() + textValue.slice(1);
+    }
+
+    function reviewCategoryLabel(value) {
+      const labels = {
+        weak_evidence: "Weak Evidence",
+        missing_source: "Missing Source",
+        missing_fetched_at: "Missing Fetched At",
+        stale_or_partial_data: "Stale / Partial Data",
+        fallback_used: "Fallback Used",
+        high_risk_with_weak_data: "High Risk + Weak Data",
+        date_compare_change: "Date Compare Change",
+        candidate_pool_change: "Candidate Pool Change",
+        theme_source_gap: "Theme-Source Evidence Gap",
+      };
+      return labels[value] || "All Categories";
+    }
+
+    function reviewSeverityClass(value) {
+      const severity = normalized(value);
+      if (severity === "high") return "badge badge-warning";
+      if (severity === "medium") return "badge badge-risk";
+      if (severity === "low") return "badge badge-status";
+      return "badge badge-muted";
+    }
+
+    function reviewItem(category, severity, reason, options = {}) {
+      return {
+        category,
+        severity,
+        reason,
+        theme: options.theme || "",
+        source: options.source || "",
+        action: options.action || "Review evidence context before using this observation in the research brief.",
+        context: options.context || "",
+        signalIndex: options.signalIndex,
+      };
+    }
+
+    function reviewSignalContext(signal) {
+      return [
+        `strength ${signal.strength || "unknown"}`,
+        `score ${signal.score ?? "unknown"}`,
+        `risk ${signal.risk_level || "unknown"}`,
+        `status ${signal.intraday_status || signal.status || "not_checked"}`,
+        `data ${signal.data_status || "unknown"}`,
+      ].join(", ");
+    }
+
+    function pushUniqueReviewItem(items, item) {
+      const key = [item.category, item.severity, item.theme, item.source, item.reason, item.context].join("|").toLowerCase();
+      if (!items.some((existing) => [existing.category, existing.severity, existing.theme, existing.source, existing.reason, existing.context].join("|").toLowerCase() === key)) {
+        items.push(item);
+      }
+    }
+
+    function buildSignalReviewItems(signals) {
+      const items = [];
+      for (const signal of signals) {
+        const theme = themeName(signal);
+        const sources = sourceValues(signal);
+        const sourceLabel = sources.join(", ") || "Unknown Source";
+        const fetched = fetchedValues(signal);
+        const dataStatus = signal.data_status || "unknown";
+        const context = reviewSignalContext(signal);
+        const reasons = weakEvidenceReasons(signal);
+        if (reasons.length) {
+          pushUniqueReviewItem(items, reviewItem("weak_evidence", normalized(signal.risk_level) === "high" ? "high" : "medium", `Needs verification: ${reasons.join(", ")}.`, { theme, source: sourceLabel, context, signalIndex: signal.__index }));
+        }
+        if (!sources.length) {
+          pushUniqueReviewItem(items, reviewItem("missing_source", "medium", "Source is missing for this signal.", { theme, source: "Unknown Source", context, signalIndex: signal.__index }));
+        }
+        if (!fetched.length) {
+          pushUniqueReviewItem(items, reviewItem("missing_fetched_at", "medium", "fetched_at is missing, so freshness needs confirmation.", { theme, source: sourceLabel, context, signalIndex: signal.__index }));
+        }
+        if (isWeakDataStatus(dataStatus)) {
+          const severity = ["missing", "missing_data", "failed"].includes(normalized(dataStatus)) ? "high" : "medium";
+          pushUniqueReviewItem(items, reviewItem("stale_or_partial_data", severity, `Data status is ${dataStatus}.`, { theme, source: sourceLabel, context, signalIndex: signal.__index }));
+        }
+        if (hasFallback(signal)) {
+          pushUniqueReviewItem(items, reviewItem("fallback_used", "low", "Fallback source was used.", { theme, source: sourceLabel, context, signalIndex: signal.__index }));
+        }
+        if (normalized(signal.risk_level) === "high" && isWeakDataStatus(dataStatus)) {
+          pushUniqueReviewItem(items, reviewItem("high_risk_with_weak_data", "high", "High risk theme also has weak data quality.", { theme, source: sourceLabel, context, signalIndex: signal.__index }));
+        }
+      }
+      return items;
+    }
+
+    function buildMatrixReviewItems() {
+      const rows = Array.isArray(themeSourceMatrixData?.weak_cells) ? themeSourceMatrixData.weak_cells : [];
+      return rows.map((cell) => reviewItem("theme_source_gap", Number(cell.weak_signal_count || 0) > 1 ? "high" : "medium", cell.reason || "Theme-source pair needs evidence review.", {
+        theme: cell.theme || "Unknown Theme",
+        source: cell.source || "Unknown Source",
+        context: `weak signals ${cell.weak_signal_count || 0}`,
+        action: "Open matrix context and verify source coverage, freshness, and data status.",
+      }));
+    }
+
+    function buildDateCompareReviewItems() {
+      if (!dateCompareData || dateCompareData.available === false) return [];
+      const summary = dateCompareData.summary || {};
+      const items = [];
+      if (Number(summary.changed_themes_count || 0) > 0) {
+        pushUniqueReviewItem(items, reviewItem("date_compare_change", "medium", `${summary.changed_themes_count} themes changed between compared runs.`, {
+          context: `${dateCompareData.from_date || "unknown"} -> ${dateCompareData.to_date || "unknown"}`,
+          action: "Review score, risk, status, and data quality deltas before quoting the change.",
+        }));
+      }
+      if (Number(summary.weaker_data_quality_count || 0) > 0) {
+        pushUniqueReviewItem(items, reviewItem("date_compare_change", "high", `${summary.weaker_data_quality_count} themes show weaker evidence quality in the comparison.`, {
+          context: `${dateCompareData.from_date || "unknown"} -> ${dateCompareData.to_date || "unknown"}`,
+          action: "Check whether the change is due to missing source, missing fetched_at, fallback, or data_status.",
+        }));
+      }
+      const newEtf = Number(summary.new_etf_candidates_count || 0);
+      const newStock = Number(summary.new_stock_candidates_count || 0);
+      if (newEtf + newStock > 0) {
+        pushUniqueReviewItem(items, reviewItem("candidate_pool_change", "low", `${newEtf} new ETF and ${newStock} new stock observation candidates appeared in the comparison.`, {
+          context: `${dateCompareData.from_date || "unknown"} -> ${dateCompareData.to_date || "unknown"}`,
+          action: "Review candidate pool changes as observation context, not as an action list.",
+        }));
+      }
+      return items;
+    }
+
+    function buildResearchReviewItems(visibleSignals, scope = reviewScope) {
+      const signals = scope === "all" ? currentSignals : visibleSignals;
+      const items = buildSignalReviewItems(signals)
+        .concat(buildMatrixReviewItems())
+        .concat(buildDateCompareReviewItems());
+      return items.sort((left, right) => reviewSeverityRank(right.severity) - reviewSeverityRank(left.severity)
+        || String(left.category).localeCompare(String(right.category))
+        || String(left.theme || "").localeCompare(String(right.theme || ""))
+        || String(left.source || "").localeCompare(String(right.source || "")));
+    }
+
+    function filterResearchReviewItems(items) {
+      return items.filter((item) => (!reviewSeverity || item.severity === reviewSeverity) && (!reviewCategory || item.category === reviewCategory));
+    }
+
     function sourceBreakdown(signals) {
       const rows = new Map();
       for (const signal of signals) {
@@ -1155,8 +1335,8 @@ def render_console_html() -> str:
       return appendBackToTop(section);
     }
 
-    function badge(value) {
-      const node = text("span", value, `badge ${badgeClass(value)}`);
+    function badge(value, className = null) {
+      const node = text("span", value, className || `badge ${badgeClass(value)}`);
       return node;
     }
 
@@ -1504,6 +1684,7 @@ def render_console_html() -> str:
         risk: lang === "zh" ? "风险与谨慎项" : "Risk Notes",
         dataQuality: lang === "zh" ? "数据质量" : "Data Quality",
         dateCompare: lang === "zh" ? "日期对比" : "Date Compare",
+        reviewQueue: lang === "zh" ? "研究复核清单" : "Research Review Queue",
         history: lang === "zh" ? "历史观察" : "Historical Context",
         finalNotes: lang === "zh" ? "研究备注" : "Final Notes",
       };
@@ -1512,7 +1693,7 @@ def render_console_html() -> str:
     function briefSectionEnabled(key, mode) {
       if (!briefSections[key]) return false;
       if (mode !== "compact") return true;
-      return ["overview", "watchThemes", "risk", "dataQuality", "dateCompare", "candidates", "finalNotes"].includes(key);
+      return ["overview", "watchThemes", "risk", "dataQuality", "dateCompare", "reviewQueue", "candidates", "finalNotes"].includes(key);
     }
 
     function briefTermList() {
@@ -1556,6 +1737,7 @@ def render_console_html() -> str:
       const qualitySummary = Object.entries(dataCounts).map(([key, count]) => `${key}: ${count}`).join(", ") || "unknown";
       const compare = dateCompareData || {};
       const compareSummary = compare.summary || {};
+      const topReviewItems = buildResearchReviewItems(visibleSignals, "visible").slice(0, 5);
       const dateCompareLines = compare.available === false
         ? [`- ${compare.notes?.join(" ") || "Date comparison is not available."}`]
         : [
@@ -1610,6 +1792,7 @@ def render_console_html() -> str:
           isZh ? `- 需复核 theme-source 组合：${weakMatrixCells.length}` : `- Theme-source pairs needing review: ${weakMatrixCells.length}`,
         ]],
         ["dateCompare", isZh ? "日期对比观察" : "Date-over-Date Changes", dateCompareLines],
+        ["reviewQueue", isZh ? "研究复核清单" : "Research Review Queue", topReviewItems.length ? topReviewItems.map((item) => `- [${reviewSeverityLabel(item.severity)}] ${item.theme || item.source || "General review"}: ${item.reason} Action: ${item.action}`) : ["- No review items for the current view."]],
         ["history", isZh ? "七、历史观察" : "Historical Context", recurringThemes.concat([
           isZh ? `- 历史日期范围：${themeHistoryData?.date_range?.start || "unknown"} to ${themeHistoryData?.date_range?.end || "unknown"}` : `- Historical date range: ${themeHistoryData?.date_range?.start || "unknown"} to ${themeHistoryData?.date_range?.end || "unknown"}`,
           isZh ? `- 历史数据质量样本：${dataQualityHistoryData?.runs_count ?? "unknown"}` : `- Historical data quality runs: ${dataQualityHistoryData?.runs_count ?? "unknown"}`,
@@ -1761,6 +1944,142 @@ def render_console_html() -> str:
       return appendBackToTop(section);
     }
 
+    function renderReviewSelect(id, labelText, options, value, onChange) {
+      const field = document.createElement("div");
+      const label = document.createElement("label");
+      label.setAttribute("for", id);
+      label.textContent = labelText;
+      const select = document.createElement("select");
+      select.id = id;
+      options.forEach(([optionValue, optionLabel]) => {
+        const option = document.createElement("option");
+        option.value = optionValue;
+        option.textContent = optionLabel;
+        select.appendChild(option);
+      });
+      select.value = value;
+      select.addEventListener("change", () => onChange(select.value));
+      field.appendChild(label);
+      field.appendChild(select);
+      return field;
+    }
+
+    function reviewSummaryCount(items, predicate) {
+      return items.filter(predicate).length;
+    }
+
+    function renderResearchReviewQueue(visibleSignals) {
+      const section = document.createElement("article");
+      section.id = "research-review-queue";
+      section.className = "review-queue section-card";
+      section.appendChild(text("h2", "Research Review Queue"));
+      section.appendChild(description("A read-only checklist of evidence, source, freshness, matrix, and date-compare items that may need human research review."));
+      const controls = document.createElement("div");
+      controls.className = "review-controls";
+      controls.appendChild(renderReviewSelect("review-severity-filter", "Review Severity", [
+        ["", "All severities"],
+        ["high", "High"],
+        ["medium", "Medium"],
+        ["low", "Low"],
+        ["info", "Info"],
+      ], reviewSeverity, (value) => {
+        reviewSeverity = normalizeChoice(value, VALID_REVIEW_SEVERITIES, "");
+        updateQueryState({ reviewSeverity });
+        renderSignalSections();
+      }));
+      controls.appendChild(renderReviewSelect("review-category-filter", "Review Category", [
+        ["", "All categories"],
+        ["weak_evidence", "Weak Evidence"],
+        ["missing_source", "Missing Source"],
+        ["missing_fetched_at", "Missing Fetched At"],
+        ["stale_or_partial_data", "Stale / Partial Data"],
+        ["fallback_used", "Fallback Used"],
+        ["high_risk_with_weak_data", "High Risk + Weak Data"],
+        ["date_compare_change", "Date Compare Change"],
+        ["candidate_pool_change", "Candidate Pool Change"],
+        ["theme_source_gap", "Theme-Source Evidence Gap"],
+      ], reviewCategory, (value) => {
+        reviewCategory = normalizeChoice(value, VALID_REVIEW_CATEGORIES, "");
+        updateQueryState({ reviewCategory });
+        renderSignalSections();
+      }));
+      controls.appendChild(renderReviewSelect("review-scope-select", "Review Scope", [
+        ["visible", "Current visible signals"],
+        ["all", "Current run and history"],
+      ], reviewScope, (value) => {
+        reviewScope = normalizeReviewScope(value);
+        updateQueryState({ reviewScope });
+        renderSignalSections();
+      }));
+      section.appendChild(controls);
+
+      const allItems = buildResearchReviewItems(visibleSignals, reviewScope);
+      const filteredItems = filterResearchReviewItems(allItems);
+      const metrics = document.createElement("div");
+      metrics.className = "metrics";
+      [
+        ["Review items", filteredItems.length],
+        ["High severity", reviewSummaryCount(filteredItems, (item) => item.severity === "high")],
+        ["Weak evidence", reviewSummaryCount(filteredItems, (item) => item.category === "stale_or_partial_data" || item.category === "high_risk_with_weak_data")],
+        ["Source gaps", reviewSummaryCount(filteredItems, (item) => item.category === "missing_source" || item.category === "missing_fetched_at")],
+        ["Matrix gaps", reviewSummaryCount(filteredItems, (item) => item.category === "theme_source_gap")],
+        ["Date compare notes", reviewSummaryCount(filteredItems, (item) => item.category === "date_compare_change" || item.category === "candidate_pool_change")],
+      ].forEach(([label, value]) => metrics.appendChild(metric(label, value)));
+      section.appendChild(text("h3", "Review Queue Summary"));
+      section.appendChild(metrics);
+
+      if (!filteredItems.length) {
+        section.appendChild(text("p", "No review items for the current view.", "muted"));
+        return appendBackToTop(section);
+      }
+
+      const shownItems = filteredItems.slice(0, 20);
+      section.appendChild(text("p", filteredItems.length > shownItems.length ? `Showing top ${shownItems.length} review items of ${filteredItems.length}.` : `Showing ${shownItems.length} review items.`, "muted"));
+      const table = document.createElement("table");
+      table.className = "history-table";
+      const thead = document.createElement("thead");
+      const header = document.createElement("tr");
+      ["Severity", "Category", "Theme", "Source", "Reason", "Suggested research action", "Context"].forEach((label) => header.appendChild(text("th", label)));
+      thead.appendChild(header);
+      table.appendChild(thead);
+      const tbody = document.createElement("tbody");
+      shownItems.forEach((item) => {
+        const row = document.createElement("tr");
+        const severityCell = document.createElement("td");
+        severityCell.appendChild(badge(reviewSeverityLabel(item.severity), reviewSeverityClass(item.severity)));
+        row.appendChild(severityCell);
+        row.appendChild(text("td", reviewCategoryLabel(item.category)));
+        const themeCell = document.createElement("td");
+        if (item.theme) themeCell.appendChild(createThemeButton(item.theme));
+        else themeCell.appendChild(text("span", "not available", "muted"));
+        row.appendChild(themeCell);
+        const sourceCell = document.createElement("td");
+        if (item.source) sourceCell.appendChild(createSourceButton(item.source));
+        else sourceCell.appendChild(text("span", "not available", "muted"));
+        row.appendChild(sourceCell);
+        row.appendChild(text("td", item.reason));
+        row.appendChild(text("td", item.action));
+        const contextCell = document.createElement("td");
+        contextCell.appendChild(text("div", item.context || "not available"));
+        if (item.theme && item.source) {
+          const matrixButton = document.createElement("button");
+          matrixButton.type = "button";
+          matrixButton.className = "inline-action";
+          matrixButton.textContent = "Open matrix context";
+          matrixButton.addEventListener("click", () => selectMatrixCell(item.theme, item.source));
+          contextCell.appendChild(matrixButton);
+        }
+        row.appendChild(contextCell);
+        tbody.appendChild(row);
+      });
+      table.appendChild(tbody);
+      const wrap = document.createElement("div");
+      wrap.className = "matrix-table-wrap";
+      wrap.appendChild(table);
+      section.appendChild(wrap);
+      return appendBackToTop(section);
+    }
+
     function renderMorningBrief(visibleSignals) {
       const section = document.createElement("article");
       section.id = "morning-brief";
@@ -1772,6 +2091,8 @@ def render_console_html() -> str:
       const dataCounts = countSignalsBy(currentSignals, (signal) => signal.data_status || "unknown");
       const weakSignals = currentSignals.filter((signal) => weakEvidenceReasons(signal).length > 0);
       const weakMatrixCells = Array.isArray(themeSourceMatrixData?.weak_cells) ? themeSourceMatrixData.weak_cells : [];
+      const reviewItems = buildResearchReviewItems(visibleSignals, reviewScope);
+      const highReviewItems = reviewItems.filter((item) => item.severity === "high");
       const groups = groupedSignals(currentSignals);
       const strongThemes = groups.slice(0, 3).map((group) => `${group.theme} (${topScore(group.signals)})`);
       const highRiskThemes = groups.filter((group) => normalized(maxRisk(group.signals)) === "high").slice(0, 3).map((group) => group.theme);
@@ -1799,6 +2120,7 @@ def render_console_html() -> str:
         ["Status overview", Object.entries(statusCounts).map(([key, count]) => `${key}: ${count}`).join(", ") || "unknown"],
         ["Data quality notes", qualityNotes.join(", ") || "No missing, partial, stale, or unknown data labels in current signals."],
         ["Needs verification", `${weakSignals.length} signals need data verification.`],
+        ["Research review queue", `${reviewItems.length} review items, including ${highReviewItems.length} high priority items.`],
         ["Matrix review", `${weakMatrixCells.length} theme-source pairs need evidence review.`],
         ["Requires confirmation", highRiskThemes.length ? `High risk themes: ${highRiskThemes.join(", ")}` : "No high risk themes in current signals."],
       ].forEach(([label, value]) => briefGrid.appendChild(metric(label, value)));
@@ -2632,6 +2954,7 @@ def render_console_html() -> str:
       signalCountEl.textContent = `${visibleSignals.length} of ${currentSignals.length} signals visible`;
       signalsAreaEl.appendChild(renderMorningBrief(visibleSignals));
       signalsAreaEl.appendChild(renderDailyResearchBrief(visibleSignals));
+      signalsAreaEl.appendChild(renderResearchReviewQueue(visibleSignals));
       signalsAreaEl.appendChild(renderDateCompare());
       signalsAreaEl.appendChild(renderSourceReliability());
       signalsAreaEl.appendChild(renderThemeSourceMatrix());
@@ -2759,5 +3082,3 @@ def render_console_html() -> str:
 </body>
 </html>
 """
-
-

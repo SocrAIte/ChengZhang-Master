@@ -88,6 +88,7 @@ class WebApiTest(unittest.TestCase):
         for anchor in (
             "#morning-brief",
             "#daily-research-brief",
+            "#research-review-queue",
             "#date-compare",
             "#console-controls",
             "#theme-hotlist",
@@ -119,6 +120,18 @@ class WebApiTest(unittest.TestCase):
         self.assertIn("Theme Hotlist", response.payload)
         self.assertIn("Morning Brief", response.payload)
         self.assertIn("Daily Research Brief", response.payload)
+        self.assertIn("Research Review Queue", response.payload)
+        self.assertIn("Review Queue Summary", response.payload)
+        self.assertIn("Review Severity", response.payload)
+        self.assertIn("Review Category", response.payload)
+        self.assertIn("Review Scope", response.payload)
+        self.assertIn("research-review-queue", response.payload)
+        self.assertIn("reviewSeverity", response.payload)
+        self.assertIn("reviewCategory", response.payload)
+        self.assertIn("reviewScope", response.payload)
+        self.assertIn("review-severity-filter", response.payload)
+        self.assertIn("review-category-filter", response.payload)
+        self.assertIn("review-scope-select", response.payload)
         self.assertIn("Date Compare", response.payload)
         self.assertIn("date-compare", response.payload)
         self.assertIn("compareFrom", response.payload)
@@ -191,6 +204,9 @@ class WebApiTest(unittest.TestCase):
         self.assertIn('params.get("theme")', response.payload)
         self.assertIn('params.get("source")', response.payload)
         self.assertIn('params.get("compare")', response.payload)
+        self.assertIn('params.get("reviewSeverity")', response.payload)
+        self.assertIn('params.get("reviewCategory")', response.payload)
+        self.assertIn('params.get("reviewScope")', response.payload)
         self.assertIn("selectedTheme", response.payload)
         self.assertIn("selectedSource", response.payload)
         self.assertIn("source-button", response.payload)
