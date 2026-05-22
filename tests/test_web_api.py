@@ -86,9 +86,11 @@ class WebApiTest(unittest.TestCase):
         self.assertIn("Read-only daily report viewer", response.payload)
         self.assertIn("Workspace Navigation", response.payload)
         for anchor in (
+            "#console-usage-guide",
             "#morning-brief",
             "#daily-research-brief",
             "#research-review-queue",
+            "#research-notes-composer",
             "#date-compare",
             "#console-controls",
             "#theme-hotlist",
@@ -119,8 +121,29 @@ class WebApiTest(unittest.TestCase):
         self.assertIn("Flat signal list", response.payload)
         self.assertIn("Theme Hotlist", response.payload)
         self.assertIn("Morning Brief", response.payload)
+        self.assertIn("Console Usage Guide", response.payload)
+        self.assertIn("Recommended workflow", response.payload)
+        self.assertIn("Read Morning Brief", response.payload)
+        self.assertIn("Check Research Review Queue", response.payload)
+        self.assertIn("Review Theme × Source Matrix", response.payload)
+        self.assertIn("Use Date Compare", response.payload)
+        self.assertIn("Generate Research Notes", response.payload)
         self.assertIn("Daily Research Brief", response.payload)
         self.assertIn("Research Review Queue", response.payload)
+        self.assertIn("Showing top 10 review items", response.payload)
+        self.assertIn("Research Notes Composer", response.payload)
+        self.assertIn("research-notes-composer", response.payload)
+        self.assertIn("Notes language", response.payload)
+        self.assertIn("Notes mode", response.payload)
+        self.assertIn("Full Notes", response.payload)
+        self.assertIn("Compact Notes", response.payload)
+        self.assertIn("Manual Research Notes", response.payload)
+        self.assertIn("manual-research-notes", response.payload)
+        self.assertIn("Manual notes are only kept in this browser view", response.payload)
+        self.assertIn("notesLang", response.payload)
+        self.assertIn("notesMode", response.payload)
+        self.assertIn("notes-language-select", response.payload)
+        self.assertIn("notes-mode-select", response.payload)
         self.assertIn("Review Queue Summary", response.payload)
         self.assertIn("Review Severity", response.payload)
         self.assertIn("Review Category", response.payload)
@@ -207,6 +230,8 @@ class WebApiTest(unittest.TestCase):
         self.assertIn('params.get("reviewSeverity")', response.payload)
         self.assertIn('params.get("reviewCategory")', response.payload)
         self.assertIn('params.get("reviewScope")', response.payload)
+        self.assertIn('params.get("notesLang")', response.payload)
+        self.assertIn('params.get("notesMode")', response.payload)
         self.assertIn("selectedTheme", response.payload)
         self.assertIn("selectedSource", response.payload)
         self.assertIn("source-button", response.payload)

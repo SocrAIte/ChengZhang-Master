@@ -64,6 +64,8 @@ It uses the existing API endpoints to:
 - enable or disable brief sections before copying
 - copy the Daily Research Brief as Markdown or plain text in the browser without saving it to the server
 - show a Research Review Queue that consolidates weak evidence, source gaps, freshness gaps, theme-source matrix gaps, and date-compare notes into a read-only review checklist
+- compose browser-local Research Notes from review items, evidence gaps, date-over-date changes, candidate pool notes, data quality notes, open questions, follow-up checks, and optional manual notes
+- show a Console Usage Guide with a recommended workflow: Morning Brief, Research Review Queue, Theme x Source Matrix, Date Compare, Research Notes, and detail panels
 - show a Theme Hotlist based on the currently visible signals
 - compare up to 3 themes side by side in Theme Compare
 - show Candidate Pool Comparison for repeated ETF and stock observation candidates across compared themes
@@ -92,7 +94,11 @@ The console readability layer uses lightweight static HTML and CSS only. Section
 
 Daily Research Brief Builder is a browser-local summary tool. It uses the already loaded run data, current filters, selected theme, compared themes, selected source, review queue items, history summaries, source reliability data, and theme-source matrix metadata to generate a copyable research note. It supports English / Chinese templates, Full / Compact modes, section toggles, Copy as Markdown, and Copy as Plain Text. The `briefLang` and `briefMode` query parameters can restore a shared brief view. The builder does not save content, call write APIs, trigger `run-daily`, fetch live market data, or produce trading instructions.
 
-Research Review Queue is a browser-local review checklist. It derives items from already loaded signals, source reliability metadata, weak evidence reasons, theme-source matrix weak cells, and date-compare summaries. It supports severity, category, and scope filters with `reviewSeverity`, `reviewCategory`, and `reviewScope` URL state. Review items are research follow-up prompts only; they do not create tasks on the server, modify data, or recommend market actions.
+Console Usage Guide is a lightweight navigation aid for the research workspace. It suggests a daily workflow: read Morning Brief, check Research Review Queue, review Theme x Source Matrix, use Date Compare, generate Research Notes, and then drill into Theme / Source / Signal Detail when needed. It is informational only and does not trigger `run-daily`, fetch live market data, save notes, or provide market instructions.
+
+Research Review Queue is a browser-local review checklist. It derives items from already loaded signals, source reliability metadata, weak evidence reasons, theme-source matrix weak cells, and date-compare summaries. It supports severity, category, and scope filters with `reviewSeverity`, `reviewCategory`, and `reviewScope` URL state. The default display shows the top 10 review items to keep first-pass review manageable. Review items are research follow-up prompts only; they do not create tasks on the server, modify data, or recommend market actions.
+
+Research Notes Composer is a browser-local working note area for review workflow. It can include context, watch themes, review items, evidence gaps, date-over-date changes, candidate pool notes, data quality notes, open questions, follow-up checks, and optional manual notes entered in the page. Manual notes are kept only in the current browser view and are included when copying research notes; they are not saved to the server. Notes can be copied as Markdown or plain text. They do not trigger `run-daily`, do not fetch live market data, and are not a market action plan.
 
 Historical Review is a research view over existing daily report files. It does not calculate entry points, exits, or pricing claims.
 
@@ -116,6 +122,8 @@ Supported query parameters:
 - `reviewSeverity`: `high`, `medium`, `low`, or `info` for Research Review Queue filtering.
 - `reviewCategory`: review queue category such as `weak_evidence`, `missing_source`, `missing_fetched_at`, `stale_or_partial_data`, `fallback_used`, `high_risk_with_weak_data`, `date_compare_change`, `candidate_pool_change`, or `theme_source_gap`.
 - `reviewScope`: `visible` for the current filtered signal set or `all` for the current run plus history-derived review items.
+- `notesLang`: `en` or `zh` for Research Notes Composer language.
+- `notesMode`: `full` or `compact` for Research Notes Composer length.
 
 Unknown query values fall back to safe defaults. Empty/default values are omitted from the URL when controls change.
 

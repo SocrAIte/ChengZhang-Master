@@ -77,6 +77,10 @@ def render_console_html() -> str:
     .brief-meta { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
     .brief-warning { border: 1px solid #fedf89; background: #fffaeb; border-radius: 6px; color: #93370d; padding: 8px; }
     .research-brief-textarea { box-sizing: border-box; font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace; min-height: 360px; resize: vertical; white-space: pre; }
+    .research-notes { margin-bottom: 14px; }
+    .research-notes-controls { align-items: end; display: grid; gap: 10px; grid-template-columns: minmax(180px, 260px) repeat(3, minmax(140px, 180px)); margin: 12px 0; }
+    .research-notes-textarea { box-sizing: border-box; font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace; min-height: 320px; resize: vertical; white-space: pre; }
+    .manual-notes { min-height: 110px; resize: vertical; }
     .review-queue { margin-bottom: 14px; }
     .review-controls { align-items: end; display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); margin: 12px 0; }
     .review-item-list { display: grid; gap: 10px; margin-top: 10px; }
@@ -117,9 +121,11 @@ def render_console_html() -> str:
       <h2>Workspace Navigation</h2>
       <div class="muted">Jump between read-only analysis sections without changing filters or running the pipeline.</div>
       <div class="nav-links">
+        <a href="#console-usage-guide">Console Usage Guide</a>
         <a href="#morning-brief">Morning Brief</a>
         <a href="#daily-research-brief">Daily Research Brief</a>
         <a href="#research-review-queue">Research Review Queue</a>
+        <a href="#research-notes-composer">Research Notes Composer</a>
         <a href="#date-compare">Date Compare</a>
         <a href="#console-controls">Controls</a>
         <a href="#theme-hotlist">Theme Hotlist</a>
@@ -247,6 +253,19 @@ def render_console_html() -> str:
     let reviewSeverity = "";
     let reviewCategory = "";
     let reviewScope = "visible";
+    let notesLang = "en";
+    let notesMode = "full";
+    let notesSections = {
+      context: true,
+      watchThemes: true,
+      reviewItems: true,
+      evidenceGaps: true,
+      dateCompare: true,
+      candidates: true,
+      dataQuality: true,
+      openQuestions: true,
+      followUp: true,
+    };
     let visibleSignalCount = 0;
     let apiHealthData = null;
     let apiVersionData = null;
@@ -264,6 +283,9 @@ def render_console_html() -> str:
     const VALID_REVIEW_SEVERITIES = new Set(["", "high", "medium", "low", "info"]);
     const VALID_REVIEW_CATEGORIES = new Set(["", "weak_evidence", "missing_source", "missing_fetched_at", "stale_or_partial_data", "fallback_used", "high_risk_with_weak_data", "date_compare_change", "candidate_pool_change", "theme_source_gap"]);
     const VALID_REVIEW_SCOPES = new Set(["visible", "all"]);
+    const VALID_NOTES_LANGS = new Set(["en", "zh"]);
+    const VALID_NOTES_MODES = new Set(["full", "compact"]);
+    const NOTES_SECTION_KEYS = ["context", "watchThemes", "reviewItems", "evidenceGaps", "dateCompare", "candidates", "dataQuality", "openQuestions", "followUp"];
     const BRIEF_SECTION_KEYS = ["overview", "watchThemes", "evidence", "candidates", "risk", "dataQuality", "dateCompare", "reviewQueue", "history", "finalNotes"];
     const MAX_COMPARE_THEMES = 3;
 
@@ -288,6 +310,16 @@ def render_console_html() -> str:
     function normalizeBriefMode(value) {
       const textValue = String(value == null ? "" : value).trim().toLowerCase();
       return VALID_BRIEF_MODES.has(textValue) ? textValue : "full";
+    }
+
+    function normalizeNotesLang(value) {
+      const textValue = String(value == null ? "" : value).trim().toLowerCase();
+      return VALID_NOTES_LANGS.has(textValue) ? textValue : "en";
+    }
+
+    function normalizeNotesMode(value) {
+      const textValue = String(value == null ? "" : value).trim().toLowerCase();
+      return VALID_NOTES_MODES.has(textValue) ? textValue : "full";
     }
 
     function normalizeReviewScope(value) {
@@ -315,6 +347,8 @@ def render_console_html() -> str:
         reviewSeverity: normalizeChoice(state.reviewSeverity, VALID_REVIEW_SEVERITIES, ""),
         reviewCategory: normalizeChoice(state.reviewCategory, VALID_REVIEW_CATEGORIES, ""),
         reviewScope: normalizeReviewScope(state.reviewScope),
+        notesLang: normalizeNotesLang(state.notesLang),
+        notesMode: normalizeNotesMode(state.notesMode),
       };
     }
 
@@ -351,6 +385,8 @@ def render_console_html() -> str:
         reviewSeverity: params.get("reviewSeverity"),
         reviewCategory: params.get("reviewCategory"),
         reviewScope: params.get("reviewScope"),
+        notesLang: params.get("notesLang"),
+        notesMode: params.get("notesMode"),
       });
     }
 
@@ -381,6 +417,8 @@ def render_console_html() -> str:
       reviewSeverity = normalizedState.reviewSeverity;
       reviewCategory = normalizedState.reviewCategory;
       reviewScope = normalizedState.reviewScope;
+      notesLang = normalizedState.notesLang;
+      notesMode = normalizedState.notesMode;
       if (normalizedState.date && selectHasValue(runSelectEl, normalizedState.date)) {
         runSelectEl.value = normalizedState.date;
       }
@@ -406,6 +444,8 @@ def render_console_html() -> str:
         reviewSeverity,
         reviewCategory,
         reviewScope,
+        notesLang,
+        notesMode,
       });
     }
 
@@ -430,6 +470,8 @@ def render_console_html() -> str:
       if (state.reviewSeverity) params.set("reviewSeverity", state.reviewSeverity);
       if (state.reviewCategory) params.set("reviewCategory", state.reviewCategory);
       if (state.reviewScope !== "visible") params.set("reviewScope", state.reviewScope);
+      if (state.notesLang !== "en") params.set("notesLang", state.notesLang);
+      if (state.notesMode !== "full") params.set("notesMode", state.notesMode);
       const query = params.toString();
       const nextUrl = `${window.location.pathname}${query ? `?${query}` : ""}${window.location.hash || ""}`;
       window.history.replaceState(null, "", nextUrl);
@@ -923,21 +965,23 @@ def render_console_html() -> str:
         const dataStatus = signal.data_status || "unknown";
         const context = reviewSignalContext(signal);
         const reasons = weakEvidenceReasons(signal);
+        const riskIsHigh = normalized(signal.risk_level) === "high";
+        const dataIsWeak = isWeakDataStatus(dataStatus);
         if (reasons.length) {
-          pushUniqueReviewItem(items, reviewItem("weak_evidence", normalized(signal.risk_level) === "high" ? "high" : "medium", `Needs verification: ${reasons.join(", ")}.`, { theme, source: sourceLabel, context, signalIndex: signal.__index }));
+          const severity = riskIsHigh && dataIsWeak ? "high" : "medium";
+          pushUniqueReviewItem(items, reviewItem("weak_evidence", severity, `Evidence needs verification: ${reasons.join(", ")}.`, { theme, source: sourceLabel, context, signalIndex: signal.__index }));
         }
         if (!sources.length) {
-          pushUniqueReviewItem(items, reviewItem("missing_source", "medium", "Source is missing for this signal.", { theme, source: "Unknown Source", context, signalIndex: signal.__index }));
+          pushUniqueReviewItem(items, reviewItem("missing_source", riskIsHigh ? "high" : "medium", "Source metadata is missing for this signal.", { theme, source: "Unknown Source", context, signalIndex: signal.__index }));
         }
         if (!fetched.length) {
-          pushUniqueReviewItem(items, reviewItem("missing_fetched_at", "medium", "fetched_at is missing, so freshness needs confirmation.", { theme, source: sourceLabel, context, signalIndex: signal.__index }));
+          pushUniqueReviewItem(items, reviewItem("missing_fetched_at", dataIsWeak ? "high" : "medium", "fetched_at metadata is missing, so freshness needs confirmation.", { theme, source: sourceLabel, context, signalIndex: signal.__index }));
         }
-        if (isWeakDataStatus(dataStatus)) {
-          const severity = ["missing", "missing_data", "failed"].includes(normalized(dataStatus)) ? "high" : "medium";
-          pushUniqueReviewItem(items, reviewItem("stale_or_partial_data", severity, `Data status is ${dataStatus}.`, { theme, source: sourceLabel, context, signalIndex: signal.__index }));
+        if (dataIsWeak) {
+          pushUniqueReviewItem(items, reviewItem("stale_or_partial_data", riskIsHigh && ["missing", "missing_data", "failed"].includes(normalized(dataStatus)) ? "high" : "medium", `Data status is ${dataStatus}.`, { theme, source: sourceLabel, context, signalIndex: signal.__index }));
         }
         if (hasFallback(signal)) {
-          pushUniqueReviewItem(items, reviewItem("fallback_used", "low", "Fallback source was used.", { theme, source: sourceLabel, context, signalIndex: signal.__index }));
+          pushUniqueReviewItem(items, reviewItem("fallback_used", "medium", "Fallback source was used.", { theme, source: sourceLabel, context, signalIndex: signal.__index }));
         }
         if (normalized(signal.risk_level) === "high" && isWeakDataStatus(dataStatus)) {
           pushUniqueReviewItem(items, reviewItem("high_risk_with_weak_data", "high", "High risk theme also has weak data quality.", { theme, source: sourceLabel, context, signalIndex: signal.__index }));
@@ -948,7 +992,7 @@ def render_console_html() -> str:
 
     function buildMatrixReviewItems() {
       const rows = Array.isArray(themeSourceMatrixData?.weak_cells) ? themeSourceMatrixData.weak_cells : [];
-      return rows.map((cell) => reviewItem("theme_source_gap", Number(cell.weak_signal_count || 0) > 1 ? "high" : "medium", cell.reason || "Theme-source pair needs evidence review.", {
+      return rows.map((cell) => reviewItem("theme_source_gap", "high", cell.reason || "Theme-source evidence gap needs review.", {
         theme: cell.theme || "Unknown Theme",
         source: cell.source || "Unknown Source",
         context: `weak signals ${cell.weak_signal_count || 0}`,
@@ -975,7 +1019,7 @@ def render_console_html() -> str:
       const newEtf = Number(summary.new_etf_candidates_count || 0);
       const newStock = Number(summary.new_stock_candidates_count || 0);
       if (newEtf + newStock > 0) {
-        pushUniqueReviewItem(items, reviewItem("candidate_pool_change", "low", `${newEtf} new ETF and ${newStock} new stock observation candidates appeared in the comparison.`, {
+        pushUniqueReviewItem(items, reviewItem("candidate_pool_change", "medium", `${newEtf} new ETF and ${newStock} new stock observation candidates appeared in the comparison.`, {
           context: `${dateCompareData.from_date || "unknown"} -> ${dateCompareData.to_date || "unknown"}`,
           action: "Review candidate pool changes as observation context, not as an action list.",
         }));
@@ -2029,12 +2073,12 @@ def render_console_html() -> str:
       section.appendChild(metrics);
 
       if (!filteredItems.length) {
-        section.appendChild(text("p", "No review items for the current view.", "muted"));
+        section.appendChild(text("p", "No review items for the current view. Evidence and source metadata look clean for the selected filters.", "muted"));
         return appendBackToTop(section);
       }
 
-      const shownItems = filteredItems.slice(0, 20);
-      section.appendChild(text("p", filteredItems.length > shownItems.length ? `Showing top ${shownItems.length} review items of ${filteredItems.length}.` : `Showing ${shownItems.length} review items.`, "muted"));
+      const shownItems = filteredItems.slice(0, 10);
+      section.appendChild(text("p", filteredItems.length > shownItems.length ? `Showing top 10 review items. ${filteredItems.length} total match the current filters.` : `Showing ${shownItems.length} review items.`, "muted"));
       const table = document.createElement("table");
       table.className = "history-table";
       const thead = document.createElement("thead");
@@ -2077,6 +2121,247 @@ def render_console_html() -> str:
       wrap.className = "matrix-table-wrap";
       wrap.appendChild(table);
       section.appendChild(wrap);
+      return appendBackToTop(section);
+    }
+
+    function notesSectionLabel(key, lang = notesLang) {
+      const labels = {
+        context: lang === "zh" ? "上下文" : "Context",
+        watchThemes: lang === "zh" ? "重点观察主题" : "Key Watch Themes",
+        reviewItems: lang === "zh" ? "研究复核事项" : "Review Items",
+        evidenceGaps: lang === "zh" ? "证据缺口" : "Evidence Gaps",
+        dateCompare: lang === "zh" ? "日期对比变化" : "Date-over-Date Changes",
+        candidates: lang === "zh" ? "候选池变化" : "Candidate Pool Notes",
+        dataQuality: lang === "zh" ? "数据质量提示" : "Data Quality Notes",
+        openQuestions: lang === "zh" ? "待确认问题" : "Open Research Questions",
+        followUp: lang === "zh" ? "后续复核动作" : "Follow-up Checks",
+      };
+      return labels[key] || key;
+    }
+
+    function notesSectionEnabled(key, mode = notesMode) {
+      if (!notesSections[key]) return false;
+      if (mode !== "compact") return true;
+      return ["context", "watchThemes", "reviewItems", "dataQuality", "followUp"].includes(key);
+    }
+
+    function notesLines(title, lines) {
+      const safeLines = Array.isArray(lines) && lines.length ? lines : ["- not available"];
+      return [`## ${title}`, ...safeLines, ""];
+    }
+
+    function reviewItemNoteLine(item) {
+      const subject = [item.theme, item.source].filter(Boolean).join(" / ") || "General review";
+      return `- [${reviewSeverityLabel(item.severity)}] ${subject}: ${item.reason} Next check: ${item.action}`;
+    }
+
+    function buildResearchNotes(mode, visibleSignals, manualNotes = "") {
+      const run = currentDashboardData?.run || {};
+      const isZh = notesLang === "zh";
+      const generatedAt = run.generated_at || currentDashboardData?.generated_at || "unknown";
+      const reviewItems = buildResearchReviewItems(visibleSignals, "visible");
+      const highItems = reviewItems.filter((item) => item.severity === "high").slice(0, 5);
+      const mediumItems = reviewItems.filter((item) => item.severity === "medium").slice(0, 5);
+      const missingSourceCount = currentSignals.filter((signal) => sourceValues(signal).length === 0).length;
+      const missingFetchedCount = currentSignals.filter((signal) => fetchedValues(signal).length === 0).length;
+      const fallbackCount = currentSignals.filter(hasFallback).length;
+      const weakMatrixCells = Array.isArray(themeSourceMatrixData?.weak_cells) ? themeSourceMatrixData.weak_cells : [];
+      const compare = dateCompareData || {};
+      const compareSummary = compare.summary || {};
+      const etfs = briefCandidateLabelsFromSignals(visibleSignals, "etf_candidates", 8);
+      const stocks = briefCandidateLabelsFromSignals(visibleSignals, "stock_candidates", 8);
+      const qualitySummary = Object.entries(countSignalsBy(currentSignals, (signal) => signal.data_status || "unknown")).map(([key, count]) => `${key}: ${count}`).join(", ") || "unknown";
+      const topThemes = briefTopThemes(visibleSignals, 5);
+      const evidenceGaps = reviewItems
+        .filter((item) => ["weak_evidence", "missing_source", "missing_fetched_at", "stale_or_partial_data", "fallback_used", "theme_source_gap"].includes(item.category))
+        .slice(0, 8)
+        .map(reviewItemNoteLine);
+      const dateLines = compare.available === false
+        ? [`- ${compare.notes?.join(" ") || "Date comparison is not available."}`]
+        : [
+          `- Compared runs: ${compare.from_date || "unknown"} -> ${compare.to_date || "unknown"}`,
+          `- Changed themes: ${compareSummary.changed_themes_count || 0}`,
+          `- Candidate pool changes: ${compareSummary.new_etf_candidates_count || 0} new ETF observation candidates, ${compareSummary.new_stock_candidates_count || 0} new stock observation candidates`,
+          `- Data quality changes: ${compareSummary.weaker_data_quality_count || 0} weaker, ${compareSummary.improved_data_quality_count || 0} improved`,
+        ];
+      const sections = [
+        ["context", isZh ? "一、当前观察上下文" : "Context", [
+          isZh ? `- 运行日期：${run.date || runSelectEl.value || "unknown"}` : `- Run date: ${run.date || runSelectEl.value || "unknown"}`,
+          isZh ? `- 生成时间：${generatedAt}` : `- Generated at: ${generatedAt}`,
+          isZh ? `- 当前筛选条件：${currentFilterSummary()}` : `- Current filters: ${currentFilterSummary()}`,
+          isZh ? `- 当前关注主题：${selectedTheme || "not selected"}` : `- Selected theme: ${selectedTheme || "not selected"}`,
+          isZh ? `- 当前关注数据源：${selectedSource || "not selected"}` : `- Selected source: ${selectedSource || "not selected"}`,
+          isZh ? `- 当前对比主题：${compareThemes.length ? compareThemes.join(", ") : "not selected"}` : `- Compared themes: ${compareThemes.length ? compareThemes.join(", ") : "not selected"}`,
+        ]],
+        ["watchThemes", isZh ? "二、重点观察主题" : "Key Watch Themes", topThemes],
+        ["reviewItems", isZh ? "三、需要复核的事项" : "Review Items", highItems.concat(mediumItems).map(reviewItemNoteLine)],
+        ["evidenceGaps", isZh ? "四、证据缺口与数据质量" : "Evidence Gaps", evidenceGaps],
+        ["dateCompare", isZh ? "五、日期对比变化" : "Date-over-Date Changes", dateLines],
+        ["candidates", isZh ? "六、候选池变化" : "Candidate Pool Notes", [
+          isZh ? `- ETF 观察池：${etfs.join(", ") || "not available"}` : `- ETF observation candidates: ${etfs.join(", ") || "not available"}`,
+          isZh ? `- 个股观察池：${stocks.join(", ") || "not available"}` : `- Stock observation candidates: ${stocks.join(", ") || "not available"}`,
+        ]],
+        ["dataQuality", isZh ? "七、数据质量提示" : "Data Quality Notes", [
+          isZh ? `- data_status 分布：${qualitySummary}` : `- Data status distribution: ${qualitySummary}`,
+          isZh ? `- 缺 source：${missingSourceCount}` : `- Missing source count: ${missingSourceCount}`,
+          isZh ? `- 缺 fetched_at：${missingFetchedCount}` : `- Missing fetched_at count: ${missingFetchedCount}`,
+          isZh ? `- fallback source：${fallbackCount}` : `- Fallback source count: ${fallbackCount}`,
+          isZh ? `- 需要复核的 theme-source 组合：${weakMatrixCells.length}` : `- Theme-source pairs needing review: ${weakMatrixCells.length}`,
+        ]],
+        ["openQuestions", isZh ? "八、待确认问题" : "Open Research Questions", [
+          isZh ? "- 哪些观察主题需要等待盘中状态进一步确认？" : "- Which watch themes still require intraday confirmation?",
+          isZh ? "- 哪些 source / fetched_at 缺口会影响证据新鲜度判断？" : "- Which source or fetched_at gaps affect evidence freshness?",
+          isZh ? "- 哪些候选池变化需要补充人工复核？" : "- Which candidate pool changes need human review?",
+        ]],
+        ["followUp", isZh ? "九、后续复核动作" : "Follow-up Checks", [
+          isZh ? "- 复核 high / medium 研究复核事项。" : "- Review high and medium research review items.",
+          isZh ? "- 检查 Source Reliability 与 Theme × Source Matrix 中的证据缺口。" : "- Check evidence gaps in Source Reliability and Theme x Source Matrix.",
+          isZh ? "- 将已确认内容再整理进 Daily Research Brief。" : "- Move confirmed observations into the Daily Research Brief.",
+        ]],
+      ];
+      const lines = [
+        isZh ? "# 跨市场热点研究复核笔记" : "# Research Notes",
+        isZh ? "> 本笔记仅用于跨市场热点观察、证据复核与研究记录，不构成买卖建议。" : "> Research and observation only. This is not market action advice.",
+        "",
+      ];
+      for (const [key, title, sectionLines] of sections) {
+        if (notesSectionEnabled(key, mode)) lines.push(...notesLines(title, sectionLines));
+      }
+      const trimmedManual = String(manualNotes || "").trim();
+      if (trimmedManual) {
+        lines.push(isZh ? "## 人工补充笔记" : "## Manual Research Notes", trimmedManual, "");
+      }
+      if (mode === "compact") {
+        lines.push(isZh ? "_Compact 模式：仅保留核心复核内容。_" : "_Compact mode: core review content only._");
+      }
+      return lines.join("\\n").trim();
+    }
+
+    function copyNotesText(textarea, statusNode, kind) {
+      const message = notesLang === "zh"
+        ? { markdown: "Markdown 已复制。", plain: "纯文本已复制。", failed: "复制失败，可手动选择文本。" }
+        : { markdown: "Markdown copied.", plain: "Plain text copied.", failed: "Copy failed. You can manually select the text." };
+      const done = () => { statusNode.textContent = kind === "plain" ? message.plain : message.markdown; };
+      const failed = () => {
+        textarea.focus();
+        textarea.select();
+        statusNode.textContent = message.failed;
+      };
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(textarea.value || "").then(done).catch(failed);
+      } else {
+        failed();
+      }
+    }
+
+    function renderResearchNotesComposer(visibleSignals) {
+      const section = document.createElement("article");
+      section.id = "research-notes-composer";
+      section.className = "research-notes section-card";
+      section.appendChild(text("h2", "Research Notes Composer"));
+      section.appendChild(description("Working notes for research review, open questions, evidence gaps, date changes, and follow-up checks. Generated locally and not saved to the server."));
+      const controls = document.createElement("div");
+      controls.className = "research-notes-controls";
+      controls.appendChild(renderReviewSelect("notes-language-select", "Notes language", [["en", "English"], ["zh", "中文"]], notesLang, (value) => {
+        notesLang = normalizeNotesLang(value);
+        updateQueryState({ notesLang });
+        renderSignalSections();
+      }));
+      controls.appendChild(renderReviewSelect("notes-mode-select", "Notes mode", [["full", "Full Notes"], ["compact", "Compact Notes"]], notesMode, (value) => {
+        notesMode = normalizeNotesMode(value);
+        updateQueryState({ notesMode });
+        renderSignalSections();
+      }));
+      const copyMarkdown = document.createElement("button");
+      copyMarkdown.type = "button";
+      copyMarkdown.className = "inline-action";
+      copyMarkdown.textContent = "Copy as Markdown";
+      const copyPlain = document.createElement("button");
+      copyPlain.type = "button";
+      copyPlain.className = "inline-action";
+      copyPlain.textContent = "Copy as Plain Text";
+      const regenerate = document.createElement("button");
+      regenerate.type = "button";
+      regenerate.className = "inline-action";
+      regenerate.textContent = "Regenerate Notes";
+      controls.appendChild(copyMarkdown);
+      controls.appendChild(copyPlain);
+      controls.appendChild(regenerate);
+      section.appendChild(controls);
+      section.appendChild(text("p", "Daily Research Brief is a polished summary; Research Notes Composer is a working review checklist with open questions and follow-up checks.", "muted"));
+      const toggleWrap = document.createElement("div");
+      toggleWrap.className = "brief-toggle-grid";
+      NOTES_SECTION_KEYS.forEach((key) => {
+        const item = document.createElement("label");
+        const input = document.createElement("input");
+        input.type = "checkbox";
+        input.checked = notesSections[key] !== false;
+        input.addEventListener("change", () => {
+          notesSections[key] = input.checked;
+          renderSignalSections();
+        });
+        item.appendChild(input);
+        item.appendChild(text("span", notesSectionLabel(key)));
+        toggleWrap.appendChild(item);
+      });
+      section.appendChild(text("h3", "Include sections"));
+      section.appendChild(toggleWrap);
+      const manualLabel = document.createElement("label");
+      manualLabel.setAttribute("for", "manual-research-notes");
+      manualLabel.textContent = "Manual Research Notes";
+      const manualHelp = text("p", notesLang === "zh"
+        ? "人工补充笔记仅保留在当前浏览器页面中，并会在复制研究笔记时一起带出；系统不会保存到服务器。"
+        : "Manual notes are only kept in this browser view and are included when copying research notes. They are not saved to the server.",
+        "muted");
+      const manual = document.createElement("textarea");
+      manual.id = "manual-research-notes";
+      manual.className = "manual-notes";
+      manual.setAttribute("aria-label", "Manual Research Notes");
+      manual.placeholder = "Add local observations here. They are not saved to the server.";
+      section.appendChild(manualLabel);
+      section.appendChild(manualHelp);
+      section.appendChild(manual);
+      const status = text("p", notesLang === "zh" ? "研究 / 观察用途。本笔记在浏览器本地生成，不保存到服务器。" : "Research / observation only. Notes are generated locally and not saved to the server.", "muted");
+      section.appendChild(status);
+      const textarea = document.createElement("textarea");
+      textarea.className = "research-notes-textarea";
+      textarea.readOnly = true;
+      textarea.setAttribute("aria-label", "Generated research notes");
+      const updateNotes = () => {
+        textarea.value = currentSignals.length ? buildResearchNotes(notesMode, visibleSignals, manual.value) : "Not enough data to build research notes.";
+      };
+      manual.addEventListener("input", updateNotes);
+      regenerate.addEventListener("click", updateNotes);
+      copyMarkdown.addEventListener("click", () => copyNotesText(textarea, status, "markdown"));
+      copyPlain.addEventListener("click", () => copyNotesText(textarea, status, "plain"));
+      updateNotes();
+      section.appendChild(textarea);
+      return appendBackToTop(section);
+    }
+
+    function renderConsoleUsageGuide() {
+      const section = document.createElement("article");
+      section.id = "console-usage-guide";
+      section.className = "section-card";
+      section.appendChild(text("h2", "Console Usage Guide"));
+      section.appendChild(description("Recommended workflow for using this read-only research workspace without changing filters or running the pipeline."));
+      const steps = [
+        ["Step 1", "Read Morning Brief", "Start with today's overseas-to-A-share watch themes, risk notes, and data quality context."],
+        ["Step 2", "Check Research Review Queue", "Review evidence gaps, source metadata gaps, freshness gaps, and candidate pool changes that may need human confirmation."],
+        ["Step 3", "Review Theme × Source Matrix", "Check which sources support each theme and where theme-source evidence may need verification."],
+        ["Step 4", "Use Date Compare", "Compare the current run with a prior run to see new, removed, or changed watch themes and observation candidates."],
+        ["Step 5", "Generate Research Notes", "Turn review items, evidence gaps, date changes, and manual observations into copyable working notes."],
+        ["Step 6", "Drill into Details", "Open Theme, Source, or Signal Detail when a specific observation needs more context."],
+      ];
+      const list = document.createElement("ol");
+      steps.forEach(([prefix, title, body]) => {
+        const item = document.createElement("li");
+        item.appendChild(text("strong", `${prefix}: ${title}`));
+        item.appendChild(text("div", body, "muted"));
+        list.appendChild(item);
+      });
+      section.appendChild(list);
+      section.appendChild(text("p", "This console is for research observation and evidence review. It does not provide market instructions, order placement, pricing claims, or return forecasts.", "muted"));
       return appendBackToTop(section);
     }
 
@@ -2952,9 +3237,11 @@ def render_console_html() -> str:
       }
       const selectedSignal = visibleSignals.find((signal) => signal.__index === selectedSignalIndex) || null;
       signalCountEl.textContent = `${visibleSignals.length} of ${currentSignals.length} signals visible`;
+      signalsAreaEl.appendChild(renderConsoleUsageGuide());
       signalsAreaEl.appendChild(renderMorningBrief(visibleSignals));
       signalsAreaEl.appendChild(renderDailyResearchBrief(visibleSignals));
       signalsAreaEl.appendChild(renderResearchReviewQueue(visibleSignals));
+      signalsAreaEl.appendChild(renderResearchNotesComposer(visibleSignals));
       signalsAreaEl.appendChild(renderDateCompare());
       signalsAreaEl.appendChild(renderSourceReliability());
       signalsAreaEl.appendChild(renderThemeSourceMatrix());

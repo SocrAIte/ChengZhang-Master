@@ -60,6 +60,8 @@ class _FakePage:
             "#review-severity-filter": params.get("reviewSeverity", [""])[0],
             "#review-category-filter": params.get("reviewCategory", [""])[0],
             "#review-scope-select": params.get("reviewScope", ["visible"])[0],
+            "#notes-language-select": params.get("notesLang", ["en"])[0],
+            "#notes-mode-select": params.get("notesMode", ["full"])[0],
             "#compare-from-select": params.get("compareFrom", [""])[0],
             "#compare-to-select": params.get("compareTo", [""])[0],
         }
@@ -124,6 +126,9 @@ def _console_factory(body_text: str, selector_counts: dict[str, int] | None = No
         "#review-severity-filter": 1,
         "#review-category-filter": 1,
         "#review-scope-select": 1,
+        "#notes-language-select": 1,
+        "#notes-mode-select": 1,
+        "#manual-research-notes": 1,
         "#compare-from-select": 1,
         "#compare-to-select": 1,
     }
@@ -255,6 +260,7 @@ class BrowserSmokeTest(unittest.TestCase):
 
     def test_console_browser_smoke_happy_path_with_fake_browser(self) -> None:
         body = "Market Impact Radar Console Workspace Navigation Back to top Daily Runs Dashboard Data 2026-05-15 Run Date Refresh Runs Signal Search Risk Filter Status Filter Sort Signals Grouped by theme Flat signal list Morning Brief Daily Research Brief Brief Language 中文 Copy as Markdown Copy as Plain Text Brief Mode Section toggles Research Review Queue Review Queue Summary Review Severity Review Category Review Scope Date Compare From date To date Date Compare Summary Source Reliability Source Detail Panel Source Breakdown Weak Evidence Signals Historical Data Quality Trend Theme × Source Matrix Matrix Summary Cell Detail Weak Evidence Cells Theme Hotlist Theme Compare Candidate Pool Comparison Theme Detail Signal Detail Panel Evidence Chain Data Quality / Freshness ETF observation pool Stock observation pool Artifact Links Historical Review API: API version: Dashboard Knowledge Review Run Diagnostics"
+        body += " Console Usage Guide Recommended workflow Research Notes Composer Notes language Notes mode Manual Research Notes Manual notes are only kept in this browser view"
         with tempfile.TemporaryDirectory() as tmpdir:
             root = Path(tmpdir)
             _write_console_run(root)
@@ -262,7 +268,7 @@ class BrowserSmokeTest(unittest.TestCase):
             result = run_console_browser_smoke(root, playwright_factory=_console_factory(body))
 
         self.assertEqual(result.status, "passed")
-        self.assertEqual(result.pages_checked, 21)
+        self.assertEqual(result.pages_checked, 24)
         self.assertIn("artifacts_visible", result.checks)
         self.assertIn("url_query_state_visible", result.checks)
 
@@ -276,11 +282,12 @@ class BrowserSmokeTest(unittest.TestCase):
             root = Path(tmpdir)
             _write_console_run(root)
 
-            with self.assertRaisesRegex(BrowserSmokeError, "Theme Hotlist"):
+            with self.assertRaisesRegex(BrowserSmokeError, "Console Usage Guide"):
                 run_console_browser_smoke(root, playwright_factory=_console_factory("Market Impact Radar Console Workspace Navigation Back to top Daily Research Brief Brief Language 中文 Copy as Markdown Copy as Plain Text Brief Mode Section toggles Research Review Queue Review Queue Summary Review Severity Review Category Review Scope Date Compare From date To date Date Compare Summary Daily Runs Dashboard Data 2026-05-15 Run Date Refresh Runs Signal Search Risk Filter Status Filter Sort Signals Grouped by theme Flat signal list Theme Detail Signal Detail Panel Evidence Chain Data Quality / Freshness ETF observation pool Stock observation pool Artifact Links API: API version:"))
 
     def test_console_browser_smoke_missing_control_fails(self) -> None:
         body = "Market Impact Radar Console Workspace Navigation Back to top Daily Runs Dashboard Data 2026-05-15 Run Date Refresh Runs Signal Search Risk Filter Status Filter Sort Signals Grouped by theme Flat signal list Morning Brief Daily Research Brief Brief Language 中文 Copy as Markdown Copy as Plain Text Brief Mode Section toggles Research Review Queue Review Queue Summary Review Severity Review Category Review Scope Date Compare From date To date Date Compare Summary Source Reliability Source Detail Panel Source Breakdown Weak Evidence Signals Historical Data Quality Trend Theme × Source Matrix Matrix Summary Cell Detail Weak Evidence Cells Theme Hotlist Theme Compare Candidate Pool Comparison Theme Detail Signal Detail Panel Evidence Chain Data Quality / Freshness ETF observation pool Stock observation pool Artifact Links Historical Review API: API version: Dashboard Knowledge Review Run Diagnostics"
+        body += " Console Usage Guide Recommended workflow Research Notes Composer Notes language Notes mode Manual Research Notes Manual notes are only kept in this browser view"
         with tempfile.TemporaryDirectory() as tmpdir:
             root = Path(tmpdir)
             _write_console_run(root)
