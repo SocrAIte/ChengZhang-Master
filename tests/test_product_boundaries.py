@@ -220,6 +220,8 @@ class ApiDocsBoundariesTest(unittest.TestCase):
         self.assertIn("not trading", text)
         self.assertIn("does not", text)
         self.assertIn("no trading", text)
+        self.assertIn("research export package", text)
+        self.assertIn("research records rather than market action reports", text)
 
 
 class ConsoleBoundariesTest(unittest.TestCase):
@@ -234,6 +236,7 @@ class ConsoleBoundariesTest(unittest.TestCase):
         self.assertIn("console usage guide", html)
         self.assertIn("research review queue", html)
         self.assertIn("research notes composer", html)
+        self.assertIn("research export package", html)
 
     def test_console_html_no_positive_trading_expression(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:

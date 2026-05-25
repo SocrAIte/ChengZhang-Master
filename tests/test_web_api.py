@@ -91,6 +91,7 @@ class WebApiTest(unittest.TestCase):
             "#daily-research-brief",
             "#research-review-queue",
             "#research-notes-composer",
+            "#research-export-package",
             "#date-compare",
             "#console-controls",
             "#theme-hotlist",
@@ -144,6 +145,18 @@ class WebApiTest(unittest.TestCase):
         self.assertIn("notesMode", response.payload)
         self.assertIn("notes-language-select", response.payload)
         self.assertIn("notes-mode-select", response.payload)
+        self.assertIn("Research Export Package", response.payload)
+        self.assertIn("research-export-package", response.payload)
+        self.assertIn("Export sections", response.payload)
+        self.assertIn("Export Preview", response.payload)
+        self.assertIn("Download Markdown", response.payload)
+        self.assertIn("Download Plain Text", response.payload)
+        self.assertIn("Download JSON Metadata", response.payload)
+        self.assertIn("exportLang", response.payload)
+        self.assertIn("exportFormat", response.payload)
+        self.assertIn("export-language-select", response.payload)
+        self.assertIn("export-format-select", response.payload)
+        self.assertIn("export-preview", response.payload)
         self.assertIn("Review Queue Summary", response.payload)
         self.assertIn("Review Severity", response.payload)
         self.assertIn("Review Category", response.payload)

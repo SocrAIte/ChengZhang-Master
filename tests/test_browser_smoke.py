@@ -62,6 +62,8 @@ class _FakePage:
             "#review-scope-select": params.get("reviewScope", ["visible"])[0],
             "#notes-language-select": params.get("notesLang", ["en"])[0],
             "#notes-mode-select": params.get("notesMode", ["full"])[0],
+            "#export-language-select": params.get("exportLang", [""])[0],
+            "#export-format-select": params.get("exportFormat", ["md"])[0],
             "#compare-from-select": params.get("compareFrom", [""])[0],
             "#compare-to-select": params.get("compareTo", [""])[0],
         }
@@ -129,6 +131,9 @@ def _console_factory(body_text: str, selector_counts: dict[str, int] | None = No
         "#notes-language-select": 1,
         "#notes-mode-select": 1,
         "#manual-research-notes": 1,
+        "#export-language-select": 1,
+        "#export-format-select": 1,
+        "#export-preview": 1,
         "#compare-from-select": 1,
         "#compare-to-select": 1,
     }
@@ -261,6 +266,7 @@ class BrowserSmokeTest(unittest.TestCase):
     def test_console_browser_smoke_happy_path_with_fake_browser(self) -> None:
         body = "Market Impact Radar Console Workspace Navigation Back to top Daily Runs Dashboard Data 2026-05-15 Run Date Refresh Runs Signal Search Risk Filter Status Filter Sort Signals Grouped by theme Flat signal list Morning Brief Daily Research Brief Brief Language 中文 Copy as Markdown Copy as Plain Text Brief Mode Section toggles Research Review Queue Review Queue Summary Review Severity Review Category Review Scope Date Compare From date To date Date Compare Summary Source Reliability Source Detail Panel Source Breakdown Weak Evidence Signals Historical Data Quality Trend Theme × Source Matrix Matrix Summary Cell Detail Weak Evidence Cells Theme Hotlist Theme Compare Candidate Pool Comparison Theme Detail Signal Detail Panel Evidence Chain Data Quality / Freshness ETF observation pool Stock observation pool Artifact Links Historical Review API: API version: Dashboard Knowledge Review Run Diagnostics"
         body += " Console Usage Guide Recommended workflow Research Notes Composer Notes language Notes mode Manual Research Notes Manual notes are only kept in this browser view"
+        body += " Research Export Package Export sections Export Preview Download Markdown Download Plain Text Download JSON Metadata"
         with tempfile.TemporaryDirectory() as tmpdir:
             root = Path(tmpdir)
             _write_console_run(root)
@@ -268,7 +274,7 @@ class BrowserSmokeTest(unittest.TestCase):
             result = run_console_browser_smoke(root, playwright_factory=_console_factory(body))
 
         self.assertEqual(result.status, "passed")
-        self.assertEqual(result.pages_checked, 24)
+        self.assertEqual(result.pages_checked, 26)
         self.assertIn("artifacts_visible", result.checks)
         self.assertIn("url_query_state_visible", result.checks)
 
@@ -288,6 +294,7 @@ class BrowserSmokeTest(unittest.TestCase):
     def test_console_browser_smoke_missing_control_fails(self) -> None:
         body = "Market Impact Radar Console Workspace Navigation Back to top Daily Runs Dashboard Data 2026-05-15 Run Date Refresh Runs Signal Search Risk Filter Status Filter Sort Signals Grouped by theme Flat signal list Morning Brief Daily Research Brief Brief Language 中文 Copy as Markdown Copy as Plain Text Brief Mode Section toggles Research Review Queue Review Queue Summary Review Severity Review Category Review Scope Date Compare From date To date Date Compare Summary Source Reliability Source Detail Panel Source Breakdown Weak Evidence Signals Historical Data Quality Trend Theme × Source Matrix Matrix Summary Cell Detail Weak Evidence Cells Theme Hotlist Theme Compare Candidate Pool Comparison Theme Detail Signal Detail Panel Evidence Chain Data Quality / Freshness ETF observation pool Stock observation pool Artifact Links Historical Review API: API version: Dashboard Knowledge Review Run Diagnostics"
         body += " Console Usage Guide Recommended workflow Research Notes Composer Notes language Notes mode Manual Research Notes Manual notes are only kept in this browser view"
+        body += " Research Export Package Export sections Export Preview Download Markdown Download Plain Text Download JSON Metadata"
         with tempfile.TemporaryDirectory() as tmpdir:
             root = Path(tmpdir)
             _write_console_run(root)

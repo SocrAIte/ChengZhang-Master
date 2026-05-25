@@ -65,6 +65,7 @@ It uses the existing API endpoints to:
 - copy the Daily Research Brief as Markdown or plain text in the browser without saving it to the server
 - show a Research Review Queue that consolidates weak evidence, source gaps, freshness gaps, theme-source matrix gaps, and date-compare notes into a read-only review checklist
 - compose browser-local Research Notes from review items, evidence gaps, date-over-date changes, candidate pool notes, data quality notes, open questions, follow-up checks, and optional manual notes
+- export selected browser-local research content with Research Export Package as Markdown, plain text, or compact JSON metadata
 - show a Console Usage Guide with a recommended workflow: Morning Brief, Research Review Queue, Theme x Source Matrix, Date Compare, Research Notes, and detail panels
 - show a Theme Hotlist based on the currently visible signals
 - compare up to 3 themes side by side in Theme Compare
@@ -100,6 +101,8 @@ Research Review Queue is a browser-local review checklist. It derives items from
 
 Research Notes Composer is a browser-local working note area for review workflow. It can include context, watch themes, review items, evidence gaps, date-over-date changes, candidate pool notes, data quality notes, open questions, follow-up checks, and optional manual notes entered in the page. Manual notes are kept only in the current browser view and are included when copying research notes; they are not saved to the server. Notes can be copied as Markdown or plain text. They do not trigger `run-daily`, do not fetch live market data, and are not a market action plan.
 
+Research Export Package is a browser-local export area. It downloads selected research content from the current console view as Markdown, plain text, or compact JSON metadata. Export sections can include Daily Research Brief, Research Notes, Review Queue, Date Compare, Source Reliability, Theme x Source Matrix Summary, Candidate Pool Summary, manual notes, and current URL / query state. JSON metadata is intentionally compact and does not include full raw `dashboard_data.json` payloads or local filesystem paths. Export files are generated in the browser, are not saved to the server, do not trigger `run-daily`, do not fetch live market data, and are research records rather than market action reports.
+
 Historical Review is a research view over existing daily report files. It does not calculate entry points, exits, or pricing claims.
 
 Supported query parameters:
@@ -124,6 +127,8 @@ Supported query parameters:
 - `reviewScope`: `visible` for the current filtered signal set or `all` for the current run plus history-derived review items.
 - `notesLang`: `en` or `zh` for Research Notes Composer language.
 - `notesMode`: `full` or `compact` for Research Notes Composer length.
+- `exportLang`: `en` or `zh` for Research Export Package language; omitted means auto based on notes / brief language.
+- `exportFormat`: `md`, `txt`, or `json` for Research Export Package preview format.
 
 Unknown query values fall back to safe defaults. Empty/default values are omitted from the URL when controls change.
 

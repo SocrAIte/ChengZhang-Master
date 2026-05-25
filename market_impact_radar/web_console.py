@@ -79,8 +79,11 @@ def render_console_html() -> str:
     .research-brief-textarea { box-sizing: border-box; font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace; min-height: 360px; resize: vertical; white-space: pre; }
     .research-notes { margin-bottom: 14px; }
     .research-notes-controls { align-items: end; display: grid; gap: 10px; grid-template-columns: minmax(180px, 260px) repeat(3, minmax(140px, 180px)); margin: 12px 0; }
-    .research-notes-textarea { box-sizing: border-box; font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace; min-height: 320px; resize: vertical; white-space: pre; }
-    .manual-notes { min-height: 110px; resize: vertical; }
+    .research-notes-textarea { box-sizing: border-box; font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace; min-height: 320px; resize: vertical; white-space: pre; width: 100%; }
+    .manual-notes { min-height: 110px; resize: vertical; width: 100%; }
+    .research-export { margin-bottom: 14px; }
+    .export-controls { align-items: end; display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); margin: 12px 0; }
+    .export-preview { box-sizing: border-box; font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace; min-height: 280px; resize: vertical; white-space: pre; width: 100%; }
     .review-queue { margin-bottom: 14px; }
     .review-controls { align-items: end; display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); margin: 12px 0; }
     .review-item-list { display: grid; gap: 10px; margin-top: 10px; }
@@ -126,6 +129,7 @@ def render_console_html() -> str:
         <a href="#daily-research-brief">Daily Research Brief</a>
         <a href="#research-review-queue">Research Review Queue</a>
         <a href="#research-notes-composer">Research Notes Composer</a>
+        <a href="#research-export-package">Research Export Package</a>
         <a href="#date-compare">Date Compare</a>
         <a href="#console-controls">Controls</a>
         <a href="#theme-hotlist">Theme Hotlist</a>
@@ -255,6 +259,9 @@ def render_console_html() -> str:
     let reviewScope = "visible";
     let notesLang = "en";
     let notesMode = "full";
+    let exportLang = "";
+    let exportFormat = "md";
+    let manualResearchNotes = "";
     let notesSections = {
       context: true,
       watchThemes: true,
@@ -265,6 +272,17 @@ def render_console_html() -> str:
       dataQuality: true,
       openQuestions: true,
       followUp: true,
+    };
+    let exportSections = {
+      dailyBrief: true,
+      researchNotes: true,
+      reviewQueue: true,
+      dateCompare: true,
+      sourceReliability: true,
+      matrixSummary: true,
+      candidatePool: true,
+      manualNotes: true,
+      queryState: true,
     };
     let visibleSignalCount = 0;
     let apiHealthData = null;
@@ -285,7 +303,10 @@ def render_console_html() -> str:
     const VALID_REVIEW_SCOPES = new Set(["visible", "all"]);
     const VALID_NOTES_LANGS = new Set(["en", "zh"]);
     const VALID_NOTES_MODES = new Set(["full", "compact"]);
+    const VALID_EXPORT_LANGS = new Set(["", "en", "zh"]);
+    const VALID_EXPORT_FORMATS = new Set(["md", "txt", "json"]);
     const NOTES_SECTION_KEYS = ["context", "watchThemes", "reviewItems", "evidenceGaps", "dateCompare", "candidates", "dataQuality", "openQuestions", "followUp"];
+    const EXPORT_SECTION_KEYS = ["dailyBrief", "researchNotes", "reviewQueue", "dateCompare", "sourceReliability", "matrixSummary", "candidatePool", "manualNotes", "queryState"];
     const BRIEF_SECTION_KEYS = ["overview", "watchThemes", "evidence", "candidates", "risk", "dataQuality", "dateCompare", "reviewQueue", "history", "finalNotes"];
     const MAX_COMPARE_THEMES = 3;
 
@@ -322,6 +343,16 @@ def render_console_html() -> str:
       return VALID_NOTES_MODES.has(textValue) ? textValue : "full";
     }
 
+    function normalizeExportLang(value) {
+      const textValue = String(value == null ? "" : value).trim().toLowerCase();
+      return VALID_EXPORT_LANGS.has(textValue) ? textValue : "";
+    }
+
+    function normalizeExportFormat(value) {
+      const textValue = String(value == null ? "" : value).trim().toLowerCase();
+      return VALID_EXPORT_FORMATS.has(textValue) ? textValue : "md";
+    }
+
     function normalizeReviewScope(value) {
       const textValue = String(value == null ? "" : value).trim().toLowerCase() || "visible";
       return VALID_REVIEW_SCOPES.has(textValue) ? textValue : "visible";
@@ -349,6 +380,8 @@ def render_console_html() -> str:
         reviewScope: normalizeReviewScope(state.reviewScope),
         notesLang: normalizeNotesLang(state.notesLang),
         notesMode: normalizeNotesMode(state.notesMode),
+        exportLang: normalizeExportLang(state.exportLang),
+        exportFormat: normalizeExportFormat(state.exportFormat),
       };
     }
 
@@ -387,6 +420,8 @@ def render_console_html() -> str:
         reviewScope: params.get("reviewScope"),
         notesLang: params.get("notesLang"),
         notesMode: params.get("notesMode"),
+        exportLang: params.get("exportLang"),
+        exportFormat: params.get("exportFormat"),
       });
     }
 
@@ -419,6 +454,8 @@ def render_console_html() -> str:
       reviewScope = normalizedState.reviewScope;
       notesLang = normalizedState.notesLang;
       notesMode = normalizedState.notesMode;
+      exportLang = normalizedState.exportLang;
+      exportFormat = normalizedState.exportFormat;
       if (normalizedState.date && selectHasValue(runSelectEl, normalizedState.date)) {
         runSelectEl.value = normalizedState.date;
       }
@@ -446,6 +483,8 @@ def render_console_html() -> str:
         reviewScope,
         notesLang,
         notesMode,
+        exportLang,
+        exportFormat,
       });
     }
 
@@ -472,6 +511,8 @@ def render_console_html() -> str:
       if (state.reviewScope !== "visible") params.set("reviewScope", state.reviewScope);
       if (state.notesLang !== "en") params.set("notesLang", state.notesLang);
       if (state.notesMode !== "full") params.set("notesMode", state.notesMode);
+      if (state.exportLang) params.set("exportLang", state.exportLang);
+      if (state.exportFormat !== "md") params.set("exportFormat", state.exportFormat);
       const query = params.toString();
       const nextUrl = `${window.location.pathname}${query ? `?${query}` : ""}${window.location.hash || ""}`;
       window.history.replaceState(null, "", nextUrl);
@@ -2139,6 +2180,25 @@ def render_console_html() -> str:
       return labels[key] || key;
     }
 
+    function exportSectionLabel(key) {
+      const labels = {
+        dailyBrief: "Daily Research Brief",
+        researchNotes: "Research Notes",
+        reviewQueue: "Research Review Queue",
+        dateCompare: "Date Compare",
+        sourceReliability: "Source Reliability",
+        matrixSummary: "Theme × Source Matrix Summary",
+        candidatePool: "Candidate Pool Summary",
+        manualNotes: "Manual Research Notes",
+        queryState: "Current URL / Query State",
+      };
+      return labels[key] || key;
+    }
+
+    function effectiveExportLang() {
+      return exportLang || (notesLang === "zh" || briefLang === "zh" ? "zh" : "en");
+    }
+
     function notesSectionEnabled(key, mode = notesMode) {
       if (!notesSections[key]) return false;
       if (mode !== "compact") return true;
@@ -2328,14 +2388,240 @@ def render_console_html() -> str:
       textarea.readOnly = true;
       textarea.setAttribute("aria-label", "Generated research notes");
       const updateNotes = () => {
+        manualResearchNotes = manual.value;
         textarea.value = currentSignals.length ? buildResearchNotes(notesMode, visibleSignals, manual.value) : "Not enough data to build research notes.";
       };
+      manual.value = manualResearchNotes;
       manual.addEventListener("input", updateNotes);
       regenerate.addEventListener("click", updateNotes);
       copyMarkdown.addEventListener("click", () => copyNotesText(textarea, status, "markdown"));
       copyPlain.addEventListener("click", () => copyNotesText(textarea, status, "plain"));
       updateNotes();
       section.appendChild(textarea);
+      return appendBackToTop(section);
+    }
+
+    function exportFileStem() {
+      const run = currentDashboardData?.run || {};
+      const date = String(run.date || runSelectEl.value || "").trim();
+      return date ? `market-impact-research-${date}` : "market-impact-research-notes";
+    }
+
+    function viewUrlForExport() {
+      return `${window.location.pathname}${window.location.search}${window.location.hash}`;
+    }
+
+    function sourceReliabilityExportLines() {
+      const dataCounts = countSignalsBy(currentSignals, (signal) => signal.data_status || "unknown");
+      const sourceRows = sourceBreakdown(currentSignals);
+      const missingSourceCount = currentSignals.filter((signal) => sourceValues(signal).length === 0).length;
+      const missingFetchedCount = currentSignals.filter((signal) => fetchedValues(signal).length === 0).length;
+      const fallbackCount = currentSignals.filter(hasFallback).length;
+      return [
+        `- Data status distribution: ${Object.entries(dataCounts).map(([key, count]) => `${key}: ${count}`).join(", ") || "unknown"}`,
+        `- Sources covered: ${sourceRows.length}`,
+        `- Missing source count: ${missingSourceCount}`,
+        `- Missing fetched_at count: ${missingFetchedCount}`,
+        `- Fallback source count: ${fallbackCount}`,
+      ];
+    }
+
+    function matrixSummaryExportLines() {
+      const themes = Array.isArray(themeSourceMatrixData?.themes) ? themeSourceMatrixData.themes : [];
+      const sources = Array.isArray(themeSourceMatrixData?.sources) ? themeSourceMatrixData.sources : [];
+      const matrix = Array.isArray(themeSourceMatrixData?.matrix) ? themeSourceMatrixData.matrix : [];
+      const weakCells = Array.isArray(themeSourceMatrixData?.weak_cells) ? themeSourceMatrixData.weak_cells : [];
+      return [
+        `- Themes: ${themes.length}`,
+        `- Sources: ${sources.length}`,
+        `- Matrix cells: ${matrix.length}`,
+        `- Theme-source pairs needing review: ${weakCells.length}`,
+      ];
+    }
+
+    function dateCompareExportLines() {
+      const compare = dateCompareData || {};
+      if (compare.available === false) return [`- ${compare.notes?.join(" ") || "Date comparison is not available."}`];
+      const summary = compare.summary || {};
+      return [
+        `- Compared runs: ${compare.from_date || "unknown"} -> ${compare.to_date || "unknown"}`,
+        `- New watch themes: ${summary.new_themes_count || 0}`,
+        `- Removed from current watch list: ${summary.removed_themes_count || 0}`,
+        `- Changed themes: ${summary.changed_themes_count || 0}`,
+        `- New ETF observation candidates: ${summary.new_etf_candidates_count || 0}`,
+        `- New stock observation candidates: ${summary.new_stock_candidates_count || 0}`,
+        `- Evidence quality changes: ${summary.weaker_data_quality_count || 0} weaker, ${summary.improved_data_quality_count || 0} improved`,
+      ];
+    }
+
+    function candidatePoolExportLines(visibleSignals) {
+      const etfs = briefCandidateLabelsFromSignals(visibleSignals, "etf_candidates", 10);
+      const stocks = briefCandidateLabelsFromSignals(visibleSignals, "stock_candidates", 10);
+      return [
+        `- ETF observation candidates: ${etfs.join(", ") || "not available"}`,
+        `- Stock observation candidates: ${stocks.join(", ") || "not available"}`,
+      ];
+    }
+
+    function buildExportMarkdown(visibleSignals) {
+      const isZh = effectiveExportLang() === "zh";
+      const run = currentDashboardData?.run || {};
+      const reviewItems = buildResearchReviewItems(visibleSignals, reviewScope);
+      const lines = [
+        isZh ? "# 控制台研究包" : "# Console Research Export Package",
+        isZh
+          ? "> 本导出内容仅用于研究观察与复盘记录，不构成买卖建议、下单指令或收益预测。"
+          : "> This export is for research and observation only. It is not trading advice, not an order instruction, and not a forecast of returns.",
+        "",
+        isZh ? "## 导出上下文" : "## Export Context",
+        `- Run date: ${run.date || runSelectEl.value || "unknown"}`,
+        `- Generated locally at: ${new Date().toISOString()}`,
+        `- Current filters: ${currentFilterSummary()}`,
+        `- Selected theme: ${selectedTheme || "not selected"}`,
+        `- Selected source: ${selectedSource || "not selected"}`,
+        `- Compared themes: ${compareThemes.length ? compareThemes.join(", ") : "not selected"}`,
+        "",
+      ];
+      if (exportSections.dailyBrief) lines.push(buildDailyResearchBrief(briefMode, visibleSignals), "");
+      if (exportSections.researchNotes) lines.push(buildResearchNotes(notesMode, visibleSignals, exportSections.manualNotes ? manualResearchNotes : ""), "");
+      if (exportSections.reviewQueue) {
+        lines.push(isZh ? "## 研究复核清单" : "## Research Review Queue");
+        const reviewLines = reviewItems.slice(0, 10).map(reviewItemNoteLine);
+        lines.push(...(reviewLines.length ? reviewLines : ["- No review items for the current view."]), "");
+      }
+      if (exportSections.dateCompare) lines.push(...notesLines(isZh ? "日期对比" : "Date Compare", dateCompareExportLines()));
+      if (exportSections.sourceReliability) lines.push(...notesLines(isZh ? "数据来源与新鲜度" : "Source Reliability", sourceReliabilityExportLines()));
+      if (exportSections.matrixSummary) lines.push(...notesLines(isZh ? "主题-来源矩阵摘要" : "Theme x Source Matrix Summary", matrixSummaryExportLines()));
+      if (exportSections.candidatePool) lines.push(...notesLines(isZh ? "观察候选池摘要" : "Candidate Pool Summary", candidatePoolExportLines(visibleSignals)));
+      if (exportSections.manualNotes && !exportSections.researchNotes && manualResearchNotes.trim()) {
+        lines.push(isZh ? "## 人工补充笔记" : "## Manual Research Notes", manualResearchNotes.trim(), "");
+      }
+      if (exportSections.queryState) {
+        lines.push(isZh ? "## 当前视图状态" : "## Current URL / Query State");
+        lines.push(`- URL: ${viewUrlForExport()}`);
+        lines.push(`- Query state: ${JSON.stringify(currentConsoleState())}`);
+        lines.push("");
+      }
+      return lines.join("\\n").trim() || "No export content available for the current view.";
+    }
+
+    function buildExportPlainText(visibleSignals) {
+      return buildExportMarkdown(visibleSignals)
+        .split("\\n")
+        .map((line) => line.replace(/^#{1,6}\\s*/, "").replace(/^>\\s*/, ""))
+        .join("\\n");
+    }
+
+    function buildExportMetadata(visibleSignals) {
+      const run = currentDashboardData?.run || {};
+      return {
+        schema_version: "1.0",
+        generated_locally_at: new Date().toISOString(),
+        run_date: run.date || runSelectEl.value || null,
+        query_state: currentConsoleState(),
+        selected_theme: selectedTheme || null,
+        selected_source: selectedSource || null,
+        compare_themes: compareThemes,
+        compare_from: compareFromDate || null,
+        compare_to: compareToDate || null,
+        visible_signals_count: visibleSignals.length,
+        review_items_count: buildResearchReviewItems(visibleSignals, reviewScope).length,
+        export_sections: EXPORT_SECTION_KEYS.filter((key) => exportSections[key] !== false),
+        notes: {
+          research_brief_included: exportSections.dailyBrief !== false,
+          research_notes_included: exportSections.researchNotes !== false,
+          manual_notes_included: exportSections.manualNotes !== false && Boolean(manualResearchNotes.trim()),
+        },
+      };
+    }
+
+    function exportPreviewText(visibleSignals) {
+      if (exportFormat === "json") return JSON.stringify(buildExportMetadata(visibleSignals), null, 2);
+      if (exportFormat === "txt") return buildExportPlainText(visibleSignals);
+      return buildExportMarkdown(visibleSignals);
+    }
+
+    function downloadTextFile(fileName, content, type, statusNode) {
+      const blob = new Blob([content || ""], { type });
+      const href = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = href;
+      anchor.download = fileName;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      window.setTimeout(() => URL.revokeObjectURL(href), 0);
+      statusNode.textContent = `Prepared local download: ${fileName}`;
+    }
+
+    function renderResearchExportPackage(visibleSignals) {
+      const section = document.createElement("article");
+      section.id = "research-export-package";
+      section.className = "research-export section-card";
+      section.appendChild(text("h2", "Research Export Package"));
+      section.appendChild(description("Research Notes Composer builds the notes. Export Package downloads selected research content locally without saving anything to the server."));
+      section.appendChild(text("p", effectiveExportLang() === "zh"
+        ? "本导出内容仅用于研究观察与复盘记录，不构成买卖建议、下单指令或收益预测。"
+        : "This export is for research and observation only. It is not trading advice, not an order instruction, and not a forecast of returns.",
+        "muted"));
+      const controls = document.createElement("div");
+      controls.className = "export-controls";
+      controls.appendChild(renderReviewSelect("export-language-select", "Export language", [["", "Auto"], ["en", "English"], ["zh", "中文"]], exportLang, (value) => {
+        exportLang = normalizeExportLang(value);
+        updateQueryState({ exportLang });
+        renderSignalSections();
+      }));
+      controls.appendChild(renderReviewSelect("export-format-select", "Preview format", [["md", "Markdown"], ["txt", "Plain Text"], ["json", "JSON Metadata"]], exportFormat, (value) => {
+        exportFormat = normalizeExportFormat(value);
+        updateQueryState({ exportFormat });
+        renderSignalSections();
+      }));
+      const mdButton = document.createElement("button");
+      mdButton.type = "button";
+      mdButton.className = "inline-action";
+      mdButton.textContent = "Download Markdown";
+      const txtButton = document.createElement("button");
+      txtButton.type = "button";
+      txtButton.className = "inline-action";
+      txtButton.textContent = "Download Plain Text";
+      const jsonButton = document.createElement("button");
+      jsonButton.type = "button";
+      jsonButton.className = "inline-action";
+      jsonButton.textContent = "Download JSON Metadata";
+      controls.appendChild(mdButton);
+      controls.appendChild(txtButton);
+      controls.appendChild(jsonButton);
+      section.appendChild(controls);
+      section.appendChild(text("h3", "Export sections"));
+      const toggleWrap = document.createElement("div");
+      toggleWrap.className = "brief-toggle-grid";
+      EXPORT_SECTION_KEYS.forEach((key) => {
+        const item = document.createElement("label");
+        const input = document.createElement("input");
+        input.type = "checkbox";
+        input.checked = exportSections[key] !== false;
+        input.addEventListener("change", () => {
+          exportSections[key] = input.checked;
+          renderSignalSections();
+        });
+        item.appendChild(input);
+        item.appendChild(text("span", exportSectionLabel(key)));
+        toggleWrap.appendChild(item);
+      });
+      section.appendChild(toggleWrap);
+      section.appendChild(text("h3", "Export Preview"));
+      const preview = document.createElement("textarea");
+      preview.id = "export-preview";
+      preview.className = "export-preview";
+      preview.readOnly = true;
+      preview.setAttribute("aria-label", "Export Preview");
+      preview.value = currentSignals.length ? exportPreviewText(visibleSignals) : "No export content available for the current view.";
+      section.appendChild(preview);
+      const status = text("p", "Downloads are generated locally in this browser view and are not saved to the server.", "muted");
+      section.appendChild(status);
+      mdButton.addEventListener("click", () => downloadTextFile(`${exportFileStem()}.md`, buildExportMarkdown(visibleSignals), "text/markdown;charset=utf-8", status));
+      txtButton.addEventListener("click", () => downloadTextFile(`${exportFileStem()}.txt`, buildExportPlainText(visibleSignals), "text/plain;charset=utf-8", status));
+      jsonButton.addEventListener("click", () => downloadTextFile(`${exportFileStem()}.json`, JSON.stringify(buildExportMetadata(visibleSignals), null, 2), "application/json;charset=utf-8", status));
       return appendBackToTop(section);
     }
 
@@ -3242,6 +3528,7 @@ def render_console_html() -> str:
       signalsAreaEl.appendChild(renderDailyResearchBrief(visibleSignals));
       signalsAreaEl.appendChild(renderResearchReviewQueue(visibleSignals));
       signalsAreaEl.appendChild(renderResearchNotesComposer(visibleSignals));
+      signalsAreaEl.appendChild(renderResearchExportPackage(visibleSignals));
       signalsAreaEl.appendChild(renderDateCompare());
       signalsAreaEl.appendChild(renderSourceReliability());
       signalsAreaEl.appendChild(renderThemeSourceMatrix());
