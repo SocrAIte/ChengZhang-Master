@@ -47,6 +47,8 @@ class _ForbiddenTerm:
         "profit target",
         "trading signal",
         "entry point",
+        "必涨",
+        "保证收益",
     ]
 
     NEGATIVE_PHRASES = [
@@ -126,6 +128,11 @@ class ForbiddenTermMultiOccurrenceTest(unittest.TestCase):
         text = "The platform offers a buy list for investors."
         violations = _ForbiddenTerm.has_positive_feature(text)
         self.assertIn("buy list", violations)
+
+    def test_chinese_trading_promise_detected(self) -> None:
+        text = "这个页面承诺主题必涨。"
+        violations = _ForbiddenTerm.has_positive_feature(text)
+        self.assertIn("必涨", violations)
 
 
 class ReadmeProductBoundariesTest(unittest.TestCase):
