@@ -231,12 +231,12 @@ class ConsoleBoundariesTest(unittest.TestCase):
             response = DailyReportApi(tmpdir).handle_get("/console")
 
         html = response.payload.lower()
-        self.assertIn("research", html)
-        self.assertIn("observation", html)
-        self.assertIn("console usage guide", html)
-        self.assertIn("research review queue", html)
-        self.assertIn("research notes composer", html)
-        self.assertIn("research export package", html)
+        self.assertIn("只读", html)
+        self.assertIn("研究", html)
+        self.assertIn("使用引导", html)
+        self.assertIn("研究复核清单", html)
+        self.assertIn("研究笔记工作区", html)
+        self.assertIn("研究包导出", html)
 
     def test_console_html_no_positive_trading_expression(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -253,7 +253,7 @@ class ConsoleBoundariesTest(unittest.TestCase):
             response = DailyReportApi(tmpdir).handle_get("/console")
 
         html = response.payload.lower()
-        self.assertIn("research and observation only", html)
+        self.assertIn("不构成买卖建议", html)
 
 
 class WebApiNoPostTest(unittest.TestCase):

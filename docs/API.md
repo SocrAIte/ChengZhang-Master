@@ -40,6 +40,8 @@ The console is a static HTML page served by the same process.
 
 It uses the existing API endpoints to:
 
+The `/console` page now uses Chinese as the default user interface for module titles, controls, empty states, status badges, research notes, and export labels. A top-level language toggle can switch the workbench shell between Chinese and English, and `uiLang=en|zh` can restore that shared view. English remains available for Daily Research Brief, Research Notes, and Research Export content through `briefLang`, `notesLang`, and `exportLang` query parameters. The Chinese interface is still a read-only research console: it does not trigger `run-daily`, does not fetch live market data, does not save notes or exports to the server, and does not provide trading actions, pricing claims, or return forecasts.
+
 - list available daily runs from `GET /api/runs`
 - load dashboard data from `GET /api/runs/{date}/dashboard-data`
 - discover run output availability from `GET /api/runs/{date}/artifacts`
@@ -118,6 +120,7 @@ Supported query parameters:
 - `matrixTheme`: selected theme for Theme x Source Matrix Cell Detail.
 - `matrixSource`: selected source for Theme x Source Matrix Cell Detail.
 - `compare`: comma-separated themes for Theme Compare, capped at 3 themes.
+- `uiLang`: `en` or `zh` for the main console workbench shell language; omitted defaults to Chinese.
 - `compareFrom`: baseline run date for Date Compare.
 - `compareTo`: current run date for Date Compare.
 - `briefLang`: `en` or `zh` for the Daily Research Brief language.

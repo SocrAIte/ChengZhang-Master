@@ -13,6 +13,19 @@ from market_impact_radar.browser_smoke import (
 )
 
 
+CONSOLE_BODY_ZH = (
+    "跨市场热点研究控制台 English 工作台导航 返回顶部 Daily 运行记录 Dashboard 数据 2026-05-15 "
+    "运行日期 刷新运行记录 搜索信号 风险筛选 状态筛选 信号排序 按主题分组 平铺信号列表 "
+    "今日观察摘要 每日研究摘要 摘要语言 中文 复制 Markdown 复制纯文本 摘要模式 包含小节 "
+    "研究复核清单 复核清单摘要 严重程度 复核类型 范围 日期对比 对比起始日期 对比目标日期 日期对比摘要 "
+    "数据来源可靠性 来源详情 来源汇总 弱证据信号 历史数据质量趋势 主题 × 来源矩阵 矩阵摘要 单元格详情 "
+    "需要复核的主题-来源组合 主题热榜 主题对比 候选池对比 主题详情 信号详情 证据链 数据质量 "
+    "ETF 观察池 个股观察池 产物链接 历史复盘 API: API 版本: Dashboard 页面 知识图谱复核 运行诊断 "
+    "使用引导 先看今日摘要 研究笔记工作区 笔记语言 笔记模式 人工补充笔记 "
+    "人工补充笔记仅保留在当前浏览器页面中 研究包导出 导出内容 导出预览 下载 Markdown 下载纯文本 下载 JSON 元信息"
+)
+
+
 class _FakeMessage:
     type = "log"
     text = ""
@@ -67,6 +80,8 @@ class _FakePage:
             "#compare-from-select": params.get("compareFrom", [""])[0],
             "#compare-to-select": params.get("compareTo", [""])[0],
         }
+        if params.get("uiLang", ["zh"])[0] == "en":
+            self._selector_values["#ui-language-toggle"] = "中文"
 
     def locator(self, selector: str) -> _FakeLocator:
         if selector == "body":
@@ -116,6 +131,7 @@ def _factory(body_text: str):
 def _console_factory(body_text: str, selector_counts: dict[str, int] | None = None):
     counts = {
         "#run-select": 1,
+        "#ui-language-toggle": 1,
         "#refresh-runs": 1,
         "#signal-search": 1,
         "#risk-filter": 1,
@@ -267,6 +283,7 @@ class BrowserSmokeTest(unittest.TestCase):
         body = "Market Impact Radar Console Workspace Navigation Back to top Daily Runs Dashboard Data 2026-05-15 Run Date Refresh Runs Signal Search Risk Filter Status Filter Sort Signals Grouped by theme Flat signal list Morning Brief Daily Research Brief Brief Language 中文 Copy as Markdown Copy as Plain Text Brief Mode Section toggles Research Review Queue Review Queue Summary Review Severity Review Category Review Scope Date Compare From date To date Date Compare Summary Source Reliability Source Detail Panel Source Breakdown Weak Evidence Signals Historical Data Quality Trend Theme × Source Matrix Matrix Summary Cell Detail Weak Evidence Cells Theme Hotlist Theme Compare Candidate Pool Comparison Theme Detail Signal Detail Panel Evidence Chain Data Quality / Freshness ETF observation pool Stock observation pool Artifact Links Historical Review API: API version: Dashboard Knowledge Review Run Diagnostics"
         body += " Console Usage Guide Recommended workflow Research Notes Composer Notes language Notes mode Manual Research Notes Manual notes are only kept in this browser view"
         body += " Research Export Package Export sections Export Preview Download Markdown Download Plain Text Download JSON Metadata"
+        body = CONSOLE_BODY_ZH
         with tempfile.TemporaryDirectory() as tmpdir:
             root = Path(tmpdir)
             _write_console_run(root)
@@ -274,7 +291,7 @@ class BrowserSmokeTest(unittest.TestCase):
             result = run_console_browser_smoke(root, playwright_factory=_console_factory(body))
 
         self.assertEqual(result.status, "passed")
-        self.assertEqual(result.pages_checked, 26)
+        self.assertEqual(result.pages_checked, 27)
         self.assertIn("artifacts_visible", result.checks)
         self.assertIn("url_query_state_visible", result.checks)
 
@@ -288,13 +305,14 @@ class BrowserSmokeTest(unittest.TestCase):
             root = Path(tmpdir)
             _write_console_run(root)
 
-            with self.assertRaisesRegex(BrowserSmokeError, "Console Usage Guide"):
+            with self.assertRaisesRegex(BrowserSmokeError, "跨市场热点研究控制台"):
                 run_console_browser_smoke(root, playwright_factory=_console_factory("Market Impact Radar Console Workspace Navigation Back to top Daily Research Brief Brief Language 中文 Copy as Markdown Copy as Plain Text Brief Mode Section toggles Research Review Queue Review Queue Summary Review Severity Review Category Review Scope Date Compare From date To date Date Compare Summary Daily Runs Dashboard Data 2026-05-15 Run Date Refresh Runs Signal Search Risk Filter Status Filter Sort Signals Grouped by theme Flat signal list Theme Detail Signal Detail Panel Evidence Chain Data Quality / Freshness ETF observation pool Stock observation pool Artifact Links API: API version:"))
 
     def test_console_browser_smoke_missing_control_fails(self) -> None:
         body = "Market Impact Radar Console Workspace Navigation Back to top Daily Runs Dashboard Data 2026-05-15 Run Date Refresh Runs Signal Search Risk Filter Status Filter Sort Signals Grouped by theme Flat signal list Morning Brief Daily Research Brief Brief Language 中文 Copy as Markdown Copy as Plain Text Brief Mode Section toggles Research Review Queue Review Queue Summary Review Severity Review Category Review Scope Date Compare From date To date Date Compare Summary Source Reliability Source Detail Panel Source Breakdown Weak Evidence Signals Historical Data Quality Trend Theme × Source Matrix Matrix Summary Cell Detail Weak Evidence Cells Theme Hotlist Theme Compare Candidate Pool Comparison Theme Detail Signal Detail Panel Evidence Chain Data Quality / Freshness ETF observation pool Stock observation pool Artifact Links Historical Review API: API version: Dashboard Knowledge Review Run Diagnostics"
         body += " Console Usage Guide Recommended workflow Research Notes Composer Notes language Notes mode Manual Research Notes Manual notes are only kept in this browser view"
         body += " Research Export Package Export sections Export Preview Download Markdown Download Plain Text Download JSON Metadata"
+        body = CONSOLE_BODY_ZH
         with tempfile.TemporaryDirectory() as tmpdir:
             root = Path(tmpdir)
             _write_console_run(root)
